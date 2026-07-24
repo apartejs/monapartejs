@@ -1,1 +1,82 @@
-/* You can add global styles to this file, and also import other style files */
+/* bonaparte — thème global.
+ * Les couleurs viennent des variables --aparte-* de @aparte/core (chargé via
+ * angular.json), dont les défauts light/dark SONT l'identité aparté (brass/plum).
+ * Ici : typo de l'identité, chrome applicatif, et règles transverses.
+ */
+
+:root {
+  /* Typo identité — stacks système uniquement (aucune fonte réseau). */
+  --bp-serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  --bp-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --bp-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+
+  /* Chrome applicatif (hors composants aparte). */
+  --bp-sidebar-width: 268px;
+  --bp-topbar-height: 54px;
+  --bp-content-max-width: 760px;
+
+  --aparte-font-family: var(--bp-sans);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--bp-sans);
+  background: var(--aparte-bg);
+  color: var(--aparte-text);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease;
+}
+
+h1,
+h2,
+h3,
+.bp-serif {
+  font-family: var(--bp-serif);
+  letter-spacing: -0.01em;
+}
+
+/* Pendant le décodage GPU, on gèle les animations décoratives pour ne pas
+ * concurrencer WebGPU (leçon aimi). La classe est posée sur <body> par l'app. */
+body.bp-generating .bp-decorative,
+body.bp-generating .bp-decorative * {
+  animation-play-state: paused !important;
+}
+
+/* Scrollbars fines, discrètes, thémées. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--aparte-border) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--aparte-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

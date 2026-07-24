@@ -1,11 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Bonaparte</title>
+  <title>aparté</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="aparté — assistant personnel 100 % local : tout tourne dans votre navigateur, rien ne quitte votre appareil.">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // Thème + langue AVANT la première peinture (anti-FOUC, anti popup "traduire ?").
+    (function () {
+      try {
+        var theme = localStorage.getItem('bp.theme');
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-aparte-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+        var locale = localStorage.getItem('bp.locale');
+        if (!locale) locale = (navigator.language || 'fr').slice(0, 2) === 'fr' ? 'fr' : 'en';
+        document.documentElement.lang = locale;
+      } catch (e) { /* stockage indisponible : défauts du CSS */ }
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>
