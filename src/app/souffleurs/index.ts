@@ -35,3 +35,5 @@ export {
   souffleurAskQuestionHandler,
   souffleurAskQuestionTool,
 } from './tools/ask-question.adapter';
+export { extType, fileRegistry, type RegisteredFile } from './files/file-registry';
+export { readFileHandler, readFileTool } from './tools/read-file.tool';

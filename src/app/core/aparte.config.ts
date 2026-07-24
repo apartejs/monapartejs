@@ -22,6 +22,9 @@ import { registerMascotteRenderers } from '../mascotte';
 import {
   CALLER_MODEL_ID,
   SouffleursProvider,
+  fileRegistry,
+  readFileHandler,
+  readFileTool,
   souffleurAskQuestionHandler,
   souffleurAskQuestionTool,
 } from '../souffleurs';
@@ -50,8 +53,12 @@ export function provideBonaparte(): EnvironmentProviders[] {
         // Borne de la boucle agentique du contrat souffleurs (MAX_AGENTIC_ITERATIONS).
         maxTurns: 6,
         // Les fichiers joints passent par le bloc « Files available » du prompt
-        // système (J3), jamais inlinés en base64 dans les messages.
+        // système, jamais inlinés en base64 dans les messages.
         rawFileInject: 'none',
+        requestInterceptor: (request) => ({
+          ...request,
+          _meta: { ...request._meta, souffleurFiles: fileRegistry.listForWire() },
+        }),
       },
     }),
     provideAppInitializer(async () => {
@@ -66,6 +73,22 @@ export function provideBonaparte(): EnvironmentProviders[] {
       // Par-dessus le handler du plugin : shim contrat souffleurs
       // (multi_select→multiple, options string[]→{title}[]).
       AparteConfig.registerTool(souffleurAskQuestionTool, souffleurAskQuestionHandler);
+      AparteConfig.registerTool(readFileTool, readFileHandler);
+
+      // Capture des pièces jointes AU MOMENT de l'envoi : le détail
+      // d'aparte-send ne les porte pas, mais le composer source les expose.
+      window.addEventListener(
+        'aparte-send',
+        (event) => {
+          const composer = (event.target as HTMLElement | null)?.closest?.(
+            'aparte-composer',
+          ) as (HTMLElement & { attachments?: File[] }) | null;
+          for (const file of composer?.attachments ?? []) {
+            fileRegistry.register(file);
+          }
+        },
+        true,
+      );
 
       registerMascotteRenderers();
       inject(LinkGuardService).install();

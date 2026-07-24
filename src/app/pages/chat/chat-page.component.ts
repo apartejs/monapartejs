@@ -70,23 +70,29 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       <bp-conversation-minimap />
 
       @if (stats(); as s) {
-        <div class="stats-pop" role="status" (click)="stats.set(null)">
+        <div
+          class="stats-pop"
+          role="status"
+          [style.left.px]="s.x"
+          [style.top.px]="s.y"
+          (click)="stats.set(null)"
+        >
           <p class="stats-title">
             <span class="bp-serif glyph">('.')</span> {{ t().stats.title }}
           </p>
           <dl>
             <div><dt>{{ t().stats.device }}</dt><dd>{{ deviceLabel() }}</dd></div>
-            @if (s.outputTokens) {
-              <div><dt>{{ t().stats.tokens }}</dt><dd>{{ s.inputTokens }} → {{ s.outputTokens }}</dd></div>
+            @if (s.usage.outputTokens) {
+              <div><dt>{{ t().stats.tokens }}</dt><dd>{{ s.usage.inputTokens }} → {{ s.usage.outputTokens }}</dd></div>
             }
-            @if (s.ttftMs !== undefined) {
-              <div><dt>{{ t().stats.ttft }}</dt><dd>{{ s.ttftMs }} ms</dd></div>
+            @if (s.usage.ttftMs !== undefined) {
+              <div><dt>{{ t().stats.ttft }}</dt><dd>{{ s.usage.ttftMs }} ms</dd></div>
             }
-            @if (speed(s); as v) {
+            @if (speed(s.usage); as v) {
               <div><dt>{{ t().stats.speed }}</dt><dd>{{ v }} tok/s</dd></div>
             }
-            @if (s.durationMs !== undefined) {
-              <div><dt>{{ t().stats.duration }}</dt><dd>{{ (s.durationMs / 1000).toFixed(1) }} s</dd></div>
+            @if (s.usage.durationMs !== undefined) {
+              <div><dt>{{ t().stats.duration }}</dt><dd>{{ (s.usage.durationMs / 1000).toFixed(1) }} s</dd></div>
             }
           </dl>
         </div>
@@ -158,9 +164,9 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
     }
 
     .stats-pop {
-      position: absolute;
-      right: 16px;
-      bottom: 90px;
+      /* Ancré au bouton « i » de la bulle (coordonnées de l'événement). */
+      position: fixed;
+      transform: translateY(-100%);
       z-index: 20;
       background: var(--aparte-surface-1);
       border: 1px solid var(--aparte-border);
@@ -197,7 +203,7 @@ export class ChatPageComponent {
   private readonly manager = inject(ConversationManagerService);
 
   protected readonly t = this.i18n.t;
-  protected readonly stats = signal<AparteUsage | null>(null);
+  protected readonly stats = signal<{ usage: AparteUsage; x: number; y: number } | null>(null);
 
   protected readonly conversationId = toSignal(
     this.route.paramMap.pipe(map((params) => params.get('id'))),
@@ -255,11 +261,20 @@ export class ChatPageComponent {
     if (isTyping) this.stats.set(null);
   }
 
-  /** Bouton « i » des bulles assistant (aparte-message-info, bubbling). */
+  /** Bouton « i » des bulles assistant (aparte-message-info, bubbling) — popover ancré au bouton. */
   @HostListener('window:aparte-message-info', ['$event'])
   protected onMessageInfo(event: Event): void {
     const detail = (event as CustomEvent<AparteMessageInfoEventDetail>).detail;
-    this.stats.set(detail?.usage ?? null);
+    if (!detail?.usage) {
+      this.stats.set(null);
+      return;
+    }
+    const source = (event.composedPath?.()[0] ?? event.target) as HTMLElement | null;
+    const rect = source?.getBoundingClientRect?.();
+    const width = 220;
+    const x = Math.max(8, Math.min(rect?.left ?? 16, window.innerWidth - width - 8));
+    const y = Math.max(60, (rect?.top ?? window.innerHeight / 2) - 8);
+    this.stats.set({ usage: detail.usage, x, y });
   }
 
   protected speed(usage: AparteUsage): string | null {
