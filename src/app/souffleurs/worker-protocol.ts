@@ -13,6 +13,8 @@ export type MainToWorker =
       device: ComputeDevice;
       prompt: string;
       maxNewTokens: number;
+      /** Trace console (ids des premiers tokens — contrôle double-BOS, etc.). */
+      debug?: boolean;
     }
   | { type: 'abort' }
   | { type: 'dispose' };

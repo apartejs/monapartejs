@@ -93,6 +93,14 @@ export interface Translations {
     error: string;
     retry: string;
   };
+  stats: {
+    title: string;
+    device: string;
+    tokens: string;
+    ttft: string;
+    speed: string;
+    duration: string;
+  };
   common: { cancel: string; confirm: string };
 }
 
@@ -210,6 +218,14 @@ export const FR: Translations = {
     error: 'La mise à jour a échoué. Vérifiez votre connexion, puis réessayez.',
     retry: 'Réessayer',
   },
+  stats: {
+    title: 'Génération',
+    device: 'Matériel',
+    tokens: 'Tokens',
+    ttft: 'Premier token',
+    speed: 'Vitesse',
+    duration: 'Durée',
+  },
   common: { cancel: 'Annuler', confirm: 'Confirmer' },
 };
 
@@ -325,6 +341,14 @@ export const EN: Translations = {
     action: 'Update ({size})',
     error: 'The update failed. Check your connection and try again.',
     retry: 'Retry',
+  },
+  stats: {
+    title: 'Generation',
+    device: 'Hardware',
+    tokens: 'Tokens',
+    ttft: 'First token',
+    speed: 'Speed',
+    duration: 'Duration',
   },
   common: { cancel: 'Cancel', confirm: 'Confirm' },
 };

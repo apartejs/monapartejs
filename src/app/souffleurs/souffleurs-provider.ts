@@ -123,6 +123,14 @@ function enqueue<T>(op: () => Promise<T>): Promise<T> {
   return run;
 }
 
+function isDebug(): boolean {
+  try {
+    return localStorage.getItem('bp.debug') === '1';
+  } catch {
+    return false;
+  }
+}
+
 function genCallId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -164,6 +172,9 @@ export const SouffleursProvider: AparteAIProvider = {
     const system = buildSystemPrompt(enabledTools, files);
     const prompt = buildWirePrompt(system, request.messages);
     const maxNewTokens = Math.max(request.maxTokens ?? 0, CALLER_MAX_NEW_TOKENS);
+    // Diagnostic : localStorage.setItem('bp.debug', '1') → prompt wire exact,
+    // sortie brute et appels parsés dans la console (+ ids côté worker).
+    const debug = isDebug();
 
     let raw = '';
     const demux = new WireStreamDemux();
@@ -197,6 +208,11 @@ export const SouffleursProvider: AparteAIProvider = {
                 onDone: (usage) => {
                   emitDemux(demux.flush());
                   const parsed = parsePythonicOutput(raw);
+                  if (debug) {
+                    console.log('[souffleurs] PROMPT WIRE >>>\n%s', prompt);
+                    console.log('[souffleurs] SORTIE BRUTE >>>\n%s', raw);
+                    console.log('[souffleurs] PARSED >>>', parsed);
+                  }
                   for (const call of parsed.calls) {
                     if (call.name === UNPARSEABLE) {
                       console.warn('[souffleurs] tool_call imparsable ignoré:', call.args['raw']);
@@ -228,6 +244,7 @@ export const SouffleursProvider: AparteAIProvider = {
                 device,
                 prompt,
                 maxNewTokens,
+                debug,
               } satisfies MainToWorker);
             }),
         );

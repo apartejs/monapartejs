@@ -91,8 +91,15 @@
 .content {
   flex: 1;
   min-height: 0;
+  /* grid : l'enfant routé obtient une hauteur DÉFINIE (le % de bp-chat-page
+   * se résout de façon fiable, contrairement à un simple flex item). */
+  display: grid;
+  overflow: hidden;
 }
 
+/* Comme sur aimi : la mascotte coin vit dans la gouttière à droite du contenu
+ * centré (760px). Sous 1100px il n'y a plus de gouttière → masquée, jamais
+ * par-dessus le composer. */
 .corner-mascotte {
   position: fixed;
   right: 22px;
@@ -100,6 +107,13 @@
   z-index: 30;
   pointer-events: none;
   opacity: 0.9;
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  .corner-mascotte {
+    display: block;
+  }
 }
 
 @media (max-width: 768px) {
@@ -115,7 +129,4 @@
     box-shadow: 0 0 40px rgb(0 0 0 / 30%);
   }
 
-  .corner-mascotte {
-    display: none;
-  }
 }

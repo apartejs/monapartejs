@@ -25,6 +25,9 @@
 html,
 body {
   height: 100%;
+  /* App-like : la PAGE ne défile jamais — le seul scroll est celui du viewport
+   * de conversation (sinon le composer descend avec la conversation). */
+  overflow: hidden;
 }
 
 body {

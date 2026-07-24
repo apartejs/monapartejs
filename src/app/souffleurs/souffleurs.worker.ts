@@ -36,7 +36,7 @@ self.onmessage = async (event: MessageEvent<MainToWorker>) => {
         await ensurePipeline(msg.id, msg.adapter, msg.device);
         break;
       case 'generate':
-        await generate(msg.id, msg.adapter, msg.device, msg.prompt, msg.maxNewTokens);
+        await generate(msg.id, msg.adapter, msg.device, msg.prompt, msg.maxNewTokens, msg.debug);
         break;
       case 'abort':
         stopping.interrupt();
@@ -102,6 +102,7 @@ async function generate(
   device: ComputeDevice,
   prompt: string,
   maxNewTokens: number,
+  debug = false,
 ): Promise<void> {
   await ensurePipeline(id, adapter, device);
   stopping.reset();
@@ -110,6 +111,17 @@ async function generate(
   // Le prompt wire contient déjà <|startoftext|> — pas de BOS supplémentaire.
   const inputs = tokenizer(prompt, { add_special_tokens: false });
   const inputTokens = Number(inputs.input_ids.dims?.at(-1) ?? 0);
+  if (debug) {
+    // Contrôle in-distribution : premiers ids attendus [1, 6, …] = <|startoftext|><|im_start|>…
+    // Un double BOS ([1, 1, …]) ou un BOS manquant signalerait un souci de tokenisation.
+    console.log(
+      '[souffleurs.worker] adapter=%s device=%s inputTokens=%d firstIds=%o',
+      adapter,
+      device,
+      inputTokens,
+      Array.from((inputs.input_ids.data as BigInt64Array).slice(0, 5), Number),
+    );
+  }
 
   const t0 = performance.now();
   let tFirst = 0;
