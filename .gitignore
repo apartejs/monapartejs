@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.angular/
+
+# notes internes — jamais dans le repo public
+docs/superpowers/
