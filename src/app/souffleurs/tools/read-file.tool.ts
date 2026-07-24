@@ -73,8 +73,8 @@ export const readFileHandler: AparteToolHandler = async (call) => {
   };
 };
 
-/** Survol xlsx (forme schema/preview iso training). */
-async function surveyXlsx(blob: Blob): Promise<Record<string, unknown>> {
+/** Survol xlsx (forme schema/preview iso training). Réutilisé par write_file (édition). */
+export async function surveyXlsx(blob: Blob): Promise<Record<string, unknown>> {
   const { Workbook } = await import('exceljs');
   const workbook = new Workbook();
   await workbook.xlsx.load(await blob.arrayBuffer());

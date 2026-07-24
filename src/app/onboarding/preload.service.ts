@@ -3,7 +3,14 @@
  * prérequis dur (échec = blocage + retry, jamais d'expérience dégradée).
  */
 import { Injectable, signal } from '@angular/core';
-import { CALLER_MODEL_ID, SouffleursProvider, markAdapterPreloaded } from '../souffleurs';
+import {
+  CALLER_MODEL_ID,
+  EXECUTOR_ADAPTERS,
+  SouffleursProvider,
+  markAdapterPreloaded,
+  prepareExecutor,
+  prepareCaller,
+} from '../souffleurs';
 
 export type PreloadState = 'idle' | 'running' | 'error' | 'done';
 
@@ -26,9 +33,29 @@ export class OnboardingPreloadService {
       // mise à jour ne doit jamais pop juste après un téléchargement frais.
       markAdapterPreloaded();
       this.state.set('done');
+      // Exécuteurs en best-effort (86 Mo chacun, iso catégorie codegen d'aimi) :
+      // un échec ne bloque jamais — retéléchargés paresseusement au premier usage.
+      void this.prefetchExecutors();
     } catch (err) {
       this.state.set('error');
       this.errorMessage.set(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  private async prefetchExecutors(): Promise<void> {
+    for (const adapter of EXECUTOR_ADAPTERS) {
+      try {
+        await prepareExecutor(adapter);
+      } catch (err) {
+        console.warn(`[onboarding] prefetch ${adapter} échoué (réessai au premier usage)`, err);
+      }
+    }
+    // Le prefetch laisse le DERNIER exécuteur dans le pipeline : on remet le
+    // caller pour que le premier message ne paie pas un swap de 3,8 s.
+    try {
+      await prepareCaller();
+    } catch {
+      /* le premier chat() rechargera le caller */
     }
   }
 }

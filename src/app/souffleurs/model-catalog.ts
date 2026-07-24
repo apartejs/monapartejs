@@ -22,6 +22,14 @@ export const SIZE_ADAPTER_BYTES = 86_000_000;
 /** config + tokenizer + graphe (~5 MB) */
 export const SIZE_OVERHEAD_BYTES = 5_000_000;
 export const CALLER_DOWNLOAD_BYTES = SIZE_BASE_BYTES + SIZE_ADAPTER_BYTES + SIZE_OVERHEAD_BYTES;
+/** Base + les 4 souffleurs (caller + 3 exécuteurs) — annoncé à l'onboarding. */
+export const TOTAL_DOWNLOAD_BYTES = SIZE_BASE_BYTES + SIZE_ADAPTER_BYTES * 4 + SIZE_OVERHEAD_BYTES;
+
+export const EXECUTOR_ADAPTERS = [
+  'souffleur-xlsx-docx',
+  'souffleur-pdf',
+  'souffleur-sandbox',
+] as const satisfies readonly AdapterName[];
 
 /** Bornes de génération du contrat (256 min caller — 64 tronquait l'annonce+appel). */
 export const CALLER_MAX_NEW_TOKENS = 256;

@@ -27,9 +27,11 @@ import {
   CALLER_MAX_NEW_TOKENS,
   CALLER_MODEL_ID,
   EXECUTOR_MAX_NEW_TOKENS,
+  SIZE_ADAPTER_BYTES,
   SOUFFLEURS_HF_REPO,
   type AdapterName,
 } from './model-catalog';
+import { isAdapterStale, markAdapterPreloaded } from './versions';
 import { ProgressAggregator } from './progress-aggregator';
 import { setSouffleurStatus } from './status';
 import { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
@@ -335,6 +337,70 @@ export interface ExecutorResult {
   usage: { inputTokens: number; outputTokens: number; ttftMs: number; durationMs: number };
 }
 
+/** Précharge un adapter exécuteur (86 MB, base partagée déjà en cache). */
+export async function prepareExecutor(
+  adapter: ExecutorAdapter,
+  onProgress?: (p: ModelLoadProgress) => void,
+): Promise<void> {
+  const device = await detectComputeDevice();
+  await purgeAdapterIfStale(adapter);
+  return enqueue(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const id = _nextId++;
+        const aggregator = new ProgressAggregator(SIZE_ADAPTER_BYTES);
+        _pending.set(id, {
+          onProgress: (p) => onProgress?.({ status: 'downloading', file: p.file, progress: aggregator.push(p) }),
+          onReady: () => {
+            _pending.delete(id);
+            markAdapterPreloaded(adapter);
+            resolve();
+          },
+          onError: (message) => reject(new Error(message)),
+        });
+        getWorker().postMessage({ type: 'prepare', id, adapter, device } satisfies MainToWorker);
+      }),
+  );
+}
+
+/** Recharge le caller dans le pipeline (après un prefetch d'exécuteurs). */
+export async function prepareCaller(): Promise<void> {
+  const device = await detectComputeDevice();
+  return enqueue(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const id = _nextId++;
+        _pending.set(id, {
+          onReady: () => {
+            _pending.delete(id);
+            resolve();
+          },
+          onError: (message) => reject(new Error(message)),
+        });
+        getWorker().postMessage({
+          type: 'prepare',
+          id,
+          adapter: CALLER_ADAPTER,
+          device,
+        } satisfies MainToWorker);
+      }),
+  );
+}
+
+/** Version des poids : purge du cache un `.data` d'adapter périmé avant usage. */
+async function purgeAdapterIfStale(adapter: AdapterName): Promise<void> {
+  if (!isAdapterStale(adapter)) return;
+  try {
+    const cache = await caches.open('transformers-cache');
+    const keys = await cache.keys();
+    await Promise.all(
+      keys.filter((req) => req.url.includes(`${adapter}.data`)).map((req) => cache.delete(req)),
+    );
+  } catch {
+    /* cache indisponible */
+  }
+}
+
 /**
  * Exécute un souffleur exécuteur (pdf / xlsx-docx / sandbox) — J3.
  * Passe par la MÊME file d'attente que le caller (un seul pipeline, swap ≈ 3,8 s).
@@ -347,6 +413,7 @@ export async function runExecutor(
   opts: { maxNewTokens?: number } = {},
 ): Promise<ExecutorResult> {
   const device = await detectComputeDevice();
+  await purgeAdapterIfStale(adapter);
   const prompt = buildWirePrompt(systemPrompt, [{ role: 'user', content: task }]);
   return enqueue(
     () =>

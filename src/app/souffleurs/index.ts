@@ -5,6 +5,8 @@
 export {
   SouffleursProvider,
   detectComputeDevice,
+  prepareCaller,
+  prepareExecutor,
   runExecutor,
   type ExecutorAdapter,
   type ExecutorResult,
@@ -12,9 +14,11 @@ export {
 export {
   CALLER_DOWNLOAD_BYTES,
   CALLER_MODEL_ID,
+  EXECUTOR_ADAPTERS,
   SIZE_ADAPTER_BYTES,
   SIZE_BASE_BYTES,
   SOUFFLEURS_HF_REPO,
+  TOTAL_DOWNLOAD_BYTES,
   type AdapterName,
 } from './model-catalog';
 export {
@@ -37,3 +41,18 @@ export {
 } from './tools/ask-question.adapter';
 export { extType, fileRegistry, type RegisteredFile } from './files/file-registry';
 export { readFileHandler, readFileTool } from './tools/read-file.tool';
+export { writeFileHandler, writeFileTool } from './tools/write-file.tool';
+export { computeHandler, computeTool } from './tools/compute.tool';
+export { createWidgetHandler, createWidgetTool } from './tools/create-widget.tool';
+export { transformFileHandler, transformFileTool } from './tools/transform-file.tool';
+export { listReminders, setReminderHandler, setReminderTool } from './tools/set-reminder.tool';
+export {
+  setArtifactSink,
+  triggerDownload,
+  type ProducedArtifact,
+} from './tools/artifact-store';
+export {
+  artifactCardRenderer,
+  invisibleRenderer,
+  widgetRenderer,
+} from './tools/tool-renderers';

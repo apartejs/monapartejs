@@ -22,11 +22,25 @@ import { registerMascotteRenderers } from '../mascotte';
 import {
   CALLER_MODEL_ID,
   SouffleursProvider,
+  artifactCardRenderer,
+  computeHandler,
+  computeTool,
+  createWidgetHandler,
+  createWidgetTool,
   fileRegistry,
+  invisibleRenderer,
   readFileHandler,
   readFileTool,
+  setArtifactSink,
+  setReminderHandler,
+  setReminderTool,
   souffleurAskQuestionHandler,
   souffleurAskQuestionTool,
+  transformFileHandler,
+  transformFileTool,
+  widgetRenderer,
+  writeFileHandler,
+  writeFileTool,
 } from '../souffleurs';
 import { DexieConversationAdapter } from '../storage/conversation-adapter';
 import { LOCAL_KEYS, SettingsService, localGet } from '../storage/settings.service';
@@ -73,7 +87,34 @@ export function provideBonaparte(): EnvironmentProviders[] {
       // Par-dessus le handler du plugin : shim contrat souffleurs
       // (multi_select→multiple, options string[]→{title}[]).
       AparteConfig.registerTool(souffleurAskQuestionTool, souffleurAskQuestionHandler);
+
+      // Les 9 outils du contrat (search_knowledge/remember = leurres RAG, non
+      // enregistrés : ils restent hors de la liste d'activation).
       AparteConfig.registerTool(readFileTool, readFileHandler);
+      AparteConfig.registerTool(writeFileTool, writeFileHandler);
+      AparteConfig.registerTool(computeTool, computeHandler);
+      AparteConfig.registerTool(createWidgetTool, createWidgetHandler);
+      AparteConfig.registerTool(transformFileTool, transformFileHandler);
+      AparteConfig.registerTool(setReminderTool, setReminderHandler);
+
+      AparteConfig.registerToolRenderer('write_file', artifactCardRenderer);
+      AparteConfig.registerToolRenderer('transform_file', artifactCardRenderer);
+      AparteConfig.registerToolRenderer('create_widget', widgetRenderer);
+      AparteConfig.registerToolRenderer('compute', invisibleRenderer);
+
+      // Persistance des artefacts produits (galerie future) — table Dexie.
+      setArtifactSink((toolCallId, artifact, fileId) => {
+        void conversationAdapter.db.artifacts.put({
+          id: fileId,
+          convId: '',
+          msgId: toolCallId,
+          name: artifact.filename,
+          mimeType: artifact.mime,
+          artifactType: artifact.kind,
+          content: '',
+          updatedAt: Date.now(),
+        });
+      });
 
       // Capture des pièces jointes AU MOMENT de l'envoi : le détail
       // d'aparte-send ne les porte pas, mais le composer source les expose.

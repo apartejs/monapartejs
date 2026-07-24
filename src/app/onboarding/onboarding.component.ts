@@ -12,7 +12,7 @@ import {
   signal,
 } from '@angular/core';
 import { MascotteComponent, type MascotteState } from '../mascotte';
-import { CALLER_DOWNLOAD_BYTES } from '../souffleurs';
+import { TOTAL_DOWNLOAD_BYTES } from '../souffleurs';
 import { TranslateService } from '../core/i18n/translate.service';
 import { LOCAL_KEYS, localSet } from '../storage/settings.service';
 import { OnboardingPreloadService } from './preload.service';
@@ -214,7 +214,7 @@ export class OnboardingComponent {
   });
 
   protected readonly downloadTitle = computed(() =>
-    this.t().onboarding.download.title.replace('{size}', formatSize(CALLER_DOWNLOAD_BYTES)),
+    this.t().onboarding.download.title.replace('{size}', formatSize(TOTAL_DOWNLOAD_BYTES)),
   );
 
   protected readonly mascotteState = computed<MascotteState>(() => {
