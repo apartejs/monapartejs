@@ -13,16 +13,24 @@ import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
 import { AparteChatComponent } from '@aparte/angular';
 import type { AparteMessageInfoEventDetail, AparteUsage } from '@aparte/core';
+import { ConversationManagerService } from '@aparte/angular';
+import { estimateTokens } from '@aparte/engine';
 import { GeneratingService } from '../../core/generating.service';
 import { TranslateService } from '../../core/i18n/translate.service';
 import { ModelStatusService } from '../../core/model-status.service';
 import { MascotteComponent } from '../../mascotte';
+import { buildSystemPrompt } from '../../souffleurs';
 import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
+import { ConversationMinimapComponent } from './conversation-minimap.component';
+
+/** Fenêtre de contexte pratique du caller (MAX_SEQ_LEN d'entraînement). */
+const CONTEXT_BUDGET_TOKENS = 4096;
+const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
 
 @Component({
   selector: 'bp-chat-page',
   standalone: true,
-  imports: [AparteChatComponent, MascotteComponent],
+  imports: [AparteChatComponent, MascotteComponent, ConversationMinimapComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -45,8 +53,21 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
              panneaux dans le composer via showPanel), sinon requestUserInput
              n'a aucun présentateur. Ne rend rien par lui-même. -->
         <aparte-elicitation slot="above-composer"></aparte-elicitation>
+        @if (contextTokens(); as ctx) {
+          <span
+            slot="footer-left"
+            class="context-pill"
+            [class.warn]="ctx.ratio > 0.75"
+            [class.danger]="ctx.ratio > 0.9"
+            [title]="t().context.tooltip"
+          >
+            ≈ {{ ctx.tokens }} / {{ ctx.budget }} · {{ t().context.label }}
+          </span>
+        }
         <div slot="footer-center" class="helper">{{ t().chat.helper }}</div>
       </aparte-chat>
+
+      <bp-conversation-minimap />
 
       @if (stats(); as s) {
         <div class="stats-pop" role="status" (click)="stats.set(null)">
@@ -123,6 +144,15 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       text-align: center;
       padding: 4px 0 8px;
     }
+    .context-pill {
+      font-family: var(--bp-mono);
+      font-size: 10.5px;
+      color: var(--aparte-text-muted);
+      cursor: default;
+      white-space: nowrap;
+    }
+    .context-pill.warn { color: var(--aparte-warning); }
+    .context-pill.danger { color: var(--aparte-error); }
     @media (pointer: coarse) {
       .helper { display: none; }
     }
@@ -164,6 +194,7 @@ export class ChatPageComponent {
   private readonly settings = inject(SettingsService);
   private readonly generating = inject(GeneratingService);
   private readonly modelStatus = inject(ModelStatusService);
+  private readonly manager = inject(ConversationManagerService);
 
   protected readonly t = this.i18n.t;
   protected readonly stats = signal<AparteUsage | null>(null);
@@ -195,6 +226,21 @@ export class ChatPageComponent {
   protected readonly deviceLabel = computed(() =>
     this.modelStatus.state().device === 'webgpu' ? 'WebGPU' : 'WASM (CPU)',
   );
+
+  /** Pastille budget contexte (iso context-stats aimi) — estimation lib. */
+  protected readonly contextTokens = computed(() => {
+    const conv = this.manager.activeConversation();
+    if (!conv || !conv.messages.length) return null;
+    let tokens = SYSTEM_TOKENS;
+    for (const message of conv.messages) {
+      tokens += estimateTokens(message.content ?? '') + 8;
+    }
+    return {
+      tokens,
+      budget: CONTEXT_BUDGET_TOKENS,
+      ratio: tokens / CONTEXT_BUDGET_TOKENS,
+    };
+  });
 
   protected onConversationCreated(id: string): void {
     // SURTOUT PAS router.navigate : '' et 'chat/:id' sont deux routes → le

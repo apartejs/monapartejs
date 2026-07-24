@@ -31,6 +31,10 @@ interface ConvGroup {
       </header>
 
       <button class="new-chat" (click)="newChat()">{{ t().sidebar.newChat }}</button>
+      <button class="search" (click)="openSearch.emit()">
+        <span>{{ t().sidebar.search }}</span>
+        <kbd>{{ searchKbd }}</kbd>
+      </button>
 
       <nav class="list">
         @for (group of groups(); track group.label) {
@@ -122,6 +126,30 @@ interface ConvGroup {
       cursor: pointer;
     }
     .new-chat:hover { background: var(--aparte-primary-hover); }
+    .search {
+      margin: 0 12px 10px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--aparte-border);
+      background: none;
+      color: var(--aparte-text-muted);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .search:hover { background: var(--aparte-surface-2); color: var(--aparte-text); }
+    .search kbd {
+      font-family: var(--bp-mono);
+      font-size: 10px;
+      border: 1px solid var(--aparte-border);
+      border-radius: 5px;
+      padding: 1px 6px;
+      color: var(--aparte-text-muted);
+    }
     .list { flex: 1; overflow-y: auto; padding: 0 8px; }
     .group-label {
       font-family: var(--bp-mono);
@@ -211,9 +239,11 @@ export class SidebarComponent {
   private readonly router = inject(Router);
 
   readonly openSettings = output<void>();
+  readonly openSearch = output<void>();
 
   protected readonly t = this.i18n.t;
   protected readonly showArchived = signal(false);
+  protected readonly searchKbd = /mac/i.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
   protected readonly groups = computed<ConvGroup[]>(() => {
     const s = this.t().sidebar;

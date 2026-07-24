@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>aparté — réinitialiser le service worker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Georgia, serif; background: #f6f2ea; color: #241f2b; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+    .card { text-align: center; padding: 40px; }
+    .face { font-size: 48px; color: #b07d33; }
+    button { font: inherit; background: #b07d33; color: #fff; border: none; border-radius: 10px; padding: 10px 22px; cursor: pointer; margin-top: 16px; }
+    p { color: #6d6479; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="face">(x.x)</div>
+    <h1>Réinitialiser le service worker</h1>
+    <p>Page de secours : désinscrit le service worker d'aparté et vide ses caches applicatifs.<br>
+       Le modèle téléchargé (cache Hugging Face) n'est pas touché.</p>
+    <button id="go">Désinscrire et recharger</button>
+    <p id="out"></p>
+  </div>
+  <script>
+    document.getElementById('go').addEventListener('click', async () => {
+      const out = document.getElementById('out');
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) await reg.unregister();
+        const keys = await caches.keys();
+        for (const key of keys) {
+          if (key.startsWith('ngsw:')) await caches.delete(key);
+        }
+        out.textContent = 'Fait — rechargement…';
+        setTimeout(() => location.href = '/', 800);
+      } catch (e) {
+        out.textContent = 'Erreur : ' + e;
+      }
+    });
+  </script>
+</body>
+</html>

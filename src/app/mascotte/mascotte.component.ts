@@ -1,10 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { MASCOTTE_FACES, type MascotteState } from './mascotte-states';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import { MASCOTTE_FACES, type MascotteFace, type MascotteState } from './mascotte-states';
 
 /**
  * Mascotte ('.') — typographique, hérite du thème (brass via --aparte-primary).
- * Animations plafonnées en steps() pour ne pas concurrencer le décodage GPU ;
- * décoratives → gelées par `body.bp-generating .bp-decorative` (bob idle).
+ * Interactive : clin d'œil aléatoire en idle (8-15 s), boop au clic.
+ * Animations plafonnées en steps() ; décoratives → gelées par
+ * `body.bp-generating .bp-decorative` pendant le décodage GPU.
  */
 @Component({
   selector: 'bp-mascotte',
@@ -13,10 +23,13 @@ import { MASCOTTE_FACES, type MascotteState } from './mascotte-states';
   template: `
     <span
       class="face bp-decorative"
-      [class.is-idle]="state() === 'idle'"
+      [class.is-idle]="state() === 'idle' && !booped()"
+      [class.is-booped]="booped()"
+      [class.is-interactive]="interactive()"
       [style.font-size.px]="size()"
       role="img"
       [attr.aria-label]="'mascotte aparté, état ' + state()"
+      (click)="boop()"
     >
       <span class="paren">(</span
       ><span class="feat"
@@ -41,8 +54,12 @@ import { MASCOTTE_FACES, type MascotteState } from './mascotte-states';
       white-space: nowrap;
       user-select: none;
     }
+    .face.is-interactive { cursor: pointer; }
     .face.is-idle {
       animation: bp-mascotte-bob 3.2s steps(24) infinite;
+    }
+    .face.is-booped {
+      animation: bp-mascotte-boop 0.5s steps(10);
     }
     .feat {
       color: var(--aparte-text);
@@ -72,6 +89,11 @@ import { MASCOTTE_FACES, type MascotteState } from './mascotte-states';
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-0.06em); }
     }
+    @keyframes bp-mascotte-boop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.18) rotate(-3deg); }
+      100% { transform: scale(1); }
+    }
     @keyframes bp-mascotte-dots {
       0% { opacity: 0.2; }
       50% { opacity: 1; }
@@ -81,13 +103,56 @@ import { MASCOTTE_FACES, type MascotteState } from './mascotte-states';
       50% { opacity: 0; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .face.is-idle, .dots::after, .caret { animation: none; }
+      .face.is-idle, .face.is-booped, .dots::after, .caret { animation: none; }
     }
   `,
 })
 export class MascotteComponent {
   readonly state = input<MascotteState>('idle');
   readonly size = input<number>(32);
+  readonly interactive = input<boolean>(false);
 
-  protected readonly face = computed(() => MASCOTTE_FACES[this.state()]);
+  protected readonly booped = signal(false);
+  private readonly wink = signal(false);
+  private readonly destroyRef = inject(DestroyRef);
+  private winkTimer = 0;
+  private boopTimer = 0;
+
+  protected readonly face = computed<MascotteFace>(() => {
+    if (this.booped()) return MASCOTTE_FACES['happy'];
+    const base = MASCOTTE_FACES[this.state()];
+    if (this.wink() && this.state() === 'idle') {
+      return { ...base, eyeRight: '-' };
+    }
+    return base;
+  });
+
+  constructor() {
+    // Micro-expression : clin d'œil aléatoire toutes les 8-15 s en idle.
+    effect((onCleanup) => {
+      clearTimeout(this.winkTimer);
+      if (this.state() !== 'idle' || !this.interactive()) return;
+      const schedule = () => {
+        this.winkTimer = window.setTimeout(() => {
+          this.wink.set(true);
+          window.setTimeout(() => {
+            this.wink.set(false);
+            schedule();
+          }, 160);
+        }, 8000 + Math.random() * 7000);
+      };
+      schedule();
+      onCleanup(() => clearTimeout(this.winkTimer));
+    });
+    this.destroyRef.onDestroy(() => {
+      clearTimeout(this.winkTimer);
+      clearTimeout(this.boopTimer);
+    });
+  }
+
+  protected boop(): void {
+    if (!this.interactive() || this.booped()) return;
+    this.booped.set(true);
+    this.boopTimer = window.setTimeout(() => this.booped.set(false), 600);
+  }
 }

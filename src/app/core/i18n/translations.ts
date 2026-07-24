@@ -9,6 +9,7 @@ export interface Translations {
   };
   sidebar: {
     newChat: string;
+    search: string;
     today: string;
     yesterday: string;
     earlier: string;
@@ -101,6 +102,10 @@ export interface Translations {
     speed: string;
     duration: string;
   };
+  update: { available: string; reload: string };
+  search: { placeholder: string; noResults: string; hint: string };
+  linkGuard: { title: string; body: string; open: string };
+  context: { label: string; tooltip: string };
   common: { cancel: string; confirm: string };
 }
 
@@ -113,6 +118,7 @@ export const FR: Translations = {
   },
   sidebar: {
     newChat: 'Nouvelle conversation',
+    search: 'Rechercher',
     today: "Aujourd'hui",
     yesterday: 'Hier',
     earlier: 'Plus tôt',
@@ -226,6 +232,24 @@ export const FR: Translations = {
     speed: 'Vitesse',
     duration: 'Durée',
   },
+  update: {
+    available: 'Une nouvelle version d’aparté est disponible.',
+    reload: 'Mettre à jour',
+  },
+  search: {
+    placeholder: 'Rechercher dans les conversations…',
+    noResults: 'Aucun résultat.',
+    hint: '↑↓ naviguer · Entrée ouvrir · Échap fermer',
+  },
+  linkGuard: {
+    title: 'Ouvrir un lien externe ?',
+    body: 'Ce lien vient d’une réponse générée. Vérifiez l’adresse avant d’ouvrir :',
+    open: 'Ouvrir',
+  },
+  context: {
+    label: 'contexte',
+    tooltip: 'Estimation de la place occupée dans la fenêtre de contexte du modèle (≈ 4096 tokens).',
+  },
   common: { cancel: 'Annuler', confirm: 'Confirmer' },
 };
 
@@ -238,6 +262,7 @@ export const EN: Translations = {
   },
   sidebar: {
     newChat: 'New conversation',
+    search: 'Search',
     today: 'Today',
     yesterday: 'Yesterday',
     earlier: 'Earlier',
@@ -349,6 +374,24 @@ export const EN: Translations = {
     ttft: 'First token',
     speed: 'Speed',
     duration: 'Duration',
+  },
+  update: {
+    available: 'A new version of aparté is available.',
+    reload: 'Update',
+  },
+  search: {
+    placeholder: 'Search conversations…',
+    noResults: 'No results.',
+    hint: '↑↓ navigate · Enter open · Esc close',
+  },
+  linkGuard: {
+    title: 'Open external link?',
+    body: 'This link comes from a generated reply. Check the address before opening:',
+    open: 'Open',
+  },
+  context: {
+    label: 'context',
+    tooltip: 'Estimated share of the model context window (≈ 4096 tokens).',
   },
   common: { cancel: 'Cancel', confirm: 'Confirm' },
 };

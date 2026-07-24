@@ -3,7 +3,13 @@
  * plugins / client / conversation manager vit ici. Les autres modules ne
  * touchent jamais AparteConfig directement.
  */
-import { inject, provideAppInitializer, type EnvironmentProviders } from '@angular/core';
+import {
+  inject,
+  isDevMode,
+  provideAppInitializer,
+  type EnvironmentProviders,
+} from '@angular/core';
+import { provideServiceWorker } from '@angular/service-worker';
 import { ConversationManagerService, provideAparte } from '@aparte/angular';
 import { AparteConfig, DirectTransport } from '@aparte/core';
 import { fr } from '@aparte/locale-fr';
@@ -21,6 +27,8 @@ import {
 } from '../souffleurs';
 import { DexieConversationAdapter } from '../storage/conversation-adapter';
 import { LOCAL_KEYS, SettingsService, localGet } from '../storage/settings.service';
+import { LinkGuardService } from './link-guard.service';
+import { RichRenderService } from './rich-render.service';
 
 /** Adapter partagé (conversations + settings + export/import). */
 export const conversationAdapter = new DexieConversationAdapter();
@@ -60,6 +68,8 @@ export function provideBonaparte(): EnvironmentProviders[] {
       AparteConfig.registerTool(souffleurAskQuestionTool, souffleurAskQuestionHandler);
 
       registerMascotteRenderers();
+      inject(LinkGuardService).install();
+      inject(RichRenderService).install();
 
       const manager = inject(ConversationManagerService);
       const settings = inject(SettingsService);
@@ -67,6 +77,11 @@ export function provideBonaparte(): EnvironmentProviders[] {
         manager.init(conversationAdapter),
         settings.init(conversationAdapter),
       ]);
+    }),
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      // Ne concurrence jamais le téléchargement du modèle au premier lancement.
+      registrationStrategy: 'registerWhenStable:30000',
     }),
   ];
 }

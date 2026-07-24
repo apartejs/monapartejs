@@ -18,6 +18,8 @@ import { SettingsSheetComponent } from './features/settings/settings-sheet.compo
 import { SidebarComponent } from './layout/sidebar/sidebar.component';
 import { FaviconService, MascotteComponent } from './mascotte';
 import { ModelUpdateModalComponent } from './features/model-update/model-update-modal.component';
+import { SearchPaletteComponent } from './features/search/search-palette.component';
+import { UpdateToastComponent } from './features/update-toast/update-toast.component';
 import { OnboardingComponent } from './onboarding/onboarding.component';
 import { isAdapterStale } from './souffleurs';
 import { LOCAL_KEYS, localGet } from './storage/settings.service';
@@ -32,6 +34,8 @@ import { LOCAL_KEYS, localGet } from './storage/settings.service';
     SettingsSheetComponent,
     PrivacySheetComponent,
     ModelUpdateModalComponent,
+    SearchPaletteComponent,
+    UpdateToastComponent,
     MascotteComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,6 +57,7 @@ export class AppComponent {
   protected readonly sidebarOpen = signal(window.innerWidth > 768);
   protected readonly settingsOpen = signal(false);
   protected readonly privacyOpen = signal(false);
+  protected readonly searchOpen = signal(false);
 
   protected readonly topbarTitle = computed(
     () => this.manager.activeConversation()?.title ?? '',
@@ -97,7 +102,15 @@ export class AppComponent {
 
   @HostListener('window:keydown.escape')
   protected onEscape(): void {
-    if (this.settingsOpen()) this.settingsOpen.set(false);
+    if (this.searchOpen()) this.searchOpen.set(false);
+    else if (this.settingsOpen()) this.settingsOpen.set(false);
     else if (this.privacyOpen()) this.privacyOpen.set(false);
+  }
+
+  @HostListener('window:keydown.control.k', ['$event'])
+  @HostListener('window:keydown.meta.k', ['$event'])
+  protected onSearchShortcut(event: Event): void {
+    event.preventDefault();
+    if (!this.onboardingOpen()) this.searchOpen.set(!this.searchOpen());
   }
 }

@@ -1,0 +1,24 @@
+{
+  "name": "aparté",
+  "short_name": "aparté",
+  "description": "Assistant personnel 100 % local — tout tourne dans votre navigateur, rien ne quitte votre appareil.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f2ea",
+  "theme_color": "#b07d33",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "icons/mascotte.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/mascotte-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
