@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,7 +6,7 @@ import {
   inject,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
 import { AparteChatComponent } from '@aparte/angular';
 import { GeneratingService } from '../../core/generating.service';
@@ -39,19 +40,19 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
     </div>
   `,
   styles: `
+    /* La lib exige un parent dimensionné : « size the element yourself — a
+     * height, or a sized parent » (aparte.css). Sans cette chaîne height:100%,
+     * la page grandit au lieu de faire défiler le viewport interne. */
+    :host {
+      display: block;
+      height: 100%;
+    }
     .chat-wrap {
       height: 100%;
-      display: flex;
-      flex-direction: column;
       max-width: var(--bp-content-max-width);
       margin: 0 auto;
       width: 100%;
       padding: 0 12px;
-    }
-    aparte-chat {
-      flex: 1;
-      min-height: 0;
-      display: block;
     }
     .welcome {
       display: flex;
@@ -90,7 +91,7 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
 })
 export class ChatPageComponent {
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
+  private readonly location = inject(Location);
   private readonly i18n = inject(TranslateService);
   private readonly settings = inject(SettingsService);
   private readonly generating = inject(GeneratingService);
@@ -122,7 +123,11 @@ export class ChatPageComponent {
   });
 
   protected onConversationCreated(id: string): void {
-    void this.router.navigate(['/chat', id], { replaceUrl: true });
+    // SURTOUT PAS router.navigate : '' et 'chat/:id' sont deux routes → le
+    // composant serait détruit EN PLEIN STREAM de la première réponse (bug
+    // « le premier message ne part pas »). On réécrit l'URL sans navigation ;
+    // le wrapper garde déjà le bon id en interne.
+    this.location.replaceState(`/chat/${id}`);
   }
 
   protected onTypingChange(isTyping: boolean): void {
