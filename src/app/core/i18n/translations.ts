@@ -86,6 +86,13 @@ export interface Translations {
       start: string;
     };
   };
+  modelUpdate: {
+    title: string;
+    body: string;
+    action: string;
+    error: string;
+    retry: string;
+  };
   common: { cancel: string; confirm: string };
 }
 
@@ -196,6 +203,13 @@ export const FR: Translations = {
       start: 'Commencer',
     },
   },
+  modelUpdate: {
+    title: 'Le souffleur a été mis à jour',
+    body: 'Une nouvelle version du modèle est disponible. Le téléchargement remplace l’ancienne dans le cache du navigateur — vos conversations ne bougent pas.',
+    action: 'Mettre à jour ({size})',
+    error: 'La mise à jour a échoué. Vérifiez votre connexion, puis réessayez.',
+    retry: 'Réessayer',
+  },
   common: { cancel: 'Annuler', confirm: 'Confirmer' },
 };
 
@@ -304,6 +318,13 @@ export const EN: Translations = {
       retry: 'Retry',
       start: 'Start',
     },
+  },
+  modelUpdate: {
+    title: 'The souffleur was updated',
+    body: 'A new model version is available. The download replaces the old one in your browser cache — your conversations stay put.',
+    action: 'Update ({size})',
+    error: 'The update failed. Check your connection and try again.',
+    retry: 'Retry',
   },
   common: { cancel: 'Cancel', confirm: 'Confirm' },
 };

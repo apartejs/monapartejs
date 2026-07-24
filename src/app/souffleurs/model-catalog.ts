@@ -26,3 +26,14 @@ export const CALLER_DOWNLOAD_BYTES = SIZE_BASE_BYTES + SIZE_ADAPTER_BYTES + SIZE
 /** Bornes de génération du contrat (256 min caller — 64 tronquait l'annonce+appel). */
 export const CALLER_MAX_NEW_TOKENS = 256;
 export const EXECUTOR_MAX_NEW_TOKENS = 12_000;
+
+/**
+ * Versions des adapters publiés — à BUMPER quand Paul republie un `.data` sur
+ * HF (les markers localStorage déclencheront le modal de re-téléchargement).
+ */
+export const ADAPTER_VERSIONS: Record<AdapterName, string> = {
+  'souffleur-chat': 'v0.1-int8',
+  'souffleur-pdf': 'v0.1-int8',
+  'souffleur-xlsx-docx': 'v0.1-int8',
+  'souffleur-sandbox': 'v0.1-int8',
+};

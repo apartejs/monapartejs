@@ -3,6 +3,7 @@ import {
   Component,
   HostListener,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -16,7 +17,9 @@ import { PrivacySheetComponent } from './features/privacy/privacy-sheet.componen
 import { SettingsSheetComponent } from './features/settings/settings-sheet.component';
 import { SidebarComponent } from './layout/sidebar/sidebar.component';
 import { FaviconService, MascotteComponent } from './mascotte';
+import { ModelUpdateModalComponent } from './features/model-update/model-update-modal.component';
 import { OnboardingComponent } from './onboarding/onboarding.component';
+import { isAdapterStale } from './souffleurs';
 import { LOCAL_KEYS, localGet } from './storage/settings.service';
 
 @Component({
@@ -28,6 +31,7 @@ import { LOCAL_KEYS, localGet } from './storage/settings.service';
     OnboardingComponent,
     SettingsSheetComponent,
     PrivacySheetComponent,
+    ModelUpdateModalComponent,
     MascotteComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -45,6 +49,7 @@ export class AppComponent {
   protected readonly t = this.i18n.t;
 
   protected readonly onboardingOpen = signal(localGet(LOCAL_KEYS.ONBOARDING_SEEN) !== '1');
+  protected readonly modelUpdateOpen = signal(false);
   protected readonly sidebarOpen = signal(window.innerWidth > 768);
   protected readonly settingsOpen = signal(false);
   protected readonly privacyOpen = signal(false);
@@ -64,15 +69,18 @@ export class AppComponent {
 
   constructor() {
     this.favicon.set('idle');
-    // Cache modèle purgé (ou nouveau navigateur) : ré-ouvre l'onboarding même
-    // si le flag « vu » est présent — le modèle est un prérequis dur.
-    if (!this.onboardingOpen()) {
-      setTimeout(() => {
-        if (this.modelStatus.state().status === 'not-downloaded') {
-          this.onboardingOpen.set(true);
-        }
-      }, 800);
-    }
+    // Au boot (une fois le statut réel connu) :
+    //  - poids absents (cache purgé, autre navigateur) → onboarding, même si « vu » ;
+    //  - poids présents mais version du catalogue bumpée → modal de mise à jour.
+    effect(() => {
+      const status = this.modelStatus.state().status;
+      if (this.onboardingOpen() || this.modelUpdateOpen()) return;
+      if (status === 'not-downloaded') {
+        this.onboardingOpen.set(true);
+      } else if (status === 'ready' && isAdapterStale()) {
+        this.modelUpdateOpen.set(true);
+      }
+    });
   }
 
   protected toggleSidebar(): void {

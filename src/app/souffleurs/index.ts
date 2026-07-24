@@ -23,6 +23,11 @@ export {
   type SouffleurStatus,
   type SouffleurStatusState,
 } from './status';
+export {
+  clearVersionMarkers,
+  isAdapterStale,
+  markAdapterPreloaded,
+} from './versions';
 export { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
 export { SOUFFLEUR_TOOL_NAMES } from './wire/tool-defs';
 export {

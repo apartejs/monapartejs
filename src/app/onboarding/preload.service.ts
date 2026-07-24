@@ -3,7 +3,7 @@
  * prérequis dur (échec = blocage + retry, jamais d'expérience dégradée).
  */
 import { Injectable, signal } from '@angular/core';
-import { CALLER_MODEL_ID, SouffleursProvider } from '../souffleurs';
+import { CALLER_MODEL_ID, SouffleursProvider, markAdapterPreloaded } from '../souffleurs';
 
 export type PreloadState = 'idle' | 'running' | 'error' | 'done';
 
@@ -22,6 +22,9 @@ export class OnboardingPreloadService {
         if (typeof p.progress === 'number') this.progress.set(p.progress);
       });
       this.progress.set(100);
+      // Marker de version (équivalent markAllPreloaded d'aimi) : le modal de
+      // mise à jour ne doit jamais pop juste après un téléchargement frais.
+      markAdapterPreloaded();
       this.state.set('done');
     } catch (err) {
       this.state.set('error');

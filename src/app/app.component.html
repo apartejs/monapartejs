@@ -50,4 +50,7 @@
   @if (privacyOpen()) {
     <bp-privacy-sheet (close)="privacyOpen.set(false)" />
   }
+  @if (modelUpdateOpen()) {
+    <bp-model-update-modal (updated)="modelUpdateOpen.set(false)" />
+  }
 }

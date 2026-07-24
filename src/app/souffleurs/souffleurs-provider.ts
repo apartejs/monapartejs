@@ -30,6 +30,7 @@ import {
   SOUFFLEURS_HF_REPO,
   type AdapterName,
 } from './model-catalog';
+import { ProgressAggregator } from './progress-aggregator';
 import { setSouffleurStatus } from './status';
 import { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
 import { buildWirePrompt } from './wire/prompt-builder';
@@ -261,26 +262,10 @@ export const SouffleursProvider: AparteAIProvider = {
       () =>
         new Promise<void>((resolve, reject) => {
           const id = _nextId++;
-          const files = new Map<string, { loaded: number; total: number }>();
+          const aggregator = new ProgressAggregator(CALLER_DOWNLOAD_BYTES);
           _pending.set(id, {
             onProgress: (p) => {
-              files.set(p.file, {
-                loaded: p.done ? p.total || p.loaded : p.loaded,
-                total: p.total || p.loaded,
-              });
-              let loaded = 0;
-              let total = 0;
-              for (const f of files.values()) {
-                loaded += f.loaded;
-                total += f.total;
-              }
-              // Dénominateur plancher = taille attendue base+adapter : la
-              // progression reste honnête même avant que tous les fichiers
-              // n'aient annoncé leur taille.
-              const progress = Math.min(
-                99,
-                Math.round((loaded / Math.max(total, CALLER_DOWNLOAD_BYTES)) * 100),
-              );
+              const progress = aggregator.push(p);
               setSouffleurStatus({ status: 'downloading', progress, device });
               onProgress({ status: 'downloading', file: p.file, progress });
             },
