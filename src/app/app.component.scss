@@ -103,8 +103,13 @@
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
 
-  /* <router-outlet> (vide) et le composant routé sont frères : on les empile
-   * dans la MÊME cellule, sinon le composant part dans une ligne implicite. */
+  /* <router-outlet> n'est qu'un marqueur (le composant routé s'insère comme
+   * FRÈRE) : on le sort du layout pour qu'il ne soit jamais étiré/affiché,
+   * et on cale le composant routé dans l'unique cellule. */
+  > router-outlet {
+    display: none;
+  }
+
   > * {
     grid-row: 1;
     grid-column: 1;
