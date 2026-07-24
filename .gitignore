@@ -1,6 +1,19 @@
-node_modules/
-dist/
-.angular/
+# Build / deps
+/node_modules/
+/dist/
+/.angular/
+/tmp/
+/out-tsc/
+
+# IDE / OS
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs / caches
+npm-debug.log
+pnpm-debug.log
+.sass-cache/
 
 # notes internes — jamais dans le repo public
 docs/superpowers/

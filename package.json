@@ -1,0 +1,47 @@
+{
+  "name": "bonapartejs",
+  "version": "0.1.0",
+  "description": "aparté — assistant personnel 100 % local, dans le navigateur",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/common": "^19.2.0",
+    "@angular/compiler": "^19.2.0",
+    "@angular/core": "^19.2.0",
+    "@angular/forms": "^19.2.0",
+    "@angular/platform-browser": "^19.2.0",
+    "@angular/platform-browser-dynamic": "^19.2.0",
+    "@angular/router": "^19.2.0",
+    "@aparte/angular": "0.2.0-alpha.0",
+    "@aparte/core": "0.2.0-alpha.0",
+    "@aparte/locale-fr": "0.2.0-alpha.0",
+    "@aparte/plugin-ask-question": "0.2.0-alpha.0",
+    "@aparte/plugin-marked": "0.2.0-alpha.0",
+    "@aparte/plugin-model-selector": "0.2.0-alpha.0",
+    "@aparte/plugin-shiki": "0.2.0-alpha.0",
+    "@aparte/plugin-streaming-markdown": "0.2.0-alpha.0",
+    "@huggingface/transformers": "^4.2.0",
+    "dexie": "^4.0.10",
+    "marked": "^18.0.0",
+    "rxjs": "~7.8.0",
+    "shiki": "^4.0.0",
+    "streaming-markdown": "^0.2.15",
+    "tslib": "^2.3.0",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^19.2.27",
+    "@angular/cli": "^19.2.27",
+    "@angular/compiler-cli": "^19.2.0",
+    "fake-indexeddb": "^6.0.0",
+    "typescript": "~5.7.2",
+    "vitest": "^3.0.0"
+  }
+}
