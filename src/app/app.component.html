@@ -1,4 +1,53 @@
-<main class="bootstrap-placeholder">
-  <p>( '.' ) aparté — en construction</p>
-</main>
-<router-outlet />
+@if (onboardingOpen()) {
+  <bp-onboarding (done$)="onOnboardingDone()" />
+} @else {
+  <div class="shell" [class.sidebar-closed]="!sidebarOpen()">
+    <div class="sidebar-slot">
+      <bp-sidebar (openSettings)="settingsOpen.set(true)" />
+    </div>
+
+    <main class="main">
+      <header class="topbar">
+        <button
+          class="icon-btn"
+          (click)="toggleSidebar()"
+          [attr.aria-label]="t().topbar.toggleSidebar"
+        >
+          ☰
+        </button>
+        @if (!sidebarOpen()) {
+          <span class="brand bp-serif">{{ t().brand }}</span>
+        }
+        <span class="title">{{ topbarTitle() }}</span>
+        <span class="spacer"></span>
+        <button class="local-badge" (click)="privacyOpen.set(true)">
+          {{ t().topbar.localBadge }}
+        </button>
+        <button
+          class="icon-btn"
+          (click)="toggleTheme()"
+          [attr.aria-label]="t().topbar.themeToggle"
+        >
+          ◐
+        </button>
+      </header>
+
+      <div class="content">
+        <router-outlet />
+      </div>
+    </main>
+  </div>
+
+  @if (showCornerMascotte()) {
+    <div class="corner-mascotte">
+      <bp-mascotte [state]="cornerMascotteState()" [size]="64" />
+    </div>
+  }
+
+  @if (settingsOpen()) {
+    <bp-settings-sheet (close)="settingsOpen.set(false)" />
+  }
+  @if (privacyOpen()) {
+    <bp-privacy-sheet (close)="privacyOpen.set(false)" />
+  }
+}

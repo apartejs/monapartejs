@@ -13,13 +13,14 @@
 import type {
   AparteAIModel,
   AparteAIProvider,
-  AparteAIProviderMetadata,
   AparteChatRequest,
   AparteChatResponse,
   AparteStreamEvent,
   ModelLoadProgress,
   ModelStatus,
 } from '@aparte/core';
+
+type ProviderMetadata = ReturnType<AparteAIProvider['getMetadata']>;
 import {
   CALLER_ADAPTER,
   CALLER_DOWNLOAD_BYTES,
@@ -41,12 +42,12 @@ import type {
   WorkerToMain,
 } from './worker-protocol';
 
-declare module '@aparte/core' {
-  interface AparteRequestMeta {
-    /** Fichiers joints listés dans le bloc « Files available » du prompt système. */
-    souffleurFiles?: SouffleurFileRef[];
-  }
-}
+/**
+ * Canal fichiers : l'app pose `request._meta['souffleurFiles']` (via un
+ * requestInterceptor, J3) — transmis intact par DirectTransport aux providers
+ * own-I/O. Clé documentée ici, lue nulle part ailleurs.
+ */
+export const META_FILES_KEY = 'souffleurFiles';
 
 const PROVIDER_ID = 'souffleurs';
 
@@ -139,7 +140,7 @@ const MODELS: AparteAIModel[] = [
 export const SouffleursProvider: AparteAIProvider = {
   id: PROVIDER_ID,
 
-  getMetadata(): AparteAIProviderMetadata {
+  getMetadata(): ProviderMetadata {
     return {
       id: PROVIDER_ID,
       name: 'aparté',
@@ -157,7 +158,8 @@ export const SouffleursProvider: AparteAIProvider = {
   async chat(request: AparteChatRequest): Promise<AparteChatResponse> {
     const device = await detectComputeDevice();
     const enabledTools = request.tools?.map((t) => t.name) ?? [];
-    const files = request._meta?.souffleurFiles ?? [];
+    const files =
+      (request._meta?.[META_FILES_KEY] as SouffleurFileRef[] | undefined) ?? [];
     const system = buildSystemPrompt(enabledTools, files);
     const prompt = buildWirePrompt(system, request.messages);
     const maxNewTokens = Math.max(request.maxTokens ?? 0, CALLER_MAX_NEW_TOKENS);
