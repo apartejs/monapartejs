@@ -5,25 +5,30 @@
 
 .shell {
   display: grid;
-  grid-template-columns: var(--bp-sidebar-width) 1fr;
+  grid-template-columns: var(--bp-sidebar-width) minmax(0, 1fr);
+  /* Ligne EXPLICITE : une ligne implicite se dimensionne au contenu et casse
+   * toute la chaîne height:100% en dessous (le viewport de la lib ne reçoit
+   * jamais sa hauteur → plus aucun scroll interne). */
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
   transition: grid-template-columns 0.25s ease;
 
   &.sidebar-closed {
-    grid-template-columns: 0 1fr;
+    grid-template-columns: 0 minmax(0, 1fr);
   }
 }
 
 .sidebar-slot {
   overflow: hidden;
   min-width: 0;
+  min-height: 0;
 }
 
 .main {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100%;
+  min-height: 0;
 }
 
 .topbar {
@@ -91,10 +96,20 @@
 .content {
   flex: 1;
   min-height: 0;
-  /* grid : l'enfant routé obtient une hauteur DÉFINIE (le % de bp-chat-page
-   * se résout de façon fiable, contrairement à un simple flex item). */
+  /* Pistes explicites : l'enfant routé (bp-chat-page) est étiré sur une piste
+   * DÉFINIE — son height:100% se résout de façon fiable. */
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
+
+  /* <router-outlet> (vide) et le composant routé sont frères : on les empile
+   * dans la MÊME cellule, sinon le composant part dans une ligne implicite. */
+  > * {
+    grid-row: 1;
+    grid-column: 1;
+    min-height: 0;
+  }
 }
 
 /* Comme sur aimi : la mascotte coin vit dans la gouttière à droite du contenu

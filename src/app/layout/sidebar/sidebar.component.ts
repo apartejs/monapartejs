@@ -99,6 +99,11 @@ interface ConvGroup {
     </aside>
   `,
   styles: `
+    :host {
+      display: block;
+      height: 100%;
+      min-height: 0;
+    }
     .sidebar {
       height: 100%;
       display: flex;
