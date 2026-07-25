@@ -53,7 +53,12 @@ export class AppComponent {
 
   protected readonly t = this.i18n.t;
 
-  protected readonly onboardingOpen = signal(localGet(LOCAL_KEYS.ONBOARDING_SEEN) !== '1');
+  /** Routes /debug/* : jamais d'onboarding ni de modal — harnais de test UI. */
+  private readonly debugMode = location.pathname.startsWith('/debug');
+
+  protected readonly onboardingOpen = signal(
+    !this.debugMode && localGet(LOCAL_KEYS.ONBOARDING_SEEN) !== '1',
+  );
   protected readonly modelUpdateOpen = signal(false);
   protected readonly sidebarOpen = signal(window.innerWidth > 768);
   protected readonly settingsOpen = signal(false);
@@ -93,7 +98,7 @@ export class AppComponent {
     //    → modal de mise à jour (consentement).
     effect(() => {
       const status = this.modelStatus.state().status;
-      if (this.onboardingOpen() || this.modelUpdateOpen()) return;
+      if (this.debugMode || this.onboardingOpen() || this.modelUpdateOpen()) return;
       if (status === 'not-downloaded') {
         this.onboardingOpen.set(true);
       } else if (status === 'ready' && this.callerUpdate() === true) {
