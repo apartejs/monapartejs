@@ -425,7 +425,7 @@ export async function runExecutor(
   adapter: ExecutorAdapter,
   systemPrompt: string,
   task: string,
-  opts: { maxNewTokens?: number } = {},
+  opts: { maxNewTokens?: number; onChunk?: (raw: string) => void } = {},
 ): Promise<ExecutorResult> {
   const device = await detectComputeDevice();
   const resolved = await resolveAdapterFiles(adapter);
@@ -439,6 +439,7 @@ export async function runExecutor(
           onReady: () => resolved.markSeen(),
           onChunk: (delta) => {
             raw += delta;
+            opts.onChunk?.(raw);
           },
           onDone: (usage) => resolve({ raw: raw.split('<|im_end|>')[0], usage }),
           onError: (message) => reject(new Error(message)),

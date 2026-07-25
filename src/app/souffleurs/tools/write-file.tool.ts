@@ -6,10 +6,17 @@
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { PDF_SYSTEM, XLSX_DOCX_SYSTEM } from '../executors/executor-prompts';
+import { docxOpsPreview } from '../executors/docx-ops-runtime';
 import { materializeWriteFile, type WriteFileKind } from '../executors/materialize';
+import { extractCompleteOps, previewXlsxOps } from '../executors/xlsx-ops-runtime';
 import { fileRegistry } from '../files/file-registry';
 import { runExecutor } from '../souffleurs-provider';
-import { notifyArtifact, triggerDownload } from './artifact-store';
+import {
+  clearLiveArtifact,
+  notifyArtifact,
+  pushLiveArtifact,
+  triggerDownload,
+} from './artifact-store';
 import { surveyXlsx } from './read-file.tool';
 
 export const writeFileTool: AparteTool = {
@@ -55,7 +62,35 @@ export const writeFileHandler: AparteToolHandler = async (call) => {
 
     const adapter = kind === 'pdf' ? 'souffleur-pdf' : 'souffleur-xlsx-docx';
     const system = kind === 'pdf' ? PDF_SYSTEM : XLSX_DOCX_SYSTEM;
-    const { raw } = await runExecutor(adapter, system, executorTask);
+
+    // Aperçu LIVE (iso aimi) : le document se construit pendant le stream.
+    let lastLiveAt = 0;
+    let lastOpsCount = 0;
+    let previewBusy = false;
+    const onChunk = (raw: string) => {
+      if (kind === 'pdf') {
+        pushLiveArtifact(call.id, { code: raw });
+        return;
+      }
+      const now = Date.now();
+      if (previewBusy || now - lastLiveAt < 700) return;
+      const ops = extractCompleteOps(raw);
+      if (ops.length === lastOpsCount) return;
+      lastOpsCount = ops.length;
+      lastLiveAt = now;
+      if (kind === 'docx') {
+        pushLiveArtifact(call.id, { html: docxOpsPreview(ops) });
+      } else {
+        previewBusy = true;
+        void previewXlsxOps(ops)
+          .then((html) => pushLiveArtifact(call.id, { html }))
+          .catch(() => undefined)
+          .finally(() => (previewBusy = false));
+      }
+    };
+
+    const { raw } = await runExecutor(adapter, system, executorTask, { onChunk });
+    clearLiveArtifact(call.id);
 
     const artifact = await materializeWriteFile(kind, raw, {
       originalXlsx,
@@ -81,6 +116,7 @@ export const writeFileHandler: AparteToolHandler = async (call) => {
       ),
     };
   } catch (err) {
+    clearLiveArtifact(call.id);
     return fail(err instanceof Error ? err.message : String(err));
   }
 };

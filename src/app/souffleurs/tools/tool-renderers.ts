@@ -7,7 +7,12 @@
  *  - compute : invisible (l'utilisateur ne voit pas le calcul, règle contrat).
  */
 import type { AparteToolCallSegment, AparteToolRenderer } from '@aparte/core';
-import { artifactsByCall, triggerDownload, widgetsByCall } from './artifact-store';
+import {
+  artifactsByCall,
+  subscribeLiveArtifact,
+  triggerDownload,
+  widgetsByCall,
+} from './artifact-store';
 
 const esc = (v: unknown) =>
   String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -25,6 +30,10 @@ const CARD_STYLES = `
 .bp-artifact-preview th, .bp-artifact-preview td { border: 1px solid var(--aparte-border); padding: 3px 8px; text-align: left; }
 .bp-artifact-preview th { background: var(--aparte-surface-2); }
 .bp-artifact-error { color: var(--aparte-error); font-size: 13px; }
+.bp-artifact-live:empty { display: none; }
+.bp-artifact-code pre { margin: 10px 0 0; max-height: 200px; overflow: auto; font-family: var(--bp-mono, monospace); font-size: 11.5px; color: var(--aparte-text-muted); border-top: 1px solid var(--aparte-border); padding-top: 10px; }
+.bp-artifact-pdf { margin-top: 10px; border-top: 1px solid var(--aparte-border); padding-top: 10px; }
+.bp-artifact-pdf iframe { width: 100%; height: 320px; border: 1px solid var(--aparte-border); border-radius: 8px; background: #fff; }
 .bp-widget { border: 1px solid var(--aparte-border); border-radius: 12px; background: var(--aparte-surface-1); margin: 6px 0; overflow: hidden; }
 .bp-widget iframe { display: block; width: 100%; min-height: 220px; border: none; background: #fff; }
 .bp-widget pre { margin: 0; padding: 12px 14px; overflow: auto; font-family: var(--bp-mono, monospace); font-size: 12.5px; }
@@ -47,18 +56,26 @@ const KIND_GLYPHS: Record<string, string> = {
   default: "('.')",
 };
 
-/** Carte artefact — write_file et transform_file. */
+/** Carte artefact — write_file et transform_file (aperçu LIVE pendant la génération). */
 export const artifactCardRenderer: AparteToolRenderer = {
   render(segment) {
     const result = parseResult(segment);
     if (segment.status === 'pending' || !result) {
-      return `<div class="bp-artifact-card"><div class="bp-artifact-head"><span class="bp-artifact-icon">('.')…</span><span class="bp-artifact-meta">génération du document…</span></div></div>`;
+      return `
+<div class="bp-artifact-card">
+  <div class="bp-artifact-head">
+    <span class="bp-artifact-icon">('.')…</span>
+    <span class="bp-artifact-meta">génération du document…</span>
+  </div>
+  <div class="bp-artifact-live"></div>
+</div>`;
     }
     if (!result['ok']) {
       return `<div class="bp-artifact-card"><span class="bp-artifact-error">(x.x) ${esc(result['error'] ?? 'échec')}</span></div>`;
     }
     const glyph = KIND_GLYPHS[String(result['type'])] ?? KIND_GLYPHS['default'];
     const artifact = artifactsByCall.get(segment.toolCall.id);
+    const isPdf = artifact?.mime === 'application/pdf';
     return `
 <div class="bp-artifact-card">
   <div class="bp-artifact-head">
@@ -68,13 +85,41 @@ export const artifactCardRenderer: AparteToolRenderer = {
     <button class="bp-artifact-dl" data-call="${esc(segment.toolCall.id)}">Télécharger</button>
   </div>
   ${artifact?.preview ? `<div class="bp-artifact-preview">${artifact.preview}</div>` : ''}
+  ${isPdf ? `<div class="bp-artifact-pdf"><iframe title="aperçu PDF"></iframe></div>` : ''}
 </div>`;
   },
   setup(element, segment) {
+    // Aperçu live (statut pending) : l'élément est stable pendant l'exécution,
+    // on le met à jour au fil du stream de l'exécuteur.
+    const live = element.querySelector<HTMLElement>('.bp-artifact-live');
+    if (live && segment.status === 'pending') {
+      subscribeLiveArtifact(segment.toolCall.id, (state) => {
+        if (state.html !== undefined) {
+          live.classList.add('bp-artifact-preview');
+          live.innerHTML = state.html; // généré par NOS runtimes (contenu échappé)
+        } else if (state.code !== undefined) {
+          if (!live.firstElementChild || live.firstElementChild.tagName !== 'PRE') {
+            live.classList.add('bp-artifact-code');
+            live.innerHTML = '<pre></pre>';
+          }
+          const pre = live.firstElementChild as HTMLElement;
+          pre.textContent = state.code;
+          pre.scrollTop = pre.scrollHeight;
+        }
+      });
+    }
+
     element.querySelector<HTMLButtonElement>('.bp-artifact-dl')?.addEventListener('click', () => {
       const artifact = artifactsByCall.get(segment.toolCall.id);
       if (artifact) triggerDownload(artifact.blob, artifact.filename);
     });
+
+    // Aperçu PDF final : viewer natif du navigateur sur le blob généré.
+    const pdfFrame = element.querySelector<HTMLIFrameElement>('.bp-artifact-pdf iframe');
+    if (pdfFrame) {
+      const artifact = artifactsByCall.get(segment.toolCall.id);
+      if (artifact) pdfFrame.src = URL.createObjectURL(artifact.blob);
+    }
   },
   getStyles: () => CARD_STYLES,
 };

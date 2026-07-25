@@ -38,6 +38,39 @@ export function notifyArtifact(toolCallId: string, artifact: ProducedArtifact, f
   }
 }
 
+/* ── Aperçu LIVE pendant la génération (iso aimi : le document se construit
+ *    sous les yeux de l'utilisateur pendant le stream de l'exécuteur) ── */
+
+export interface LiveArtifactState {
+  /** HTML d'aperçu (échappé par nos runtimes) — xlsx/docx. */
+  html?: string;
+  /** Code en cours de génération (affiché en texte brut) — pdf. */
+  code?: string;
+}
+
+const liveByCall = new Map<string, LiveArtifactState>();
+const liveListeners = new Map<string, (state: LiveArtifactState) => void>();
+
+export function pushLiveArtifact(toolCallId: string, patch: LiveArtifactState): void {
+  const state = { ...liveByCall.get(toolCallId), ...patch };
+  liveByCall.set(toolCallId, state);
+  liveListeners.get(toolCallId)?.(state);
+}
+
+export function subscribeLiveArtifact(
+  toolCallId: string,
+  listener: (state: LiveArtifactState) => void,
+): void {
+  liveListeners.set(toolCallId, listener);
+  const current = liveByCall.get(toolCallId);
+  if (current) listener(current);
+}
+
+export function clearLiveArtifact(toolCallId: string): void {
+  liveByCall.delete(toolCallId);
+  liveListeners.delete(toolCallId);
+}
+
 export function triggerDownload(blob: Blob, filename: string): void {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
