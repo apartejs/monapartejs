@@ -56,6 +56,7 @@ export {
 } from './tools/artifact-store';
 export {
   artifactCardRenderer,
+  installToolRendererStyles,
   invisibleRenderer,
   widgetRenderer,
 } from './tools/tool-renderers';

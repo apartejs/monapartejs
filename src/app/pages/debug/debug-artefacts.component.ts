@@ -55,7 +55,9 @@ export class DebugArtefactsComponent implements AfterViewInit {
   private readonly host = inject(ElementRef);
 
   async ngAfterViewInit(): Promise<void> {
-    ensureRendererStyles();
+    // PAS d'injection manuelle de styles : le harnais doit passer par le même
+    // chemin que l'app réelle (installToolRendererStyles dans aparte.config) —
+    // c'est ce qui aurait détecté le bug « carte sans styles au reload ».
     const artifact = await makePdfArtifact();
 
     // ── Cas 1 : carte fraîche ──
@@ -119,15 +121,6 @@ export class DebugArtefactsComponent implements AfterViewInit {
     host.appendChild(el);
     artifactCardRenderer.setup?.(el, segment);
   }
-}
-
-let stylesDone = false;
-function ensureRendererStyles(): void {
-  if (stylesDone) return;
-  stylesDone = true;
-  const style = document.createElement('style');
-  style.textContent = artifactCardRenderer.getStyles?.() ?? '';
-  document.head.appendChild(style);
 }
 
 async function makePdfArtifact(): Promise<ProducedArtifact> {

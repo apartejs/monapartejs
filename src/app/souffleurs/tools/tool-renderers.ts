@@ -270,3 +270,19 @@ export const widgetRenderer: AparteToolRenderer = {
 export const invisibleRenderer: AparteToolRenderer = {
   render: () => '',
 };
+
+/**
+ * ⚠️ La lib n'injecte getStyles() d'un tool renderer QU'À l'événement
+ * `tool-start` (génération live) — au reload d'une conversation, aucun
+ * tool-start ne se produit et la carte s'affichait SANS styles (bloc absent,
+ * canvas géants). On injecte donc nous-mêmes à l'enregistrement.
+ * (Amélioration lib à proposer : injecter dans registerToolRenderer.)
+ */
+export function installToolRendererStyles(): void {
+  const id = 'bp-tool-renderer-styles';
+  if (document.getElementById(id)) return;
+  const style = document.createElement('style');
+  style.id = id;
+  style.textContent = CARD_STYLES;
+  document.head.appendChild(style);
+}

@@ -28,6 +28,7 @@ import {
   createWidgetHandler,
   createWidgetTool,
   fileRegistry,
+  installToolRendererStyles,
   invisibleRenderer,
   readFileHandler,
   readFileTool,
@@ -102,6 +103,9 @@ export function provideBonaparte(): EnvironmentProviders[] {
       AparteConfig.registerToolRenderer('transform_file', artifactCardRenderer);
       AparteConfig.registerToolRenderer('create_widget', widgetRenderer);
       AparteConfig.registerToolRenderer('compute', invisibleRenderer);
+      // La lib n'injecte les styles des tool renderers qu'au tool-start (live) —
+      // au reload il n'y en a pas : injection à l'enregistrement.
+      installToolRendererStyles();
 
       // Persistance des artefacts produits (blob + aperçu) — indispensable pour
       // réhydrater les cartes après un reload (la Map mémoire est vide).
