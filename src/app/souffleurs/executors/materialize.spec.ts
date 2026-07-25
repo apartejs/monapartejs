@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractCode } from './sandbox';
-import { defaultFilename } from './materialize';
+import { defaultFilename, filenameFromTask } from './materialize';
 import { extractCompleteOps } from './xlsx-ops-runtime';
 import { docxOpsPreview } from './docx-ops-runtime';
 
