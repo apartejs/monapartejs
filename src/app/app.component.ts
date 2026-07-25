@@ -69,9 +69,21 @@ export class AppComponent {
     () => this.manager.activeConversation()?.title ?? '',
   );
 
+  /** Mascotte coin branchée sur le cycle RÉEL du modèle (provider souffleurs) :
+   *  téléchargement/chargement (dont swap d'exécuteur ~3,8 s) → thinking ;
+   *  génération (caller ou exécuteur) → talking ; erreur → (x.x). */
   protected readonly cornerMascotteState = computed(() => {
-    if (this.modelStatus.state().status === 'error') return 'error' as const;
-    return this.generating.generating() ? ('talking' as const) : ('idle' as const);
+    switch (this.modelStatus.state().status) {
+      case 'error':
+        return 'error' as const;
+      case 'downloading':
+      case 'loading':
+        return 'thinking' as const;
+      case 'generating':
+        return 'talking' as const;
+      default:
+        return this.generating.generating() ? ('talking' as const) : ('idle' as const);
+    }
   });
 
   protected readonly showCornerMascotte = computed(

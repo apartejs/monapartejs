@@ -430,19 +430,34 @@ export async function runExecutor(
   const device = await detectComputeDevice();
   const resolved = await resolveAdapterFiles(adapter);
   const prompt = buildWirePrompt(systemPrompt, [{ role: 'user', content: task }]);
+  // Cycle visible (mascotte/pastille) : loading pendant le swap, generating
+  // pendant la production de l'exécuteur, ready au retour.
+  setSouffleurStatus({ status: 'loading', device });
   return enqueue(
     () =>
       new Promise<ExecutorResult>((resolve, reject) => {
         const id = _nextId++;
         let raw = '';
         _pending.set(id, {
-          onReady: () => resolved.markSeen(),
+          onProgress: (p) => {
+            if (!p.done) setSouffleurStatus({ status: 'downloading', device });
+          },
+          onReady: () => {
+            resolved.markSeen();
+            setSouffleurStatus({ status: 'generating', device });
+          },
           onChunk: (delta) => {
             raw += delta;
             opts.onChunk?.(raw);
           },
-          onDone: (usage) => resolve({ raw: raw.split('<|im_end|>')[0], usage }),
-          onError: (message) => reject(new Error(message)),
+          onDone: (usage) => {
+            setSouffleurStatus({ status: 'ready', device });
+            resolve({ raw: raw.split('<|im_end|>')[0], usage });
+          },
+          onError: (message) => {
+            setSouffleurStatus({ status: 'error', message, device });
+            reject(new Error(message));
+          },
         });
         getWorker().postMessage({
           type: 'generate',
