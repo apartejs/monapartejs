@@ -21,6 +21,7 @@ import { ModelUpdateModalComponent } from './features/model-update/model-update-
 import { SearchPaletteComponent } from './features/search/search-palette.component';
 import { UpdateToastComponent } from './features/update-toast/update-toast.component';
 import { OnboardingComponent } from './onboarding/onboarding.component';
+import { OnboardingPreloadService } from './onboarding/preload.service';
 import { getSouffleurManifest } from './souffleurs';
 import { LOCAL_KEYS, localGet } from './storage/settings.service';
 
@@ -72,15 +73,19 @@ export class AppComponent {
     () => this.manager.activeId() !== null && !this.onboardingOpen(),
   );
 
+  private readonly preload = inject(OnboardingPreloadService);
   private readonly callerUpdate = signal<boolean | null>(null);
 
   constructor() {
     this.favicon.set('idle');
     // Détection de version : le manifest HF (no-store) est comparé aux versions
     // « vues ». Les .data versionnés étant immuables, une MAJ = simple cache-miss.
-    void getSouffleurManifest().then((manifest) =>
-      this.callerUpdate.set(manifest.hasUpdate('chat')),
-    );
+    this.refreshCallerUpdate();
+    // RE-vérifier après chaque préchargement réussi (markSeen vient d'être
+    // écrit) — sinon le signal figé du boot rouvre le modal en boucle.
+    effect(() => {
+      if (this.preload.state() === 'done') this.refreshCallerUpdate();
+    });
     // Au boot (une fois le statut réel connu) :
     //  - poids absents (cache purgé, autre navigateur, version bumpée jamais
     //    téléchargée) → onboarding, même si « vu » ;
@@ -95,6 +100,19 @@ export class AppComponent {
         this.modelUpdateOpen.set(true);
       }
     });
+  }
+
+  private refreshCallerUpdate(): void {
+    void getSouffleurManifest().then((manifest) =>
+      this.callerUpdate.set(manifest.hasUpdate('chat')),
+    );
+  }
+
+  protected onModelUpdated(): void {
+    // Fermeture SYNCHRONE du cycle : sans ça, l'effet revoit ready+update=true
+    // avant le refresh async et rouvre le modal.
+    this.callerUpdate.set(false);
+    this.modelUpdateOpen.set(false);
   }
 
   protected toggleSidebar(): void {

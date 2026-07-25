@@ -54,7 +54,7 @@
     <bp-privacy-sheet (close)="privacyOpen.set(false)" />
   }
   @if (modelUpdateOpen()) {
-    <bp-model-update-modal (updated)="modelUpdateOpen.set(false)" />
+    <bp-model-update-modal (updated)="onModelUpdated()" />
   }
   @if (searchOpen()) {
     <bp-search-palette (close)="searchOpen.set(false)" />
