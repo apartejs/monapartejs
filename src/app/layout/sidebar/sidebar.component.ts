@@ -6,6 +6,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { ConversationManagerService } from '@aparte/angular';
 import type { AparteConversation } from '@aparte/core';
@@ -242,6 +243,7 @@ export class SidebarComponent {
   protected readonly modelStatus = inject(ModelStatusService);
   private readonly i18n = inject(TranslateService);
   private readonly router = inject(Router);
+  private readonly location = inject(Location);
 
   readonly openSettings = output<void>();
   readonly openSearch = output<void>();
@@ -280,7 +282,14 @@ export class SidebarComponent {
   });
 
   protected newChat(): void {
+    // Après une création de conversation, l'URL est réécrite en /chat/:id SANS
+    // navigation (replaceState) : le routeur croit toujours être sur '/' et
+    // navigate('/') devient un no-op. L'événement de désélection (id: null)
+    // remet le fil à zéro dans tous les cas — le contrôleur de la lib l'écoute
+    // globalement.
     void this.router.navigate(['/']);
+    this.location.replaceState('/');
+    window.dispatchEvent(new CustomEvent('aparte-select-conversation', { detail: { id: null } }));
   }
 
   protected open(id: string): void {
