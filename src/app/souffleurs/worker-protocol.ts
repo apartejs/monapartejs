@@ -4,9 +4,17 @@ import type { AdapterName } from './model-catalog';
 
 export type ComputeDevice = 'webgpu' | 'wasm';
 
+/** Fichiers résolus par le manifest (noms versionnés immuables). */
+export interface AdapterFiles {
+  /** ex. 'onnx/model_q4.onnx_data' */
+  baseWeightsFile: string;
+  /** ex. 'adapters/souffleur-chat-0.2.0.data' */
+  adapterFile: string;
+}
+
 export type MainToWorker =
-  | { type: 'prepare'; id: number; adapter: AdapterName; device: ComputeDevice }
-  | {
+  | ({ type: 'prepare'; id: number; adapter: AdapterName; device: ComputeDevice } & AdapterFiles)
+  | ({
       type: 'generate';
       id: number;
       adapter: AdapterName;
@@ -15,7 +23,7 @@ export type MainToWorker =
       maxNewTokens: number;
       /** Trace console (ids des premiers tokens — contrôle double-BOS, etc.). */
       debug?: boolean;
-    }
+    } & AdapterFiles)
   | { type: 'abort' }
   | { type: 'dispose' };
 

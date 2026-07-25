@@ -13,19 +13,15 @@ import {
   TextStreamer,
   pipeline,
 } from '@huggingface/transformers';
-import {
-  BASE_WEIGHTS_FILE,
-  SOUFFLEURS_HF_REPO,
-  adapterDataFile,
-  type AdapterName,
-} from './model-catalog';
-import type { ComputeDevice, MainToWorker, WorkerToMain } from './worker-protocol';
+import { SOUFFLEURS_HF_REPO, type AdapterName } from './model-catalog';
+import type { AdapterFiles, ComputeDevice, MainToWorker, WorkerToMain } from './worker-protocol';
 
 const post = (msg: WorkerToMain) => (self as unknown as Worker).postMessage(msg);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pipe: any = null;
-let currentAdapter: AdapterName | null = null;
+/** Clé de swap = le FICHIER adapter (versionné) : nouvelle version = re-pipeline. */
+let currentAdapterFile: string | null = null;
 const stopping = new InterruptableStoppingCriteria();
 
 self.onmessage = async (event: MessageEvent<MainToWorker>) => {
@@ -33,10 +29,10 @@ self.onmessage = async (event: MessageEvent<MainToWorker>) => {
   try {
     switch (msg.type) {
       case 'prepare':
-        await ensurePipeline(msg.id, msg.adapter, msg.device);
+        await ensurePipeline(msg.id, msg.adapter, msg.device, msg);
         break;
       case 'generate':
-        await generate(msg.id, msg.adapter, msg.device, msg.prompt, msg.maxNewTokens, msg.debug);
+        await generate(msg.id, msg.adapter, msg.device, msg.prompt, msg.maxNewTokens, msg, msg.debug);
         break;
       case 'abort':
         stopping.interrupt();
@@ -44,7 +40,7 @@ self.onmessage = async (event: MessageEvent<MainToWorker>) => {
       case 'dispose':
         await pipe?.dispose?.();
         pipe = null;
-        currentAdapter = null;
+        currentAdapterFile = null;
         break;
     }
   } catch (err) {
@@ -53,8 +49,13 @@ self.onmessage = async (event: MessageEvent<MainToWorker>) => {
   }
 };
 
-async function ensurePipeline(id: number, adapter: AdapterName, device: ComputeDevice): Promise<void> {
-  if (pipe && currentAdapter === adapter) {
+async function ensurePipeline(
+  id: number,
+  adapter: AdapterName,
+  device: ComputeDevice,
+  files: AdapterFiles,
+): Promise<void> {
+  if (pipe && currentAdapterFile === files.adapterFile) {
     post({ type: 'ready', id, adapter, ms: 0 });
     return;
   }
@@ -62,7 +63,7 @@ async function ensurePipeline(id: number, adapter: AdapterName, device: ComputeD
   if (pipe) {
     await pipe.dispose?.();
     pipe = null;
-    currentAdapter = null;
+    currentAdapterFile = null;
   }
 
   const options = {
@@ -72,8 +73,8 @@ async function ensurePipeline(id: number, adapter: AdapterName, device: ComputeD
     use_external_data_format: false,
     session_options: {
       externalData: [
-        { path: 'model_q4.onnx_data', data: BASE_WEIGHTS_FILE },
-        { path: 'adapter.data', data: adapterDataFile(adapter) },
+        { path: 'model_q4.onnx_data', data: files.baseWeightsFile },
+        { path: 'adapter.data', data: files.adapterFile },
       ],
     },
     progress_callback: (p: { status: string; file?: string; loaded?: number; total?: number }) => {
@@ -92,7 +93,7 @@ async function ensurePipeline(id: number, adapter: AdapterName, device: ComputeD
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   pipe = await pipeline('text-generation', SOUFFLEURS_HF_REPO, options as any);
-  currentAdapter = adapter;
+  currentAdapterFile = files.adapterFile;
   post({ type: 'ready', id, adapter, ms: Math.round(performance.now() - t0) });
 }
 
@@ -102,9 +103,10 @@ async function generate(
   device: ComputeDevice,
   prompt: string,
   maxNewTokens: number,
+  files: AdapterFiles,
   debug = false,
 ): Promise<void> {
-  await ensurePipeline(id, adapter, device);
+  await ensurePipeline(id, adapter, device, files);
   stopping.reset();
 
   const tokenizer = pipe.tokenizer;

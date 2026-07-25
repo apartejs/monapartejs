@@ -28,10 +28,12 @@ export {
   type SouffleurStatusState,
 } from './status';
 export {
-  clearVersionMarkers,
-  isAdapterStale,
-  markAdapterPreloaded,
-} from './versions';
+  adapterRole,
+  getSouffleurManifest,
+  SouffleurManifestClient,
+  type SouffleurRole,
+  type SouffleursManifest,
+} from './manifest';
 export { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
 export { SOUFFLEUR_TOOL_NAMES } from './wire/tool-defs';
 export {

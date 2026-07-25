@@ -31,7 +31,7 @@ import {
   SOUFFLEURS_HF_REPO,
   type AdapterName,
 } from './model-catalog';
-import { isAdapterStale, markAdapterPreloaded } from './versions';
+import { adapterRole, getSouffleurManifest } from './manifest';
 import { ProgressAggregator } from './progress-aggregator';
 import { setSouffleurStatus } from './status';
 import { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
@@ -133,6 +133,17 @@ function isDebug(): boolean {
   }
 }
 
+/** Résout les fichiers versionnés d'un adapter via le manifest (+ markSeen après ready). */
+async function resolveAdapterFiles(adapter: AdapterName) {
+  const manifest = await getSouffleurManifest();
+  const role = adapterRole(adapter);
+  return {
+    files: { baseWeightsFile: manifest.baseWeightsFile(), adapterFile: manifest.file(role) },
+    size: manifest.size(role) ?? SIZE_ADAPTER_BYTES,
+    markSeen: () => manifest.markSeen(role),
+  };
+}
+
 function genCallId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -168,6 +179,7 @@ export const SouffleursProvider: AparteAIProvider = {
 
   async chat(request: AparteChatRequest): Promise<AparteChatResponse> {
     const device = await detectComputeDevice();
+    const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
     const enabledTools = request.tools?.map((t) => t.name) ?? [];
     const files =
       (request._meta?.[META_FILES_KEY] as SouffleurFileRef[] | undefined) ?? [];
@@ -203,6 +215,7 @@ export const SouffleursProvider: AparteAIProvider = {
             new Promise<void>((resolve) => {
               const id = _nextId++;
               _pending.set(id, {
+                onReady: () => resolved.markSeen(),
                 onChunk: (delta) => {
                   raw += delta;
                   emitDemux(demux.push(delta));
@@ -247,6 +260,7 @@ export const SouffleursProvider: AparteAIProvider = {
                 prompt,
                 maxNewTokens,
                 debug,
+                ...resolved.files,
               } satisfies MainToWorker);
             }),
         );
@@ -261,10 +275,14 @@ export const SouffleursProvider: AparteAIProvider = {
     if (_loadedAdapter === CALLER_ADAPTER) return 'ready';
     try {
       if (typeof caches === 'undefined') return 'not-downloaded';
+      const manifest = await getSouffleurManifest();
+      const basename = (path: string) => path.split('/').pop() ?? path;
       const cache = await caches.open('transformers-cache');
       const keys = await cache.keys();
       const has = (fragment: string) => keys.some((req) => req.url.includes(fragment));
-      return has('model_q4.onnx_data') && has(`${CALLER_ADAPTER}.data`)
+      // Fichiers de la version COURANTE du manifest : une version bumpée
+      // apparaît comme not-downloaded (l'onboarding/modal retélécharge).
+      return has(basename(manifest.baseWeightsFile())) && has(basename(manifest.file('chat')))
         ? 'cached'
         : 'not-downloaded';
     } catch {
@@ -277,6 +295,7 @@ export const SouffleursProvider: AparteAIProvider = {
     onProgress: (p: ModelLoadProgress) => void,
   ): Promise<void> {
     const device = await detectComputeDevice();
+    const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
     return enqueue(
       () =>
         new Promise<void>((resolve, reject) => {
@@ -290,6 +309,7 @@ export const SouffleursProvider: AparteAIProvider = {
             },
             onReady: () => {
               _pending.delete(id);
+              resolved.markSeen();
               setSouffleurStatus({ status: 'ready', device });
               onProgress({ status: 'ready', progress: 100 });
               resolve();
@@ -305,6 +325,7 @@ export const SouffleursProvider: AparteAIProvider = {
             id,
             adapter: CALLER_ADAPTER,
             device,
+            ...resolved.files,
           } satisfies MainToWorker);
         }),
     );
@@ -343,22 +364,28 @@ export async function prepareExecutor(
   onProgress?: (p: ModelLoadProgress) => void,
 ): Promise<void> {
   const device = await detectComputeDevice();
-  await purgeAdapterIfStale(adapter);
+  const resolved = await resolveAdapterFiles(adapter);
   return enqueue(
     () =>
       new Promise<void>((resolve, reject) => {
         const id = _nextId++;
-        const aggregator = new ProgressAggregator(SIZE_ADAPTER_BYTES);
+        const aggregator = new ProgressAggregator(resolved.size);
         _pending.set(id, {
           onProgress: (p) => onProgress?.({ status: 'downloading', file: p.file, progress: aggregator.push(p) }),
           onReady: () => {
             _pending.delete(id);
-            markAdapterPreloaded(adapter);
+            resolved.markSeen();
             resolve();
           },
           onError: (message) => reject(new Error(message)),
         });
-        getWorker().postMessage({ type: 'prepare', id, adapter, device } satisfies MainToWorker);
+        getWorker().postMessage({
+          type: 'prepare',
+          id,
+          adapter,
+          device,
+          ...resolved.files,
+        } satisfies MainToWorker);
       }),
   );
 }
@@ -366,6 +393,7 @@ export async function prepareExecutor(
 /** Recharge le caller dans le pipeline (après un prefetch d'exécuteurs). */
 export async function prepareCaller(): Promise<void> {
   const device = await detectComputeDevice();
+  const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
   return enqueue(
     () =>
       new Promise<void>((resolve, reject) => {
@@ -382,23 +410,10 @@ export async function prepareCaller(): Promise<void> {
           id,
           adapter: CALLER_ADAPTER,
           device,
+          ...resolved.files,
         } satisfies MainToWorker);
       }),
   );
-}
-
-/** Version des poids : purge du cache un `.data` d'adapter périmé avant usage. */
-async function purgeAdapterIfStale(adapter: AdapterName): Promise<void> {
-  if (!isAdapterStale(adapter)) return;
-  try {
-    const cache = await caches.open('transformers-cache');
-    const keys = await cache.keys();
-    await Promise.all(
-      keys.filter((req) => req.url.includes(`${adapter}.data`)).map((req) => cache.delete(req)),
-    );
-  } catch {
-    /* cache indisponible */
-  }
 }
 
 /**
@@ -413,7 +428,7 @@ export async function runExecutor(
   opts: { maxNewTokens?: number } = {},
 ): Promise<ExecutorResult> {
   const device = await detectComputeDevice();
-  await purgeAdapterIfStale(adapter);
+  const resolved = await resolveAdapterFiles(adapter);
   const prompt = buildWirePrompt(systemPrompt, [{ role: 'user', content: task }]);
   return enqueue(
     () =>
@@ -421,6 +436,7 @@ export async function runExecutor(
         const id = _nextId++;
         let raw = '';
         _pending.set(id, {
+          onReady: () => resolved.markSeen(),
           onChunk: (delta) => {
             raw += delta;
           },
@@ -434,6 +450,7 @@ export async function runExecutor(
           device,
           prompt,
           maxNewTokens: opts.maxNewTokens ?? EXECUTOR_MAX_NEW_TOKENS,
+          ...resolved.files,
         } satisfies MainToWorker);
       }),
   );

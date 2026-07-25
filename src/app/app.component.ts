@@ -21,7 +21,7 @@ import { ModelUpdateModalComponent } from './features/model-update/model-update-
 import { SearchPaletteComponent } from './features/search/search-palette.component';
 import { UpdateToastComponent } from './features/update-toast/update-toast.component';
 import { OnboardingComponent } from './onboarding/onboarding.component';
-import { isAdapterStale } from './souffleurs';
+import { getSouffleurManifest } from './souffleurs';
 import { LOCAL_KEYS, localGet } from './storage/settings.service';
 
 @Component({
@@ -72,17 +72,26 @@ export class AppComponent {
     () => this.manager.activeId() !== null && !this.onboardingOpen(),
   );
 
+  private readonly callerUpdate = signal<boolean | null>(null);
+
   constructor() {
     this.favicon.set('idle');
+    // Détection de version : le manifest HF (no-store) est comparé aux versions
+    // « vues ». Les .data versionnés étant immuables, une MAJ = simple cache-miss.
+    void getSouffleurManifest().then((manifest) =>
+      this.callerUpdate.set(manifest.hasUpdate('chat')),
+    );
     // Au boot (une fois le statut réel connu) :
-    //  - poids absents (cache purgé, autre navigateur) → onboarding, même si « vu » ;
-    //  - poids présents mais version du catalogue bumpée → modal de mise à jour.
+    //  - poids absents (cache purgé, autre navigateur, version bumpée jamais
+    //    téléchargée) → onboarding, même si « vu » ;
+    //  - poids présents mais manifest annonce une nouvelle version du caller
+    //    → modal de mise à jour (consentement).
     effect(() => {
       const status = this.modelStatus.state().status;
       if (this.onboardingOpen() || this.modelUpdateOpen()) return;
       if (status === 'not-downloaded') {
         this.onboardingOpen.set(true);
-      } else if (status === 'ready' && isAdapterStale()) {
+      } else if (status === 'ready' && this.callerUpdate() === true) {
         this.modelUpdateOpen.set(true);
       }
     });

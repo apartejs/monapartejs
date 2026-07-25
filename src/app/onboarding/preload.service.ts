@@ -7,7 +7,6 @@ import {
   CALLER_MODEL_ID,
   EXECUTOR_ADAPTERS,
   SouffleursProvider,
-  markAdapterPreloaded,
   prepareExecutor,
   prepareCaller,
 } from '../souffleurs';
@@ -29,9 +28,8 @@ export class OnboardingPreloadService {
         if (typeof p.progress === 'number') this.progress.set(p.progress);
       });
       this.progress.set(100);
-      // Marker de version (équivalent markAllPreloaded d'aimi) : le modal de
-      // mise à jour ne doit jamais pop juste après un téléchargement frais.
-      markAdapterPreloaded();
+      // (les versions « vues » sont mémorisées par le provider via le manifest
+      // à chaque chargement réussi — jamais de modal après un download frais)
       this.state.set('done');
       // Exécuteurs en best-effort (86 Mo chacun, iso catégorie codegen d'aimi) :
       // un échec ne bloque jamais — retéléchargés paresseusement au premier usage.

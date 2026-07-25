@@ -14,7 +14,7 @@ import {
 import { MascotteComponent } from '../../mascotte';
 import { TranslateService } from '../../core/i18n/translate.service';
 import { OnboardingPreloadService } from '../../onboarding/preload.service';
-import { CALLER_DOWNLOAD_BYTES, CALLER_MODEL_ID, SouffleursProvider } from '../../souffleurs';
+import { SIZE_ADAPTER_BYTES } from '../../souffleurs';
 
 @Component({
   selector: 'bp-model-update-modal',
@@ -90,10 +90,12 @@ export class ModelUpdateModalComponent {
 
   protected readonly t = this.i18n.t;
 
+  // Fichiers versionnés immuables : seule l'adapter change (~86 Mo), la base
+  // reste en cache.
   protected readonly actionLabel = computed(() =>
     this.t().modelUpdate.action.replace(
       '{size}',
-      `${(CALLER_DOWNLOAD_BYTES / 1_000_000_000).toFixed(1).replace('.', ',')} Go`,
+      `${Math.round(SIZE_ADAPTER_BYTES / 1_000_000)} Mo`,
     ),
   );
 
@@ -107,9 +109,9 @@ export class ModelUpdateModalComponent {
   });
 
   protected async update(): Promise<void> {
-    // Purge les anciens poids puis retélécharge ; le marker de version est
-    // écrit par le preload service en cas de succès.
-    await SouffleursProvider.deleteModel?.(CALLER_MODEL_ID);
+    // Pas de purge : le nouveau .data a un NOM versionné inédit → cache-miss,
+    // téléchargement naturel, base réutilisée. markSeen est fait par le
+    // provider au chargement réussi.
     await this.preload.start();
     if (this.preload.state() === 'done') this.updated.emit();
   }
