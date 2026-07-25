@@ -64,9 +64,8 @@ const KIND_GLYPHS: Record<string, string> = {
 export const artifactCardRenderer: AparteToolRenderer = {
   render(segment) {
     const result = parseResult(segment);
-    if (segment.status === 'pending' || !result) {
-      return `
-<div class="bp-artifact-card">
+    if (segment.status === 'pending') {
+      return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
   <div class="bp-artifact-head">
     <span class="bp-artifact-icon">('.')…</span>
     <span class="bp-artifact-meta">génération du document…</span>
@@ -74,19 +73,18 @@ export const artifactCardRenderer: AparteToolRenderer = {
   <div class="bp-artifact-live"></div>
 </div>`;
     }
-    if (!result['ok']) {
-      return `<div class="bp-artifact-card"><span class="bp-artifact-error">(x.x) ${esc(result['error'] ?? 'échec')}</span></div>`;
+    if (result && !result['ok']) {
+      return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}"><span class="bp-artifact-error">(x.x) ${esc(result['error'] ?? 'échec')}</span></div>`;
     }
-    const glyph = KIND_GLYPHS[String(result['type'])] ?? KIND_GLYPHS['default'];
-    // Conteneurs TOUJOURS rendus (vides = cachés par CSS) : après un reload la
-    // Map mémoire est vide, c'est setup() qui réhydrate depuis la persistance.
-    return `
-<div class="bp-artifact-card">
+    // Carte finale — TOLÉRANTE : si `result` n'a pas survécu à la sérialisation
+    // de l'arbre (reload), setup() remplit la tête depuis l'artefact persisté.
+    const glyph = KIND_GLYPHS[String(result?.['type'] ?? '')] ?? KIND_GLYPHS['default'];
+    return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
   <div class="bp-artifact-head">
     <span class="bp-artifact-icon">${glyph}</span>
-    <span class="bp-artifact-name">${esc(result['filename'])}</span>
-    <span class="bp-artifact-meta">${esc(result['size_kb'])} Ko</span>
-    <button class="bp-artifact-dl" data-call="${esc(segment.toolCall.id)}">Télécharger</button>
+    <span class="bp-artifact-name">${esc(result?.['filename'] ?? '…')}</span>
+    <span class="bp-artifact-meta">${result?.['size_kb'] !== undefined ? `${esc(result['size_kb'])} Ko` : ''}</span>
+    <button class="bp-artifact-dl">Télécharger</button>
   </div>
   <div class="bp-artifact-preview"></div>
   <div class="bp-artifact-pdf"></div>
@@ -102,14 +100,21 @@ export const artifactCardRenderer: AparteToolRenderer = {
           live.classList.add('bp-artifact-preview');
           live.innerHTML = state.html; // généré par NOS runtimes (contenu échappé)
         } else if (state.code !== undefined) {
-          if (!live.firstElementChild || live.firstElementChild.tagName !== 'PRE') {
+          liveCode.set(live, state.code);
+          if (!live.classList.contains('bp-artifact-code')) {
             live.classList.add('bp-artifact-code');
             live.innerHTML = '<pre></pre>';
           }
-          const pre = live.firstElementChild as HTMLElement;
-          pre.textContent = state.code;
-          pre.scrollTop = pre.scrollHeight;
-          scheduleLiveHighlight(live, state.code);
+          // Avant la première passe Shiki : texte brut. Après : on ne touche
+          // plus au DOM entre deux passes (sinon clignotement).
+          if (!live.dataset['highlighted']) {
+            const pre = live.querySelector('pre');
+            if (pre) {
+              pre.textContent = state.code;
+              pre.scrollTop = pre.scrollHeight;
+            }
+          }
+          scheduleLiveHighlight(live);
         }
       });
       return;
@@ -117,7 +122,13 @@ export const artifactCardRenderer: AparteToolRenderer = {
 
     // Carte finale : artefact depuis la Map, sinon réhydraté (reload).
     void loadArtifact(segment.toolCall.id).then((artifact) => {
-      if (!artifact) return;
+      if (!artifact || !element.isConnected) return;
+      const nameEl = element.querySelector<HTMLElement>('.bp-artifact-name');
+      if (nameEl && nameEl.textContent === '…') nameEl.textContent = artifact.filename;
+      const metaEl = element.querySelector<HTMLElement>('.bp-artifact-meta');
+      if (metaEl && !metaEl.textContent) {
+        metaEl.textContent = `${(artifact.blob.size / 1024).toFixed(1)} Ko`;
+      }
       element.querySelector<HTMLButtonElement>('.bp-artifact-dl')?.addEventListener('click', () =>
         triggerDownload(artifact.blob, artifact.filename),
       );
@@ -134,23 +145,27 @@ export const artifactCardRenderer: AparteToolRenderer = {
 
 /**
  * Coloration syntaxique du code live (Shiki via AparteConfig, déjà branché) —
- * throttlée à ~600 ms pour ne pas concurrencer le décodage GPU ; entre deux
- * passes, textContent brut (toujours à jour).
+ * throttlée à ~600 ms. Après la première passe réussie, SEULES les passes Shiki
+ * touchent le DOM (jamais de textContent brut par-dessus → pas de clignotement).
  */
+const liveCode = new WeakMap<HTMLElement, string>();
 const highlightTimers = new WeakMap<HTMLElement, number>();
-function scheduleLiveHighlight(host: HTMLElement, code: string): void {
+function scheduleLiveHighlight(host: HTMLElement): void {
   if (!AparteConfig.hasHighlightProvider() || highlightTimers.has(host)) return;
   highlightTimers.set(
     host,
     window.setTimeout(async () => {
       highlightTimers.delete(host);
+      const code = liveCode.get(host) ?? '';
       try {
         const html = await AparteConfig.highlightCode(code, 'javascript');
-        // Shiki échappe le code — html sûr. On ne remplace que si toujours en live.
         if (host.isConnected && host.classList.contains('bp-artifact-code')) {
-          host.innerHTML = html;
+          host.dataset['highlighted'] = '1';
+          host.innerHTML = html; // Shiki échappe le code — html sûr
           const pre = host.querySelector('pre');
           if (pre) pre.scrollTop = pre.scrollHeight;
+          // Du code est arrivé pendant la passe → re-programmer avec le dernier état.
+          if (liveCode.get(host) !== code) scheduleLiveHighlight(host);
         }
       } catch {
         /* highlighter pas prêt : le textContent brut reste affiché */

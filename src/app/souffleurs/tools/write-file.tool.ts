@@ -7,7 +7,11 @@
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { PDF_SYSTEM, XLSX_DOCX_SYSTEM } from '../executors/executor-prompts';
 import { docxOpsPreview } from '../executors/docx-ops-runtime';
-import { materializeWriteFile, type WriteFileKind } from '../executors/materialize';
+import {
+  filenameFromTask,
+  materializeWriteFile,
+  type WriteFileKind,
+} from '../executors/materialize';
 import { extractCompleteOps, previewXlsxOps } from '../executors/xlsx-ops-runtime';
 import { fileRegistry } from '../files/file-registry';
 import { runExecutor } from '../souffleurs-provider';
@@ -89,7 +93,8 @@ export const writeFileHandler: AparteToolHandler = async (call) => {
 
     const artifact = await materializeWriteFile(kind, raw, {
       originalXlsx,
-      name: name ?? source?.name,
+      // Priorité : name du tool-call > nom du fichier source (édition) > slug de la task.
+      name: name ?? source?.name ?? filenameFromTask(kind, task),
     });
 
     // Pas de téléchargement auto (retour aimi) : la carte a le bouton.

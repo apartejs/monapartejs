@@ -24,6 +24,24 @@ export function defaultFilename(kind: WriteFileKind, name?: string): string {
   return `document-${new Date().toISOString().slice(0, 10)}.${kind}`;
 }
 
+/**
+ * Sans param `name` du caller ni fichier source : nom dérivé de l'intention
+ * (slug des premiers mots de la task) — « facture pour Dupont » → facture-pour-dupont.pdf.
+ */
+export function filenameFromTask(kind: WriteFileKind, task: string): string {
+  const slug = task
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .split('-')
+    .slice(0, 6)
+    .join('-')
+    .slice(0, 48);
+  return slug ? `${slug}.${kind}` : defaultFilename(kind);
+}
+
 export async function materializeWriteFile(
   kind: WriteFileKind,
   rawExecutorOutput: string,

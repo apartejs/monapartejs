@@ -49,3 +49,14 @@ describe('defaultFilename', () => {
     expect(defaultFilename('docx')).toMatch(/^document-\d{4}-\d{2}-\d{2}\.docx$/);
   });
 });
+
+describe('filenameFromTask', () => {
+  it('slug parlant depuis l’intention (accents retirés, 6 mots max)', () => {
+    expect(filenameFromTask('pdf', 'Créer une facture élégante pour Dupont & Fils, TVA 20%')).toBe(
+      'creer-une-facture-elegante-pour-dupont.pdf',
+    );
+  });
+  it('task vide → repli daté', () => {
+    expect(filenameFromTask('xlsx', '—')).toMatch(/^document-\d{4}-\d{2}-\d{2}\.xlsx$/);
+  });
+});
