@@ -29,6 +29,7 @@
     "@aparte/plugin-model-selector": "0.2.0-alpha.0",
     "@aparte/plugin-shiki": "0.2.0-alpha.0",
     "@aparte/plugin-streaming-markdown": "0.2.0-alpha.0",
+    "@faker-js/faker": "^10.5.0",
     "@huggingface/transformers": "^4.2.0",
     "chart.js": "^4.5.1",
     "date-fns": "^4.4.0",

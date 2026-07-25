@@ -38,20 +38,6 @@ interface LibBinding {
 
 const cached: Partial<Record<SandboxLib, LibBinding>> = {};
 
-/** Mini-faker (mêmes méthodes que le runtime xlsx — suffisant pour le souffleur-sandbox). */
-function makeMiniFaker(): Record<string, unknown> {
-  const FIRST = ['Marie', 'Jean', 'Pierre', 'Sophie', 'Luc', 'Camille', 'Thomas', 'Julie'];
-  const LAST = ['Martin', 'Bernard', 'Dubois', 'Petit', 'Durand', 'Leroy', 'Moreau', 'Simon'];
-  const pick = <T>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
-  const rint = (min: number, max: number) => Math.floor(min + Math.random() * (max - min + 1));
-  return {
-    person: { firstName: () => pick(FIRST), lastName: () => pick(LAST), fullName: () => `${pick(FIRST)} ${pick(LAST)}` },
-    internet: { email: () => `${pick(FIRST).toLowerCase()}.${pick(LAST).toLowerCase()}@example.com` },
-    number: { int: (o: { min?: number; max?: number } = {}) => rint(o.min ?? 0, o.max ?? 100) },
-    string: { uuid: () => crypto.randomUUID() },
-  };
-}
-
 async function loadLib(lib: SandboxLib): Promise<LibBinding> {
   const hit = cached[lib];
   if (hit) return hit;
@@ -72,14 +58,25 @@ async function loadLib(lib: SandboxLib): Promise<LibBinding> {
     }
     case 'compute': {
       // Globals du prompt runtime sandbox_js — lazy (chunks différés).
-      const [math, ss, lodash, dateFns] = await Promise.all([
+      // Le VRAI @faker-js/faker (locale fr, comme le harnais d'entraînement) :
+      // le souffleur-sandbox émet du faker.location/commerce/date/etc. que le
+      // mini-shim ne couvrait pas.
+      const [math, ss, lodash, dateFns, fakerMod] = await Promise.all([
         import('mathjs'),
         import('simple-statistics'),
         import('lodash-es'),
         import('date-fns'),
+        import('@faker-js/faker'),
       ]);
       binding = {
-        globals: { math, ss, _: lodash, dateFns, faker: makeMiniFaker(), TextEncoder },
+        globals: {
+          math,
+          ss,
+          _: lodash,
+          dateFns,
+          faker: fakerMod.fakerFR ?? fakerMod.faker,
+          TextEncoder,
+        },
         mime: 'application/json',
       };
       break;
