@@ -11,12 +11,7 @@ import { materializeWriteFile, type WriteFileKind } from '../executors/materiali
 import { extractCompleteOps, previewXlsxOps } from '../executors/xlsx-ops-runtime';
 import { fileRegistry } from '../files/file-registry';
 import { runExecutor } from '../souffleurs-provider';
-import {
-  clearLiveArtifact,
-  notifyArtifact,
-  pushLiveArtifact,
-  triggerDownload,
-} from './artifact-store';
+import { clearLiveArtifact, notifyArtifact, pushLiveArtifact } from './artifact-store';
 import { surveyXlsx } from './read-file.tool';
 
 export const writeFileTool: AparteTool = {
@@ -97,9 +92,9 @@ export const writeFileHandler: AparteToolHandler = async (call) => {
       name: name ?? source?.name,
     });
 
+    // Pas de téléchargement auto (retour aimi) : la carte a le bouton.
     const registered = fileRegistry.registerBlob(artifact.blob, artifact.filename, artifact.mime);
     notifyArtifact(call.id, artifact, registered.id);
-    triggerDownload(artifact.blob, artifact.filename);
 
     return {
       toolCallId: call.id,

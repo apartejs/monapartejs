@@ -22,11 +22,31 @@ export const artifactsByCall = new Map<string, ProducedArtifact>();
 export const widgetsByCall = new Map<string, ProducedWidget>();
 
 type ArtifactSink = (toolCallId: string, artifact: ProducedArtifact, fileId: string) => void;
+type ArtifactLoader = (toolCallId: string) => Promise<ProducedArtifact | null>;
 let sink: ArtifactSink | null = null;
+let loader: ArtifactLoader | null = null;
 
 /** L'app branche ici la persistance (table artifacts Dexie, galerie future). */
 export function setArtifactSink(fn: ArtifactSink): void {
   sink = fn;
+}
+
+/** L'app branche ici la RE-hydratation (après reload, la Map mémoire est vide). */
+export function setArtifactLoader(fn: ArtifactLoader): void {
+  loader = fn;
+}
+
+/** Artefact d'un tool_call : Map mémoire d'abord, sinon persistance (reload). */
+export async function loadArtifact(toolCallId: string): Promise<ProducedArtifact | null> {
+  const hit = artifactsByCall.get(toolCallId);
+  if (hit) return hit;
+  try {
+    const fromStore = await loader?.(toolCallId);
+    if (fromStore) artifactsByCall.set(toolCallId, fromStore);
+    return fromStore ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function notifyArtifact(toolCallId: string, artifact: ProducedArtifact, fileId: string): void {

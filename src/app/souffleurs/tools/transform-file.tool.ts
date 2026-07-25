@@ -4,7 +4,7 @@
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { fileRegistry } from '../files/file-registry';
-import { notifyArtifact, triggerDownload } from './artifact-store';
+import { notifyArtifact } from './artifact-store';
 
 export const transformFileTool: AparteTool = {
   name: 'transform_file',
@@ -71,9 +71,9 @@ export const transformFileHandler: AparteToolHandler = async (call) => {
         return fail(`conversion vers ${target} non prise en charge pour ${source.type}`);
     }
 
+    // Pas de téléchargement auto : la carte a le bouton.
     const registered = fileRegistry.registerBlob(blob, filename, blob.type);
     notifyArtifact(call.id, { kind: target, filename, mime: blob.type, blob, preview: '' }, registered.id);
-    triggerDownload(blob, filename);
 
     return {
       toolCallId: call.id,

@@ -6,12 +6,14 @@
  *    d'injection directe de contenu généré), chart via Chart.js lazy, code échappé ;
  *  - compute : invisible (l'utilisateur ne voit pas le calcul, règle contrat).
  */
+import { AparteConfig } from '@aparte/core';
 import type { AparteToolCallSegment, AparteToolRenderer } from '@aparte/core';
 import {
-  artifactsByCall,
+  loadArtifact,
   subscribeLiveArtifact,
   triggerDownload,
   widgetsByCall,
+  type ProducedArtifact,
 } from './artifact-store';
 
 const esc = (v: unknown) =>
@@ -32,8 +34,10 @@ const CARD_STYLES = `
 .bp-artifact-error { color: var(--aparte-error); font-size: 13px; }
 .bp-artifact-live:empty { display: none; }
 .bp-artifact-code pre { margin: 10px 0 0; max-height: 200px; overflow: auto; font-family: var(--bp-mono, monospace); font-size: 11.5px; color: var(--aparte-text-muted); border-top: 1px solid var(--aparte-border); padding-top: 10px; }
-.bp-artifact-pdf { margin-top: 10px; border-top: 1px solid var(--aparte-border); padding-top: 10px; }
-.bp-artifact-pdf iframe { width: 100%; height: 320px; border: 1px solid var(--aparte-border); border-radius: 8px; background: #fff; }
+.bp-artifact-code pre.shiki { background: var(--aparte-surface-2) !important; border-radius: 8px; padding: 10px 12px; border-top: none; }
+.bp-artifact-preview:empty, .bp-artifact-pdf:empty { display: none; }
+.bp-artifact-pdf { margin-top: 10px; border-top: 1px solid var(--aparte-border); padding-top: 10px; display: grid; gap: 8px; }
+.bp-artifact-pdf canvas { border: 1px solid var(--aparte-border); border-radius: 8px; background: #fff; }
 .bp-widget { border: 1px solid var(--aparte-border); border-radius: 12px; background: var(--aparte-surface-1); margin: 6px 0; overflow: hidden; }
 .bp-widget iframe { display: block; width: 100%; min-height: 220px; border: none; background: #fff; }
 .bp-widget pre { margin: 0; padding: 12px 14px; overflow: auto; font-family: var(--bp-mono, monospace); font-size: 12.5px; }
@@ -74,8 +78,8 @@ export const artifactCardRenderer: AparteToolRenderer = {
       return `<div class="bp-artifact-card"><span class="bp-artifact-error">(x.x) ${esc(result['error'] ?? 'échec')}</span></div>`;
     }
     const glyph = KIND_GLYPHS[String(result['type'])] ?? KIND_GLYPHS['default'];
-    const artifact = artifactsByCall.get(segment.toolCall.id);
-    const isPdf = artifact?.mime === 'application/pdf';
+    // Conteneurs TOUJOURS rendus (vides = cachés par CSS) : après un reload la
+    // Map mémoire est vide, c'est setup() qui réhydrate depuis la persistance.
     return `
 <div class="bp-artifact-card">
   <div class="bp-artifact-head">
@@ -84,8 +88,8 @@ export const artifactCardRenderer: AparteToolRenderer = {
     <span class="bp-artifact-meta">${esc(result['size_kb'])} Ko</span>
     <button class="bp-artifact-dl" data-call="${esc(segment.toolCall.id)}">Télécharger</button>
   </div>
-  ${artifact?.preview ? `<div class="bp-artifact-preview">${artifact.preview}</div>` : ''}
-  ${isPdf ? `<div class="bp-artifact-pdf"><iframe title="aperçu PDF"></iframe></div>` : ''}
+  <div class="bp-artifact-preview"></div>
+  <div class="bp-artifact-pdf"></div>
 </div>`;
   },
   setup(element, segment) {
@@ -105,24 +109,90 @@ export const artifactCardRenderer: AparteToolRenderer = {
           const pre = live.firstElementChild as HTMLElement;
           pre.textContent = state.code;
           pre.scrollTop = pre.scrollHeight;
+          scheduleLiveHighlight(live, state.code);
         }
       });
+      return;
     }
 
-    element.querySelector<HTMLButtonElement>('.bp-artifact-dl')?.addEventListener('click', () => {
-      const artifact = artifactsByCall.get(segment.toolCall.id);
-      if (artifact) triggerDownload(artifact.blob, artifact.filename);
+    // Carte finale : artefact depuis la Map, sinon réhydraté (reload).
+    void loadArtifact(segment.toolCall.id).then((artifact) => {
+      if (!artifact) return;
+      element.querySelector<HTMLButtonElement>('.bp-artifact-dl')?.addEventListener('click', () =>
+        triggerDownload(artifact.blob, artifact.filename),
+      );
+      const previewHost = element.querySelector<HTMLElement>('.bp-artifact-preview');
+      if (previewHost && artifact.preview) previewHost.innerHTML = artifact.preview;
+      const pdfHost = element.querySelector<HTMLElement>('.bp-artifact-pdf');
+      if (pdfHost && artifact.mime === 'application/pdf') {
+        void renderPdfPreview(pdfHost, artifact);
+      }
     });
-
-    // Aperçu PDF final : viewer natif du navigateur sur le blob généré.
-    const pdfFrame = element.querySelector<HTMLIFrameElement>('.bp-artifact-pdf iframe');
-    if (pdfFrame) {
-      const artifact = artifactsByCall.get(segment.toolCall.id);
-      if (artifact) pdfFrame.src = URL.createObjectURL(artifact.blob);
-    }
   },
   getStyles: () => CARD_STYLES,
 };
+
+/**
+ * Coloration syntaxique du code live (Shiki via AparteConfig, déjà branché) —
+ * throttlée à ~600 ms pour ne pas concurrencer le décodage GPU ; entre deux
+ * passes, textContent brut (toujours à jour).
+ */
+const highlightTimers = new WeakMap<HTMLElement, number>();
+function scheduleLiveHighlight(host: HTMLElement, code: string): void {
+  if (!AparteConfig.hasHighlightProvider() || highlightTimers.has(host)) return;
+  highlightTimers.set(
+    host,
+    window.setTimeout(async () => {
+      highlightTimers.delete(host);
+      try {
+        const html = await AparteConfig.highlightCode(code, 'javascript');
+        // Shiki échappe le code — html sûr. On ne remplace que si toujours en live.
+        if (host.isConnected && host.classList.contains('bp-artifact-code')) {
+          host.innerHTML = html;
+          const pre = host.querySelector('pre');
+          if (pre) pre.scrollTop = pre.scrollHeight;
+        }
+      } catch {
+        /* highlighter pas prêt : le textContent brut reste affiché */
+      }
+    }, 600),
+  );
+}
+
+/**
+ * Aperçu PDF en canvas via pdfjs (lazy). Le viewer natif en iframe est BLOQUÉ
+ * par notre COEP credentialless (carré gris) — pdfjs rend sous notre origine.
+ */
+async function renderPdfPreview(host: HTMLElement, artifact: ProducedArtifact): Promise<void> {
+  try {
+    const pdfjs = await import('pdfjs-dist');
+    pdfjs.GlobalWorkerOptions.workerSrc = '/assets/pdf.worker.min.mjs';
+    const doc = await pdfjs.getDocument({ data: await artifact.blob.arrayBuffer() }).promise;
+    const pages = Math.min(doc.numPages, 2);
+    for (let n = 1; n <= pages; n++) {
+      const page = await doc.getPage(n);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const scale = ((host.clientWidth || 440) / baseViewport.width) * (window.devicePixelRatio || 1);
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = '100%';
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+      host.appendChild(canvas);
+    }
+    if (doc.numPages > pages) {
+      const more = document.createElement('p');
+      more.className = 'bp-artifact-meta';
+      more.textContent = `… ${doc.numPages - pages} page(s) de plus dans le fichier`;
+      host.appendChild(more);
+    }
+  } catch (err) {
+    console.warn('[souffleurs] aperçu PDF indisponible', err);
+  }
+}
 
 /** Widget inline — create_widget. */
 export const widgetRenderer: AparteToolRenderer = {

@@ -49,6 +49,7 @@ export { createWidgetHandler, createWidgetTool } from './tools/create-widget.too
 export { transformFileHandler, transformFileTool } from './tools/transform-file.tool';
 export { listReminders, setReminderHandler, setReminderTool } from './tools/set-reminder.tool';
 export {
+  setArtifactLoader,
   setArtifactSink,
   triggerDownload,
   type ProducedArtifact,

@@ -39,7 +39,8 @@ export class BonaparteDb extends Dexie {
   conversations!: Table<ConversationRow, string>;
   messages!: Table<MessageRow, string>;
   attachments!: Table<AparteAttachmentRow & { convId: string }, string>;
-  artifacts!: Table<AparteArtifactRow, string>;
+  /** blob + preview (dans `content`) persistés pour réhydrater les cartes après reload. */
+  artifacts!: Table<AparteArtifactRow & { blob?: Blob }, string>;
   memory!: Table<AparteMemoryFact, string>;
   settings!: Table<SettingRow, string>;
   folders!: Table<FolderRow, string>;

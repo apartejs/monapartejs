@@ -31,6 +31,7 @@ import {
   invisibleRenderer,
   readFileHandler,
   readFileTool,
+  setArtifactLoader,
   setArtifactSink,
   setReminderHandler,
   setReminderTool,
@@ -102,7 +103,8 @@ export function provideBonaparte(): EnvironmentProviders[] {
       AparteConfig.registerToolRenderer('create_widget', widgetRenderer);
       AparteConfig.registerToolRenderer('compute', invisibleRenderer);
 
-      // Persistance des artefacts produits (galerie future) — table Dexie.
+      // Persistance des artefacts produits (blob + aperçu) — indispensable pour
+      // réhydrater les cartes après un reload (la Map mémoire est vide).
       setArtifactSink((toolCallId, artifact, fileId) => {
         void conversationAdapter.db.artifacts.put({
           id: fileId,
@@ -111,9 +113,24 @@ export function provideBonaparte(): EnvironmentProviders[] {
           name: artifact.filename,
           mimeType: artifact.mime,
           artifactType: artifact.kind,
-          content: '',
+          content: artifact.preview,
+          blob: artifact.blob,
           updatedAt: Date.now(),
         });
+      });
+      setArtifactLoader(async (toolCallId) => {
+        // msgId non indexé : simple scan (table artifacts petite).
+        const row = await conversationAdapter.db.artifacts
+          .filter((r) => r.msgId === toolCallId)
+          .first();
+        if (!row?.blob) return null;
+        return {
+          kind: row.artifactType,
+          filename: row.name,
+          mime: row.mimeType,
+          blob: row.blob,
+          preview: row.content ?? '',
+        };
       });
 
       // Capture des pièces jointes AU MOMENT de l'envoi : le détail
