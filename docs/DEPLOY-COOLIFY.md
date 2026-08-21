@@ -47,9 +47,19 @@ Sur la ressource actuelle, deux réglages :
 | Docker Compose Location | `/docker-compose.yml` |
 | Domains | `https://mon.apartejs.dev` (inchangé) |
 
-Le port et le healthcheck viennent du compose ; Coolify pose les labels Traefik
-et le certificat à partir du domaine. Aucune variable, aucun volume : le
-conteneur est sans état.
+Le port et le healthcheck viennent du compose. Aucun volume : le conteneur est
+sans état.
+
+⚠️ **Le domaine se rattache au SERVICE, pas à l'application.** En Build Pack
+« Dockerfile », le champ *Domains* de l'application suffisait ; en « Docker
+Compose », Coolify raisonne par service. Le compose déclare donc la variable
+magique `SERVICE_FQDN_WEB_80`, dans laquelle Coolify injecte le FQDN réglé dans
+l'interface et à partir de laquelle il génère les labels Traefik.
+
+Sans elle : le conteneur démarre normalement, mais Traefik n'a **aucun backend**
+et répond `503` avec son certificat par défaut (`CN=TRAEFIK DEFAULT CERT`) —
+et Let's Encrypt n'émet pas, l'émission attendant un routage fonctionnel. Les
+trois symptômes arrivent ensemble et pointent tous vers ce seul réglage.
 
 **Visibilité du paquet GHCR.** Par défaut, un paquet publié par Actions est
 **privé**, et le `pull` échoue en `unauthorized`. Deux options :

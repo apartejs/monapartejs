@@ -25,8 +25,22 @@ services:
   web:
     image: ghcr.io/apartejs/monapartejs:main
     restart: unless-stopped
+    # Variable MAGIQUE Coolify : c'est elle qui rattache le domaine AU SERVICE
+    # et génère les labels Traefik vers le port 80.
+    #
+    # En Build Pack « Dockerfile », le champ « Domains » de l'application
+    # suffisait. En « Docker Compose », Coolify raisonne PAR SERVICE : sans
+    # cette déclaration, le router existe mais n'a aucun backend, et Traefik
+    # répond 503 avec son certificat par défaut (Let's Encrypt n'émet pas non
+    # plus, l'émission attendant un routage fonctionnel). Symptômes vus
+    # ensemble le 21/08 alors que le conteneur tournait.
+    #
+    # Sans valeur : Coolify y injecte le FQDN réglé dans l'interface.
+    environment:
+      - SERVICE_FQDN_WEB_80
+
     # nginx écoute 80 dans l'image. Pas de publication de port : Coolify route
-    # via Traefik sur le réseau interne à partir du domaine configuré.
+    # via Traefik sur le réseau interne.
     expose:
       - '80'
     healthcheck:
