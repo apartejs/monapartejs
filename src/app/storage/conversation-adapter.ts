@@ -13,10 +13,10 @@ import type {
   AparteStorageAdapter,
 } from '@aparte/core';
 import { APARTE_CONVERSATION_SCHEMA_VERSION } from '@aparte/core';
-import { BonaparteDb, type ConversationRow } from './db';
+import { monaparteDb, type ConversationRow } from './db';
 
 export class DexieConversationAdapter implements AparteStorageAdapter {
-  constructor(readonly db: BonaparteDb = new BonaparteDb()) {}
+  constructor(readonly db: monaparteDb = new monaparteDb()) {}
 
   async loadAll(): Promise<AparteConversation[]> {
     const rows = await this.db.conversations.orderBy('updatedAt').reverse().toArray();
@@ -39,20 +39,32 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
       schemaVersion: conv.schemaVersion ?? APARTE_CONVERSATION_SCHEMA_VERSION,
       tree: conv.tree ?? null,
     };
-    await this.db.transaction('rw', this.db.conversations, this.db.messages, async () => {
-      await this.db.conversations.put(row);
-      await this.db.messages.where('convId').equals(conv.id).delete();
-      if (messages.length) {
-        await this.db.messages.bulkPut(
-          messages.map((m, i) => ({
-            id: m.id || `${conv.id}:${i}`,
-            convId: conv.id,
-            timestamp: m.timestamp || conv.updatedAt + i,
-            data: m,
-          })),
-        );
-      }
-    });
+    // Les pièces jointes sortent du message : leur `url` est une `blob:`
+    // révoquée au reload (ERR_FILE_NOT_FOUND), seul le `blob` a du sens en
+    // base. On stocke le binaire à part et on refabrique l'URL à l'hydratation.
+    const attachmentRows = extractAttachments(conv.id, messages);
+
+    await this.db.transaction(
+      'rw',
+      [this.db.conversations, this.db.messages, this.db.attachments],
+      async () => {
+        await this.db.conversations.put(row);
+        await this.db.messages.where('convId').equals(conv.id).delete();
+        if (messages.length) {
+          await this.db.messages.bulkPut(
+            messages.map((m, i) => ({
+              id: m.id || `${conv.id}:${i}`,
+              convId: conv.id,
+              timestamp: m.timestamp || conv.updatedAt + i,
+              // `attachments` retiré : le binaire va dans sa table.
+              data: stripAttachments(m),
+            })),
+          );
+        }
+        await this.db.attachments.where('convId').equals(conv.id).delete();
+        if (attachmentRows.length) await this.db.attachments.bulkPut(attachmentRows);
+      },
+    );
   }
 
   async delete(id: string): Promise<void> {
@@ -160,13 +172,93 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
       .where('convId')
       .equals(row.id)
       .sortBy('timestamp');
+    const attachmentRows = await this.db.attachments.where('convId').equals(row.id).toArray();
+    const fresh = freshAttachmentsByMsg(attachmentRows);
     const { tree, lastMessagePreview: _p, messageCount: _c, ...meta } = row;
     return {
       ...meta,
-      messages: messages.map((m) => m.data),
-      tree: (tree ?? undefined) as AparteConversation['tree'],
+      messages: messages.map((m) => withAttachments(m.data, fresh)),
+      // ⚠️ L'ARBRE AUSSI : c'est lui que `importTree()` rejoue au reload, donc
+      // des URLs mortes ici et la bulle casse même si `messages` est correct.
+      tree: rehydrateTree(tree, fresh) as AparteConversation['tree'],
     };
   }
+}
+
+/* ── Pièces jointes : blob persisté, `url` refabriquée à chaque session ───── */
+
+type AttachmentRow = AparteAttachmentRow & { convId: string };
+
+/** Retire `attachments` du message stocké (le binaire vit dans sa table). */
+function stripAttachments(message: AparteMessage): AparteMessage {
+  if (!('attachments' in message)) return message;
+  const { attachments: _dropped, ...rest } = message as AparteMessage & { attachments?: unknown };
+  return rest as AparteMessage;
+}
+
+/** Extrait les blobs des messages vers des lignes `attachments`. */
+function extractAttachments(convId: string, messages: AparteMessage[]): AttachmentRow[] {
+  const rows: AttachmentRow[] = [];
+  for (const m of messages) {
+    const atts = (m as AparteMessage & { attachments?: unknown }).attachments;
+    if (!Array.isArray(atts)) continue;
+    for (const a of atts as { id: string; name: string; type?: string; size?: number; blob?: Blob }[]) {
+      if (!a?.blob) continue; // url seule (legacy) : rien à persister
+      rows.push({
+        id: a.id,
+        convId,
+        msgId: m.id,
+        name: a.name,
+        mimeType: a.type ?? a.blob.type ?? 'application/octet-stream',
+        size: a.size ?? a.blob.size ?? 0,
+        blob: a.blob,
+      });
+    }
+  }
+  return rows;
+}
+
+/**
+ * Regroupe par msgId avec une `url` NEUVE. Les object URLs sont
+ * session-scoped : jamais sérialisées, refabriquées à chaque chargement.
+ * (Non révoquées, comme dans l'implémentation de référence : leur durée de vie
+ * est celle de l'onglet.)
+ */
+function freshAttachmentsByMsg(rows: AttachmentRow[]): Map<string, unknown[]> {
+  const byMsg = new Map<string, unknown[]>();
+  for (const r of rows) {
+    if (!r.blob) continue;
+    const list = byMsg.get(r.msgId) ?? [];
+    list.push({
+      id: r.id,
+      name: r.name,
+      type: r.mimeType,
+      url: URL.createObjectURL(r.blob),
+      size: r.size,
+      blob: r.blob,
+    });
+    byMsg.set(r.msgId, list);
+  }
+  return byMsg;
+}
+
+function withAttachments(message: AparteMessage, fresh: Map<string, unknown[]>): AparteMessage {
+  const atts = fresh.get(message.id);
+  return atts?.length ? ({ ...message, attachments: atts } as AparteMessage) : message;
+}
+
+/** Réécrit les messages de l'arbre avec les MÊMES pièces jointes fraîches. */
+function rehydrateTree(tree: unknown, fresh: Map<string, unknown[]>): unknown {
+  if (!tree || typeof tree !== 'object' || fresh.size === 0) return tree ?? undefined;
+  const t = tree as { headId?: string; messages?: { message: AparteMessage; parentId?: string }[] };
+  if (!Array.isArray(t.messages)) return tree;
+  return {
+    ...t,
+    messages: t.messages.map(({ message, parentId }) => ({
+      parentId,
+      message: withAttachments(message, fresh),
+    })),
+  };
 }
 
 function previewOf(message: AparteMessage): string {

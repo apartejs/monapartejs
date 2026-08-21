@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AparteConversation } from '@aparte/core';
-import { BonaparteDb } from './db';
+import { monaparteDb } from './db';
 import { DexieConversationAdapter } from './conversation-adapter';
 import { EXPORT_KIND, clearAll, exportAll, importAll } from './export-import';
 
@@ -27,7 +27,7 @@ describe('DexieConversationAdapter', () => {
   let adapter: DexieConversationAdapter;
 
   beforeEach(() => {
-    adapter = new DexieConversationAdapter(new BonaparteDb(`test-${Date.now()}-${counter++}`));
+    adapter = new DexieConversationAdapter(new monaparteDb(`test-${Date.now()}-${counter++}`));
   });
 
   it('save + loadAll : round-trip complet, messages ordonnés', async () => {
@@ -92,7 +92,7 @@ describe('DexieConversationAdapter', () => {
     expect(dump.kind).toBe(EXPORT_KIND);
     expect(dump.conversations).toHaveLength(1);
 
-    const target = new DexieConversationAdapter(new BonaparteDb(`test-import-${Date.now()}`));
+    const target = new DexieConversationAdapter(new monaparteDb(`test-import-${Date.now()}`));
     const result = await importAll(target, dump);
     expect(result.conversations).toBe(1);
     expect(await target.getSetting('nickname')).toBe('Paul');
@@ -104,5 +104,94 @@ describe('DexieConversationAdapter', () => {
 
   it('import : rejette un JSON étranger', async () => {
     await expect(importAll(adapter, { kind: 'autre' })).rejects.toThrow(/invalide/);
+  });
+});
+
+/**
+ * Régression : `filesToAttachments()` de la lib pose sur le message un `url`
+ * issu de `URL.createObjectURL(file)`. Cette URL est RÉVOQUÉE au rechargement
+ * de page — persistée telle quelle, la bulle affichait
+ * `GET blob:… net::ERR_FILE_NOT_FOUND`. Le blob est donc stocké à part et
+ * l'`url` refabriquée à chaque hydratation, dans les messages ET DANS L'ARBRE
+ * (c'est l'arbre que `importTree()` rejoue au reload).
+ */
+describe('DexieConversationAdapter — pièces jointes au reload', () => {
+  let adapter: DexieConversationAdapter;
+
+  beforeEach(() => {
+    adapter = new DexieConversationAdapter(new monaparteDb(`att-${Date.now()}-${counter++}`));
+    // fake-indexeddb n'apporte pas URL.createObjectURL : on le simule et on
+    // compte les appels pour prouver que l'URL est bien refaite.
+    let n = 0;
+    URL.createObjectURL = () => `blob:fresh-${++n}`;
+  });
+
+  const withAttachment = () => {
+    const conv = makeConv();
+    const blob = new Blob(['\x89PNG fake'], { type: 'image/png' });
+    (conv.messages![0] as unknown as { attachments: unknown[] }).attachments = [
+      {
+        id: 'att-1',
+        name: 'photo.png',
+        type: 'image/png',
+        // URL de la session PRÉCÉDENTE : morte après reload.
+        url: 'blob:http://localhost:4200/dead-uuid',
+        size: blob.size,
+        blob,
+      },
+    ];
+    conv.tree = {
+      headId: `${conv.id}-m2`,
+      messages: conv.messages!.map((m) => ({ parentId: undefined, message: m })),
+    } as never;
+    return conv;
+  };
+
+  it("l'url morte est remplacée, le blob survit", async () => {
+    const conv = withAttachment();
+    await adapter.save(conv);
+    const loaded = await adapter.loadFull(conv.id);
+
+    const atts = (loaded!.messages![0] as unknown as { attachments: { url: string; blob: Blob; name: string }[] })
+      .attachments;
+    expect(atts).toHaveLength(1);
+    expect(atts[0].url).not.toBe('blob:http://localhost:4200/dead-uuid');
+    expect(atts[0].url).toMatch(/^blob:fresh-/);
+    expect(atts[0].name).toBe('photo.png');
+    expect(atts[0].blob).toBeInstanceOf(Blob);
+    expect(await atts[0].blob.text()).toContain('PNG fake');
+  });
+
+  it("l'ARBRE aussi est réécrit — sinon importTree() rejoue les urls mortes", async () => {
+    const conv = withAttachment();
+    await adapter.save(conv);
+    const loaded = await adapter.loadFull(conv.id);
+
+    const tree = loaded!.tree as unknown as {
+      messages: { message: { id: string; attachments?: { url: string }[] } }[];
+    };
+    const first = tree.messages.find((n) => n.message.id === `${conv.id}-m1`);
+    expect(first?.message.attachments?.[0].url).toMatch(/^blob:fresh-/);
+  });
+
+  it('le binaire ne vit QUE dans la table attachments, pas dans le message', async () => {
+    const conv = withAttachment();
+    await adapter.save(conv);
+
+    const rows = await adapter.db.attachments.where('convId').equals(conv.id).toArray();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].blob).toBeInstanceOf(Blob);
+    expect(rows[0].msgId).toBe(`${conv.id}-m1`);
+
+    const msgRow = await adapter.db.messages.get(`${conv.id}-m1`);
+    expect(msgRow).toBeDefined();
+    expect('attachments' in (msgRow!.data as object)).toBe(false);
+  });
+
+  it('purge de la conversation : les pièces jointes suivent', async () => {
+    const conv = withAttachment();
+    await adapter.save(conv);
+    await adapter.delete(conv.id);
+    expect(await adapter.db.attachments.where('convId').equals(conv.id).count()).toBe(0);
   });
 });

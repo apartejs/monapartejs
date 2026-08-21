@@ -36,6 +36,31 @@ function genFileId(): string {
 
 const files = new Map<string, RegisteredFile>();
 
+/**
+ * Persistance INJECTÉE (le module souffleurs ne connaît pas Dexie — même
+ * patron que setArtifactSink/setArtifactLoader). Sans elle, un reload vidait la
+ * Map : le bloc « Files available » repartait vide et TOUT `file_id` de
+ * l'historique devenait « inconnu » côté read_file/write_file/transform_file.
+ */
+export interface FileStore {
+  put(entry: RegisteredFile): void | PromiseLike<unknown>;
+  loadAll(): Promise<RegisteredFile[]>;
+  remove?(id: string): void | PromiseLike<unknown>;
+  clear?(): void | PromiseLike<unknown>;
+}
+
+let store: FileStore | null = null;
+
+export function setFileStore(next: FileStore | null): void {
+  store = next;
+}
+
+function persist(entry: RegisteredFile): void {
+  void Promise.resolve(store?.put(entry)).catch((err) =>
+    console.warn('[souffleurs] persistance du fichier joint impossible', err),
+  );
+}
+
 export const fileRegistry = {
   register(file: File): RegisteredFile {
     const entry: RegisteredFile = {
@@ -47,6 +72,7 @@ export const fileRegistry = {
       addedAt: Date.now(),
     };
     files.set(entry.id, entry);
+    persist(entry);
     return entry;
   },
 
@@ -60,7 +86,34 @@ export const fileRegistry = {
       addedAt: Date.now(),
     };
     files.set(entry.id, entry);
+    persist(entry);
     return entry;
+  },
+
+  /**
+   * Recharge les fichiers persistés dans la Map. À appeler AU BOOT, avant que
+   * la première requête ne construise le bloc « Files available » et avant
+   * qu'un handler d'outil ne résolve un `file_id` (get() reste synchrone).
+   */
+  async hydrate(): Promise<number> {
+    if (!store) return 0;
+    try {
+      const rows = await store.loadAll();
+      for (const row of rows) {
+        if (!files.has(row.id)) files.set(row.id, row);
+      }
+      // Les ids persistés portent déjà un compteur : repartir AU-DESSUS du max
+      // vu, sinon deux fichiers de la même milliseconde peuvent collisionner.
+      const maxSeen = rows.reduce((max, row) => {
+        const n = Number(row.id.split('_').pop());
+        return Number.isFinite(n) && n > max ? n : max;
+      }, 0);
+      counter = Math.max(counter, maxSeen);
+      return rows.length;
+    } catch (err) {
+      console.warn('[souffleurs] réhydratation des fichiers joints impossible', err);
+      return 0;
+    }
   },
 
   get(id: string): RegisteredFile | undefined {
@@ -74,6 +127,7 @@ export const fileRegistry = {
 
   clear(): void {
     files.clear();
+    void Promise.resolve(store?.clear?.()).catch(() => undefined);
   },
 };
 
