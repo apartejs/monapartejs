@@ -10,11 +10,12 @@ import {
   computed,
   inject,
   output,
+  signal,
 } from '@angular/core';
 import { MascotteComponent } from '../../mascotte';
 import { TranslateService } from '../../core/i18n/translate.service';
 import { OnboardingPreloadService } from '../../onboarding/preload.service';
-import { SIZE_ADAPTER_BYTES } from '../../souffleurs';
+import { SIZE_ADAPTER_BYTES, getSouffleurManifest, isTowerCached } from '../../souffleurs';
 
 @Component({
   selector: 'bp-model-update-modal',
@@ -90,12 +91,36 @@ export class ModelUpdateModalComponent {
 
   protected readonly t = this.i18n.t;
 
-  // Fichiers versionnés immuables : seule l'adapter change (~86 Mo), la base
-  // reste en cache.
+  /**
+   * Poids réel de la mise à jour. Fichiers versionnés immuables : la base
+   * reste en cache, seul l'adapter change (~86 Mo) — PLUS la tour vision
+   * (~269 Mo) quand elle est publiée et pas encore téléchargée. Annoncer 86 Mo
+   * alors qu'on en tire 355 serait mentir à l'utilisateur.
+   */
+  private readonly pendingBytes = signal(SIZE_ADAPTER_BYTES);
+
+  constructor() {
+    void this.computePendingBytes();
+  }
+
+  private async computePendingBytes(): Promise<void> {
+    try {
+      const manifest = await getSouffleurManifest();
+      const urls = manifest.visionUrls();
+      let bytes = manifest.hasUpdate('chat') ? SIZE_ADAPTER_BYTES : 0;
+      if (urls && manifest.visionHasUpdate() && !(await isTowerCached([urls.graphUrl, urls.dataUrl]))) {
+        bytes += manifest.visionSize();
+      }
+      this.pendingBytes.set(bytes || SIZE_ADAPTER_BYTES);
+    } catch {
+      /* hors-ligne : on garde l'estimation par défaut */
+    }
+  }
+
   protected readonly actionLabel = computed(() =>
     this.t().modelUpdate.action.replace(
       '{size}',
-      `${Math.round(SIZE_ADAPTER_BYTES / 1_000_000)} Mo`,
+      `${Math.round(this.pendingBytes() / 1_000_000)} Mo`,
     ),
   );
 

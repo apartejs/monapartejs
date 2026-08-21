@@ -12,7 +12,7 @@ import {
   signal,
 } from '@angular/core';
 import { MascotteComponent, type MascotteState } from '../mascotte';
-import { TOTAL_DOWNLOAD_BYTES } from '../souffleurs';
+import { TOTAL_DOWNLOAD_BYTES, getSouffleurManifest } from '../souffleurs';
 import { TranslateService } from '../core/i18n/translate.service';
 import { LOCAL_KEYS, localSet } from '../storage/settings.service';
 import { OnboardingPreloadService } from './preload.service';
@@ -205,6 +205,10 @@ export class OnboardingComponent {
   protected readonly t = this.i18n.t;
   protected readonly step = signal<StepKind>('intro');
 
+  constructor() {
+    void this.loadVisionSize();
+  }
+
   protected readonly done = computed(() => this.preload.state() === 'done');
   protected readonly error = computed(() => this.preload.state() === 'error');
 
@@ -213,8 +217,27 @@ export class OnboardingComponent {
     return { intro: o.intro.tag, download: o.download.tag, ready: o.ready.tag }[this.step()];
   });
 
+  /**
+   * Total annoncé : base + 4 souffleurs + overhead, PLUS la tour vision quand
+   * elle est publiée (elle fait partie du modèle, pas d'une option). Lu du
+   * manifest pour ne pas figer sa taille dans le code.
+   */
+  private readonly extraBytes = signal(0);
+
+  private async loadVisionSize(): Promise<void> {
+    try {
+      const manifest = await getSouffleurManifest();
+      this.extraBytes.set(manifest.visionSize());
+    } catch {
+      /* hors-ligne : on annonce le total sans la tour */
+    }
+  }
+
   protected readonly downloadTitle = computed(() =>
-    this.t().onboarding.download.title.replace('{size}', formatSize(TOTAL_DOWNLOAD_BYTES)),
+    this.t().onboarding.download.title.replace(
+      '{size}',
+      formatSize(TOTAL_DOWNLOAD_BYTES + this.extraBytes()),
+    ),
   );
 
   protected readonly mascotteState = computed<MascotteState>(() => {

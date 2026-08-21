@@ -121,7 +121,10 @@ export class AppComponent {
 
   private refreshCallerUpdate(): void {
     void getSouffleurManifest().then((manifest) =>
-      this.callerUpdate.set(manifest.hasUpdate('chat')),
+      // La tour vision fait partie du modèle, pas d'une option : une tour
+      // publiée jamais vue doit ouvrir le MÊME modal de mise à jour. Sans ce
+      // terme, une install existante ne se voyait jamais rien proposer.
+      this.callerUpdate.set(manifest.hasUpdate('chat') || manifest.visionHasUpdate()),
     );
   }
 
