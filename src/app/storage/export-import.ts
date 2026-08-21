@@ -8,6 +8,13 @@ import { DexieConversationAdapter } from './conversation-adapter';
 import { LOCAL_KEYS, localRemove } from './settings.service';
 
 export const EXPORT_KIND = 'monaparte-full-export';
+/**
+ * `kind` accepté à l'IMPORT. Le renommage bonaparte -> monaparte a changé la
+ * valeur écrite : sans cette liste, toute sauvegarde faite avant le renommage
+ * était rejetée (« Fichier d'export invalide »). On écrit le nouveau, on lit
+ * les deux — un export est une archive de l'utilisateur, pas un détail interne.
+ */
+const ACCEPTED_KINDS: readonly string[] = [EXPORT_KIND, 'bonaparte-full-export'];
 
 export interface FullExport {
   version: 1;
@@ -37,10 +44,12 @@ export async function importAll(
   if (
     data === null ||
     typeof data !== 'object' ||
-    (data as FullExport).kind !== EXPORT_KIND ||
+    !ACCEPTED_KINDS.includes((data as FullExport).kind) ||
     !Array.isArray((data as FullExport).conversations)
   ) {
-    throw new Error('Fichier d’export invalide (kind attendu : monaparte-full-export).');
+    throw new Error(
+      `Fichier d’export invalide (kind attendu : ${ACCEPTED_KINDS.join(' ou ')}).`,
+    );
   }
   const parsed = data as FullExport;
   for (const conv of parsed.conversations) {

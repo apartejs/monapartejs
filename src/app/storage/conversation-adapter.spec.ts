@@ -195,3 +195,33 @@ describe('DexieConversationAdapter — pièces jointes au reload', () => {
     expect(await adapter.db.attachments.where('convId').equals(conv.id).count()).toBe(0);
   });
 });
+
+/**
+ * Régression du renommage bonaparte -> monaparte : la valeur écrite dans
+ * `kind` a changé, donc toute sauvegarde faite AVANT le renommage était
+ * rejetée à l'import. Un export est l'archive de l'utilisateur : on écrit le
+ * nouveau nom, on accepte les deux.
+ */
+describe('export/import — compatibilité du kind', () => {
+  let adapter: DexieConversationAdapter;
+
+  beforeEach(() => {
+    adapter = new DexieConversationAdapter(new monaparteDb(`kind-${Date.now()}-${counter++}`));
+  });
+
+  it('un export produit par la version « bonaparte » est encore importable', async () => {
+    await adapter.save(makeConv());
+    const dump = await exportAll(adapter);
+    const legacy = { ...dump, kind: 'bonaparte-full-export' } as unknown as typeof dump;
+
+    await clearAll(adapter);
+    await expect(importAll(adapter, legacy)).resolves.not.toThrow();
+    expect((await adapter.loadMeta()).length).toBe(1);
+  });
+
+  it('un kind étranger est toujours rejeté', async () => {
+    const dump = await exportAll(adapter);
+    const alien = { ...dump, kind: 'autre-appli-export' } as unknown as typeof dump;
+    await expect(importAll(adapter, alien)).rejects.toThrow(/invalide/);
+  });
+});

@@ -62,7 +62,7 @@ export function currentLocale(): 'fr' | 'en' {
   return (navigator.language || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en';
 }
 
-export function providemonaparte(): EnvironmentProviders[] {
+export function provideMonaparte(): EnvironmentProviders[] {
   return [
     provideAparte({
       providers: [SouffleursProvider],
