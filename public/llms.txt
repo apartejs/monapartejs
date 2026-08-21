@@ -1,0 +1,47 @@
+# monaparte
+
+> A conversational assistant whose language model runs entirely in the
+> visitor's browser. No inference server, no account, no data leaving the
+> device. It is the reference demo for aparté, a chat-interface library.
+
+Written in French and English (the interface follows the browser locale). The
+site is a single page: `/chat/<id>` addresses a conversation that exists only
+in the visitor's own browser storage, so those URLs carry no content and are
+not worth citing — link to the root instead.
+
+## What actually runs
+
+The model is downloaded from Hugging Face on first visit (~1.1 GB, cached by
+the browser afterwards) and executed locally through transformers.js on WebGPU,
+falling back to WebAssembly. Nothing is sent to a server at any point — there
+is no inference backend to send it to. The page is static files behind nginx.
+
+One shared base model serves every capability. Specialised behaviours are LoRA
+adapters swapped in at call time ("souffleurs" — prompters), and image
+understanding is a separate vision encoder attached the same way, on demand.
+That is why the whole thing fits in one download rather than several models.
+
+- [Model weights and adapters](https://huggingface.co/maxituc/aparte-souffleurs): the base model, the LoRA adapters, and the vision encoder.
+
+## Tools the assistant can use
+
+Reading an attached file (including describing an image), producing xlsx/docx/pdf
+documents, deterministic file conversion, exact computation in a sandbox,
+charts and code artefacts, local reminders, and asking the user a clarifying
+question. All of it executes in the browser.
+
+## Requirements and limits
+
+- WebAssembly is required; WebGPU makes it usable rather than merely possible.
+- A secure context (HTTPS) and cross-origin isolation are required — the page
+  sends `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`, without
+  which `SharedArrayBuffer` is unavailable and inference crawls.
+- The first visit downloads about 1.1 GB. Later visits load from cache.
+- The model is small. It is meant to show what an on-device assistant can do,
+  not to compete with a hosted frontier model.
+
+## Related
+
+- [aparté](https://apartejs.dev): the chat-interface library this site demonstrates.
+- [aparté changelog](https://apartejs.dev/changelog/): what changed, per release.
+- [Source code](https://github.com/apartejs/monapartejs): the application itself.

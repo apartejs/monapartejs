@@ -29,6 +29,12 @@ RUN pnpm build
 # ── Étage service ─────────────────────────────────────────────────────────────
 FROM nginx:alpine
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+# La conf est validée A LA CONSTRUCTION. Sans ça, une faute de syntaxe ne se
+# voit qu'au démarrage du conteneur : il boucle, passe `unhealthy`, Coolify
+# refuse de router, et le symptôme visible est un 503 de Traefik qui ne dit
+# rien de sa cause. Vécu le 21/08 pour une raison voisine. Ici la construction
+# échoue, avec le numéro de ligne.
+RUN nginx -t
 COPY --from=build /app/dist/monaparte/browser /usr/share/nginx/html
 EXPOSE 80
 

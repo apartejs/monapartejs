@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { AparteConversation } from '@aparte/core';
 import { monaparteDb } from './db';
 import { DexieConversationAdapter } from './conversation-adapter';
+import { fileRegistry, setConversationResolver } from '../souffleurs/files/file-registry';
 import { EXPORT_KIND, clearAll, exportAll, importAll } from './export-import';
 
 let counter = 0;
@@ -65,6 +66,30 @@ describe('DexieConversationAdapter', () => {
     await adapter.delete(conv.id);
     expect(await adapter.loadAll()).toHaveLength(0);
     expect(await adapter.db.messages.where('convId').equals(conv.id).count()).toBe(0);
+  });
+
+  it('delete : cascade aussi les fichiers du registre souffleurs', async () => {
+    const conv = makeConv();
+    await adapter.save(conv);
+
+    setConversationResolver(() => conv.id);
+    const entry = fileRegistry.registerBlob(new Blob(['x']), 'pr.jpg', 'image/jpeg');
+    await adapter.db.souffleurFiles.put({
+      id: entry.id,
+      name: entry.name,
+      type: entry.type,
+      mimeType: entry.mime,
+      blob: entry.blob,
+      addedAt: entry.addedAt,
+      convId: conv.id,
+    });
+
+    await adapter.delete(conv.id);
+
+    expect(await adapter.db.souffleurFiles.count()).toBe(0);
+    // Et la Map memoire, sinon le file_id se resout encore jusqu'au reload.
+    expect(fileRegistry.get(entry.id)).toBeUndefined();
+    setConversationResolver(null);
   });
 
   it('archive / unarchive', async () => {

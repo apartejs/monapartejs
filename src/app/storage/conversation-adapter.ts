@@ -13,6 +13,9 @@ import type {
   AparteStorageAdapter,
 } from '@aparte/core';
 import { APARTE_CONVERSATION_SCHEMA_VERSION } from '@aparte/core';
+// Module feuille du registre, pas le baril `../souffleurs` : celui-ci
+// entrainerait les outils et le worker dans le morceau de code du stockage.
+import { fileRegistry } from '../souffleurs/files/file-registry';
 import { monaparteDb, type ConversationRow } from './db';
 
 export class DexieConversationAdapter implements AparteStorageAdapter {
@@ -70,14 +73,31 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
   async delete(id: string): Promise<void> {
     await this.db.transaction(
       'rw',
-      [this.db.conversations, this.db.messages, this.db.attachments, this.db.artifacts],
+      [
+        this.db.conversations,
+        this.db.messages,
+        this.db.attachments,
+        this.db.artifacts,
+        this.db.souffleurFiles,
+      ],
       async () => {
         await this.db.conversations.delete(id);
         await this.db.messages.where('convId').equals(id).delete();
         await this.db.attachments.where('convId').equals(id).delete();
         await this.db.artifacts.where('convId').equals(id).delete();
+        // Les fichiers du registre souffleurs partent aussi : ce sont des
+        // binaires (une image, un tableur), et rien ne les rattache plus a
+        // quoi que ce soit une fois le fil supprime. Les laisser, c'etait
+        // garder indefiniment dans le navigateur des fichiers que
+        // l'utilisateur croit avoir effaces — et, dans une application dont
+        // toute la promesse est que rien ne quitte l'appareil, ce qui reste
+        // SUR l'appareil doit obeir a la suppression.
+        await this.db.souffleurFiles.where('convId').equals(id).delete();
       },
     );
+    // La base est nettoyee ; la Map du registre, elle, vit en memoire et
+    // survivrait jusqu'au prochain rechargement.
+    fileRegistry.dropConversation(id);
   }
 
   async archive(id: string): Promise<void> {

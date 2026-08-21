@@ -1,0 +1,15 @@
+# /debug/ expose le dernier échange envoyé au modèle — un outil de mise au
+# point, sans intérêt pour un moteur, et qu'on ne veut pas voir apparaître dans
+# des résultats de recherche.
+#
+# /chat/ n'est PAS interdit ici, volontairement : la balise canonique de
+# index.html suffit à consolider ces adresses sur la racine, et une interdiction
+# empêcherait aussi les moissonneurs sociaux de lire la carte d'un lien partagé.
+# Les conversations n'existent que dans le navigateur du visiteur : ces adresses
+# ne portent aucune donnée.
+User-agent: *
+Allow: /
+Disallow: /debug/
+Disallow: /unregister-sw.html
+
+Sitemap: https://mon.apartejs.dev/sitemap.xml

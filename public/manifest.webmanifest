@@ -1,24 +1,40 @@
 {
-  "name": "aparté",
-  "short_name": "aparté",
-  "description": "Assistant personnel 100 % local — tout tourne dans votre navigateur, rien ne quitte votre appareil.",
+  "id": "/",
+  "name": "monaparte — assistant local",
+  "short_name": "monaparte",
+  "description": "Un assistant conversationnel dont le modèle tourne entièrement dans votre navigateur : aucun serveur, aucune donnée envoyée.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f6f2ea",
   "theme_color": "#b07d33",
   "lang": "fr",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities"],
   "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "icons/mascotte.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
-    },
-    {
-      "src": "icons/mascotte-maskable.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
     }
   ]
 }
