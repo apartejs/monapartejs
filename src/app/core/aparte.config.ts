@@ -36,6 +36,7 @@ import {
   readFileRenderer,
   setArtifactLoader,
   setArtifactSink,
+  setConversationResolver,
   setFileStore,
   setSouffleurDebug,
   setReminderHandler,
@@ -143,6 +144,7 @@ export function provideMonaparte(): EnvironmentProviders[] {
             mimeType: entry.mime,
             blob: entry.blob,
             addedAt: entry.addedAt,
+            convId: entry.convId ?? null,
           }),
         loadAll: async () => {
           const rows = await conversationAdapter.db.souffleurFiles.orderBy('addedAt').toArray();
@@ -155,6 +157,9 @@ export function provideMonaparte(): EnvironmentProviders[] {
               mime: row.mimeType,
               blob: row.blob,
               addedAt: row.addedAt,
+              // `undefined` conserve tel quel : c'est une ligne d'avant le
+              // rattachement, a distinguer de `null` (en attente d'adoption).
+              convId: row.convId,
             }));
         },
         remove: (id) => conversationAdapter.db.souffleurFiles.delete(id),
@@ -211,6 +216,11 @@ export function provideMonaparte(): EnvironmentProviders[] {
       inject(RichRenderService).install();
 
       const manager = inject(ConversationManagerService);
+      // Rattache chaque fichier joint a son fil. Sans ce resolveur, le bloc
+      // « Files available » annonce au modele TOUS les fichiers jamais joints,
+      // dans n'importe quelle conversation. Pose avant le premier envoi : le
+      // registre le consulte a l'enregistrement et a la construction du bloc.
+      setConversationResolver(() => manager.activeId() || null);
       const settings = inject(SettingsService);
       await Promise.all([
         manager.init(conversationAdapter),

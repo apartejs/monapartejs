@@ -20,7 +20,7 @@ import { GeneratingService } from '../../core/generating.service';
 import { TranslateService } from '../../core/i18n/translate.service';
 import { ModelStatusService } from '../../core/model-status.service';
 import { MascotteComponent } from '../../mascotte';
-import { buildSystemPrompt } from '../../souffleurs';
+import { buildSystemPrompt, fileRegistry } from '../../souffleurs';
 import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
 import { ConversationMinimapComponent } from './conversation-minimap.component';
 
@@ -285,6 +285,12 @@ export class ChatPageComponent {
   });
 
   protected onConversationCreated(id: string): void {
+    // Les pieces jointes sont enregistrees a l'ENVOI, donc avant que la
+    // conversation n'ait un id : on les lui rattache maintenant, sinon elles
+    // resteraient « en attente » et le prochain fil vierge les annoncerait au
+    // modele comme si l'utilisateur venait de les joindre.
+    fileRegistry.adoptPending(id);
+
     // SURTOUT PAS router.navigate : '' et 'chat/:id' sont deux routes → le
     // composant serait détruit EN PLEIN STREAM de la première réponse (bug
     // « le premier message ne part pas »). On réécrit l'URL sans navigation ;
