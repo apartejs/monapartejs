@@ -29,46 +29,34 @@ place, et le serveur ne fait plus que tirer une image de quelques dizaines de Mo
 
 ## 1. La ressource Coolify
 
-Tu as déjà une application git avec **Build Pack = Dockerfile**, et c'est elle
-qui a produit l'échec `COPY dist/bonaparte/browser: not found` : elle
-construisait depuis le dépôt.
-
-⚠️ **« Docker Image » n'est pas dans le menu déroulant** d'une application git :
-c'est un *type de ressource* à créer. Inutile d'en créer une — le Build Pack
-**Docker Compose**, lui, est bien dans le menu de la ressource existante, et un
-compose qui ne déclare qu'une `image:` (sans clé `build:`) **ne construit rien,
-il tire**.
-
-Sur la ressource actuelle, deux réglages :
+Mêmes réglages que **apartejs.dev**, qui tourne déjà sur ce Coolify — on ne
+réinvente rien :
 
 | Réglage | Valeur |
 |---|---|
-| Build Pack | **Docker Compose** |
-| Docker Compose Location | `/docker-compose.yml` |
-| Domains | `https://mon.apartejs.dev` (inchangé) |
+| Build Pack | **Dockerfile** |
+| Dockerfile Location | **`/Dockerfile`** |
+| Port | **80** |
+| Domains | `https://mon.apartejs.dev` |
 
-Le port et le healthcheck viennent du compose. Aucun volume : le conteneur est
-sans état.
+Le `/Dockerfile` à la racine ne fait qu'**une ligne** :
+`FROM ghcr.io/apartejs/monapartejs:main`. Il ne construit rien — le vrai build
+est `docker/Dockerfile` et tourne en CI. La config nginx (COOP/COEP, fallback
+SPA, cache) est déjà dans l'image tirée.
 
-⚠️ **Le domaine se rattache au SERVICE, pas à l'application.** En Build Pack
-« Dockerfile », le champ *Domains* de l'application suffisait ; en « Docker
-Compose », Coolify raisonne par service. Le compose déclare donc la variable
-magique `SERVICE_FQDN_WEB_80`, dans laquelle Coolify injecte le FQDN réglé dans
-l'interface et à partir de laquelle il génère les labels Traefik.
+**Ce qui a été essayé et abandonné** : Build Pack « Docker Compose ». En mode
+Compose, Coolify rattache le domaine PAR SERVICE, et Traefik répondait `503`
+sans backend malgré un conteneur démarré et `SERVICE_FQDN_WEB_80` déclaré. Le
+mode Dockerfile route, lui — son unique échec d'origine était un `COPY` d'un
+`dist/` absent, jamais le domaine. `docker-compose.yml` reste dans le dépôt pour
+un `docker compose up` local, mais Coolify ne s'en sert pas.
 
-Sans elle : le conteneur démarre normalement, mais Traefik n'a **aucun backend**
-et répond `503` avec son certificat par défaut (`CN=TRAEFIK DEFAULT CERT`) —
-et Let's Encrypt n'émet pas, l'émission attendant un routage fonctionnel. Les
-trois symptômes arrivent ensemble et pointent tous vers ce seul réglage.
+**Visibilité du paquet GHCR.** Un paquet publié par Actions est **privé** par
+défaut, même depuis un dépôt public, et le `pull` échoue alors en
+`unauthorized`. Soit le passer en public, soit renseigner Coolify →
+*Keys & Tokens* → *Docker Registries* avec un PAT `read:packages`.
 
-**Visibilité du paquet GHCR.** Par défaut, un paquet publié par Actions est
-**privé**, et le `pull` échoue en `unauthorized`. Deux options :
-- le passer en **public** (GitHub → le paquet → *Package settings* →
-  *Change visibility*) ;
-- le laisser privé et ajouter les identifiants du registre dans Coolify
-  (**Keys & Tokens** → *Docker Registries*), avec un PAT ayant `read:packages`.
-
-Le paquet n'apparaît qu'**après le premier passage réussi** du job `image`.
+---
 
 ## 2. Les deux secrets GitHub
 

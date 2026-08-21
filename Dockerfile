@@ -14,8 +14,11 @@
 #
 # Coolify :
 #   Build Pack            = Dockerfile
-#   Dockerfile Location   = docker/Dockerfile.deploy
+#   Dockerfile Location   = /Dockerfile
 #   Port                  = 80
+#
+# À la racine et sous ce nom, pour coller à la convention qui fonctionne déjà
+# sur ce Coolify (apartejs : `Dockerfile Location = /Dockerfile.docs`).
 #
 # La config nginx (COOP/COEP, fallback SPA, cache) est déjà DANS l'image tirée.
 # Retour arrière : remplacer `:main` par un tag `:sha-abc1234` publié par la CI.
