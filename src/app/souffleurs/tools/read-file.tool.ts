@@ -117,20 +117,13 @@ export async function surveyXlsx(blob: Blob): Promise<Record<string, unknown>> {
  * et ne voit JAMAIS de pixels.
  */
 async function surveyImage(blob: Blob, query: string): Promise<Record<string, unknown>> {
-  // Consigne au modèle EN ANGLAIS. Sa réponse repart telle quelle dans
-  // `description` et c'est souffleur-chat qui rend en français à l'utilisateur.
   // ATTENTION : « Describe this image in one or two sentences » donnait
   // littéralement UNE phrase creuse (« In this image we can see a logo. ») —
   // le VL obéit au pied de la lettre, et souffleur-chat n’avait alors plus rien
   // à dire que les dimensions. On demande donc explicitement ce qui sert en
   // aval, dont la TRANSCRIPTION du texte visible (décisive pour un logo, une
   // capture d’écran, un document photographié).
-  const question = query.trim()
-    ? `${query.trim()}\n\nAnswer using only what is visible in the image. ` +
-      'Transcribe any text you can read, exactly as written.'
-    : 'Describe this image in detail: the subject, the setting, colours, and ' +
-      'anything notable. Transcribe any text you can read, exactly as written. ' +
-      'Be specific and factual — do not describe what you cannot see.';
+  const question = describePrompt(query.trim());
   const { width, height } = await imageDimensions(blob);
   const description = await describeImage(blob, question);
   // `description` en TÊTE : souffleur-chat s’appuyait sur width/height
@@ -141,6 +134,61 @@ async function surveyImage(blob: Blob, query: string): Promise<Record<string, un
     width,
     height,
   };
+}
+
+/**
+ * Consigne envoyée au VL. Le défaut reste l'ANGLAIS — mais il est désormais
+ * CONTESTÉ par la mesure, et ce commutateur existe pour finir de trancher.
+ *
+ * A/B du 21/08 au banc (aparte-repetitions/export/run_souffleur.py, 7 sondes,
+ * décodage déterministe, la description anglaise RÉELLE contre sa traduction
+ * française fidèle). Sur la moitié AVAL — ce que souffleur-chat fait du
+ * résultat d'outil — le français n'est jamais pire, et l'anglais produit trois
+ * défauts que le français n'a pas :
+ *
+ *   « il y a du texte ? » -> « les lettres PR […] aucun texte visible »
+ *                            (il se contredit dans la même phrase)
+ *   « fond sombre ? »     -> « bien visible sur un fond sombre »
+ *                            (faux : le logo est noir sur blanc)
+ *   « quelles lettres ? » -> « un petit V vertical en bleu »
+ *                            (inventé ; la description dit « ligne verticale »)
+ *
+ * Le modèle traduit la description en répondant, et perd ou invente au passage.
+ *
+ * La moitié AMONT n'est PAS mesurée : la tour décrit-elle aussi bien en
+ * français ? Elle est vraisemblablement dominée par l'anglais, et une
+ * description française plus pauvre annulerait le gain. Cette mesure demande le
+ * navigateur — la tour n'existe pas côté banc — d'où ce commutateur plutôt
+ * qu'une bascule à l'aveugle :
+ *
+ *   localStorage.setItem('bp.vision.lang', 'fr')   // puis recharger
+ *
+ * Joindre deux fois la même image et comparer les lignes DESCRIBE de la
+ * console. Si la description française tient, ce défaut devient 'fr'.
+ */
+function describeLang(): 'en' | 'fr' {
+  try {
+    return localStorage.getItem('bp.vision.lang') === 'fr' ? 'fr' : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+function describePrompt(query: string): string {
+  if (describeLang() === 'fr') {
+    return query
+      ? `${query}\n\nRéponds uniquement à partir de ce qui est visible sur l'image. ` +
+          "Retranscris tout texte lisible, exactement tel qu'il est écrit."
+      : 'Décris cette image en détail : le sujet, le décor, les couleurs, et tout ce qui ' +
+          "est notable. Retranscris tout texte lisible, exactement tel qu'il est écrit. " +
+          'Sois précis et factuel — ne décris pas ce que tu ne vois pas.';
+  }
+  return query
+    ? `${query}\n\nAnswer using only what is visible in the image. ` +
+        'Transcribe any text you can read, exactly as written.'
+    : 'Describe this image in detail: the subject, the setting, colours, and ' +
+        'anything notable. Transcribe any text you can read, exactly as written. ' +
+        'Be specific and factual — do not describe what you cannot see.';
 }
 
 async function imageDimensions(blob: Blob): Promise<{ width: number; height: number }> {

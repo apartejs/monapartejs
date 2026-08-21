@@ -31,7 +31,8 @@ export const SOUFFLEUR_TOOL_DEFS: readonly SouffleurToolDef[] = [
           "description": "L'id EXACT tel que listé dans le bloc « Files available » du contexte. Copie-le, ne le déduis pas du nom de fichier et ne l'invente JAMAIS. Aucun fichier listé → ask_question."
         },
         "query": {
-          "type": "string"
+          "type": "string",
+          "description": "La QUESTION posée sur le contenu, en langage naturel. Remplis-la dès que la demande porte sur ce que le fichier CONTIENT — « qu'est-ce qu'on y voit ? », « quel est le total de la colonne B ? », « qui est le destinataire ? ». Laisse-la absente seulement pour un survol : structure, colonnes, métadonnées. Sur une image, une query donne une réponse ciblée là où l'absence donne une description générale."
         }
       }
     }

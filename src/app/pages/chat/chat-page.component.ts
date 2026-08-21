@@ -121,7 +121,12 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       max-width: var(--bp-content-max-width);
       margin: 0 auto;
       width: 100%;
-      padding: 0 12px;
+      /* Le bas RESPIRE. Cet espace venait du « padding: 4px 0 8px » de l'astuce
+       * sous le composer ; la barre unique d'aparté 0.7.0 apporte son propre
+       * padding, j'ai donc retiré celui-là — et le composer s'est retrouvé
+       * collé au bord de l'écran. Il appartient de toute façon à la mise en
+       * page, pas à l'astuce, qui disparaît sur écran tactile. */
+      padding: 0 12px 12px;
       position: relative;
     }
     aparte-chat {

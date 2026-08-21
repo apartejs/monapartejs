@@ -14,7 +14,13 @@ import {
   TextStreamer,
   pipeline,
 } from '@huggingface/transformers';
-import { preprocessImage, expectedImageTokens } from './vision/image-preprocess';
+import {
+  preprocessImage,
+  expectedImageTokens,
+  expectedTotalTokens,
+  TOKENS_PER_TILE,
+  type PreprocessedImage,
+} from './vision/image-preprocess';
 import { attachTower, detachTower, encodeImage } from './vision/vision-tower';
 import { SOUFFLEURS_HF_REPO, type AdapterName } from './model-catalog';
 import type {
@@ -274,6 +280,50 @@ const IMAGE_TOKEN_ID = 396n; // <image>
 const IMAGE_START_ID = 498n; // <|image_start|>
 const IMAGE_END_ID = 499n; // <|image_end|>
 
+/**
+ * Bloc image du prompt — port de `Lfm2VlProcessor._build_image_tokens()`.
+ *
+ * En mono-tuile : <|image_start|> N×<image> <|image_end|>.
+ *
+ * En multi-tuiles, chaque tuile est ANNONCÉE par sa position dans la grille,
+ * et la vignette d'ensemble ferme la marche :
+ *
+ *   <|image_start|>
+ *     <|img_row_1_col_1|> 256×<image>   <|img_row_1_col_2|> 256×<image>
+ *     <|img_row_2_col_1|> 256×<image>   ...
+ *     <|img_thumbnail|>   M×<image>
+ *   <|image_end|>
+ *
+ * L'ordre suit celui des tuiles produites par le prétraitement — ligne par
+ * ligne, vignette en dernier. Les deux doivent coïncider exactement : les
+ * embeds sont posés sur les positions des <image> dans l'ordre où la tour les
+ * a produits, donc une inversion ferait décrire au modèle une image
+ * recomposée n'importe comment, sans la moindre erreur visible.
+ *
+ * Ces marqueurs sont de VRAIS tokens de notre vocabulaire (vérifié dans
+ * tokenizer.json : <|img_row_R_col_C|>, <|img_thumbnail|>). S'ils n'en
+ * étaient pas, ils se découperaient en plusieurs tokens et le prompt sortirait
+ * de la distribution d'entraînement sans que rien ne le signale.
+ */
+function buildImageBlock(image: PreprocessedImage, numTokens: number): string {
+  if (image.numTiles <= 1) {
+    return '<|image_start|>' + '<image>'.repeat(numTokens) + '<|image_end|>';
+  }
+  const parts = ['<|image_start|>'];
+  const tile = '<image>'.repeat(TOKENS_PER_TILE);
+  for (let r = 0; r < image.rows; r++) {
+    for (let c = 0; c < image.cols; c++) {
+      parts.push(`<|img_row_${r + 1}_col_${c + 1}|>`, tile);
+    }
+  }
+  parts.push(
+    '<|img_thumbnail|>',
+    '<image>'.repeat(expectedImageTokens(image.width, image.height)),
+    '<|image_end|>',
+  );
+  return parts.join('');
+}
+
 async function describeImage(msg: {
   id: number;
   device: ComputeDevice;
@@ -320,10 +370,14 @@ async function describeImage(msg: {
   const processed = await preprocessImage(blob);
   const { features, numTokens, hiddenSize } = await encodeImage(processed);
   if (debug) {
-    const want = expectedImageTokens(processed.width, processed.height);
+    const want = expectedTotalTokens(processed);
+    const layout =
+      processed.numTiles > 1
+        ? `${processed.rows}x${processed.cols} tuiles + vignette ${processed.width}x${processed.height}`
+        : `${processed.width}x${processed.height}`;
     console.log(
-      '[souffleurs.worker] vision %dx%d -> %d tokens (attendu %d) hidden=%d, tour rattachée en %d ms',
-      processed.width, processed.height, numTokens, want, hiddenSize, attachMs,
+      '[souffleurs.worker] vision %s -> %d tokens (attendu %d) hidden=%d, tour rattachée en %d ms',
+      layout, numTokens, want, hiddenSize, attachMs,
     );
     if (want !== numTokens) {
       // Divergence de prétraitement = prompt hors distribution : on veut le voir.
@@ -331,16 +385,17 @@ async function describeImage(msg: {
     }
   }
 
-  // 4. Prompt au format du chat template VL : <|image_start|> N×<image> <|image_end|>.
-  //    Le prompt porte déjà le BOS -> add_special_tokens: false.
+  // 4. Prompt au format du chat template VL. Le prompt porte déjà le BOS
+  //    -> add_special_tokens: false.
   const tokenizer = pipe.tokenizer;
   const head = `<|startoftext|><|im_start|>user
 `;
   const tail = `${question}<|im_end|>
 <|im_start|>assistant
 `;
-  const imageBlock = '<|image_start|>' + '<image>'.repeat(numTokens) + '<|image_end|>';
-  const encoded = tokenizer(head + imageBlock + tail, { add_special_tokens: false });
+  const encoded = tokenizer(head + buildImageBlock(processed, numTokens) + tail, {
+    add_special_tokens: false,
+  });
 
   // 5. Positions des tokens <image> -> indices ScatterND [(batch, position), …].
   const ids = encoded.input_ids.data as BigInt64Array;
