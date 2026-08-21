@@ -17,3 +17,8 @@ pnpm-debug.log
 
 # notes internes — jamais dans le repo public
 docs/superpowers/
+
+# Notes de terrain, jamais publiées : journal de friction avec le modèle,
+# brouillons de brief pour la prochaine passe SFT. Vit à côté du code parce
+# que c'est en développant qu'on constate, mais ce n'est pas de la doc.
+*.local.md

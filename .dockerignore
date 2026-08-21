@@ -1,0 +1,33 @@
+# Contexte de build : ce qui NE doit jamais entrer dans l'image.
+#
+# `node_modules` en tête, et ce n'est pas une optimisation : le Dockerfile fait
+# `pnpm install` PUIS `COPY . .`. Sans cette exclusion, le node_modules de la
+# machine hôte (binaires natifs Windows/macOS) écrase les dépendances Linux
+# qu'on vient d'installer, et le build casse — ou pire, produit une image
+# silencieusement bancale.
+node_modules
+**/node_modules
+
+# Sorties de build : reconstruites dans l'image, jamais copiées.
+dist
+out-tsc
+.angular
+coverage
+
+# Historique et outillage local
+.git
+.gitignore
+.vscode
+.idea
+
+# Notes de terrain, gitignorées et hors sujet dans une image
+*.local.md
+
+# Environnements Python d'outillage (n'ont rien à faire ici)
+.venv
+.venv-*
+
+# Docs et fichiers de dev qui ne changent pas le binaire servi
+docs
+*.md
+!README.md
