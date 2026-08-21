@@ -1,0 +1,133 @@
+name: Vérifier, construire l'image, déployer
+
+# Le build tourne ICI, pas sur le serveur Coolify : un build Angular en
+# production dépasse volontiers 2 Go de RAM, ce qui est de trop pour une petite
+# instance. Coolify ne fait plus que tirer l'image depuis GHCR.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # Un push qui suit de près annule le précédent : inutile de déployer un
+  # commit déjà dépassé.
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  verify:
+    name: Types et tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Types (application)
+        run: pnpm typecheck
+
+      # Passe SÉPARÉE, et ce n'est pas une redondance : tsc ne résout pas
+      # `new Worker(new URL('./souffleurs.worker', import.meta.url))`, donc le
+      # worker n'appartient à AUCUN programme et n'est jamais typé par la passe
+      # applicative. Sans ceci, la CI laisserait passer un worker cassé.
+      - name: Types (worker d'inférence)
+        run: pnpm typecheck:worker
+
+      - run: pnpm test
+
+  image:
+    name: Image
+    needs: verify
+    # Jamais depuis une PR : on ne publie que ce qui est sur main.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # `main` est le tag que Coolify suit ; le tag court par sha permet de
+          # revenir en arrière sur un commit précis.
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Déploiement Coolify
+    needs: image
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # Tant que les deux secrets ne sont pas posés, on ne fait pas échouer le
+      # workflow : l'image est publiée et le déploiement reste manuel.
+      # Les secrets passent par `env`, jamais par interpolation `${{ }}` dans le
+      # shell : ça colle la valeur dans le script, ce qui en fait une surface
+      # d'injection et brouille le masquage.
+      - name: Vérifier la configuration
+        id: cfg
+        env:
+          WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+          TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -n "$WEBHOOK" ] && [ -n "$TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::COOLIFY_WEBHOOK_URL / COOLIFY_TOKEN absents — image publiée, déploiement à déclencher à la main."
+          fi
+
+      - name: Déclencher le déploiement
+        if: steps.cfg.outputs.ready == 'true'
+        env:
+          WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+          TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          code=$(curl --silent --show-error --output /tmp/out.txt --write-out '%{http_code}' \
+            --request GET "$WEBHOOK" \
+            --header "Authorization: Bearer $TOKEN")
+          echo "HTTP $code"
+          cat /tmp/out.txt
+          # Un webhook qui répond 4xx/5xx doit faire ÉCHOUER le job : sinon un
+          # déploiement silencieusement non déclenché passe pour un succès.
+          [ "$code" -ge 200 ] && [ "$code" -lt 300 ]
