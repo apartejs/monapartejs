@@ -187,6 +187,26 @@ export const fileRegistry = {
     return adopted;
   },
 
+  /**
+   * Oublie les fichiers d'une conversation supprimee.
+   *
+   * La Map SEULE : la ligne Dexie part deja avec la conversation, dans la meme
+   * transaction que ses messages et ses artefacts (conversationAdapter.delete).
+   * Sans ce complement, les blobs restaient en memoire jusqu'au prochain
+   * rechargement — et un file_id supprime continuait de se resoudre.
+   */
+  dropConversation(convId: string): number {
+    if (!convId) return 0;
+    let dropped = 0;
+    for (const [id, entry] of files) {
+      if (entry.convId === convId) {
+        files.delete(id);
+        dropped++;
+      }
+    }
+    return dropped;
+  },
+
   clear(): void {
     files.clear();
     void Promise.resolve(store?.clear?.()).catch(() => undefined);
