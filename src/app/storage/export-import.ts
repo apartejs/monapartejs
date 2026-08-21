@@ -7,7 +7,7 @@ import type { AparteConversation, AparteMemoryFact } from '@aparte/core';
 import { DexieConversationAdapter } from './conversation-adapter';
 import { LOCAL_KEYS, localRemove } from './settings.service';
 
-export const EXPORT_KIND = 'bonaparte-full-export';
+export const EXPORT_KIND = 'monaparte-full-export';
 
 export interface FullExport {
   version: 1;
@@ -40,7 +40,7 @@ export async function importAll(
     (data as FullExport).kind !== EXPORT_KIND ||
     !Array.isArray((data as FullExport).conversations)
   ) {
-    throw new Error('Fichier d’export invalide (kind attendu : bonaparte-full-export).');
+    throw new Error('Fichier d’export invalide (kind attendu : monaparte-full-export).');
   }
   const parsed = data as FullExport;
   for (const conv of parsed.conversations) {

@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "bonaparte": {
+    "monaparte": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -20,7 +20,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/bonaparte",
+            "outputPath": "dist/monaparte",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
@@ -88,10 +88,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "bonaparte:build:production"
+              "buildTarget": "monaparte:build:production"
             },
             "development": {
-              "buildTarget": "bonaparte:build:development"
+              "buildTarget": "monaparte:build:development"
             }
           },
           "defaultConfiguration": "development"

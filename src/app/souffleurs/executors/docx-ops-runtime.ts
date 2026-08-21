@@ -2,7 +2,7 @@
  * docx-ops-runtime.ts — executes le souffleur-xlsx-docx's declarative docx ops.
  *
  * Faithful port of executor.js du lab (v6, exécuteurs réutilisés tels quels en v7) (applyDocxOps),
- * backed by the `docx` lib (dep bonaparte). The aimini emits a JSON ops
+ * backed by the `docx` lib (dep monaparte). The aimini emits a JSON ops
  * array ({op:"addParagraph"}, {op:"setHeading"}, {op:"addTable"}, …) → this
  * builds a docx Document → Blob.
  */
