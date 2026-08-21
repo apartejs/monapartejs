@@ -29,6 +29,7 @@ import {
   EXECUTOR_MAX_NEW_TOKENS,
   SIZE_ADAPTER_BYTES,
   SOUFFLEURS_HF_REPO,
+  VISION_MAX_NEW_TOKENS,
   type AdapterName,
 } from './model-catalog';
 import { adapterRole, getSouffleurManifest } from './manifest';
@@ -54,9 +55,21 @@ export const META_FILES_KEY = 'souffleurFiles';
 
 const PROVIDER_ID = 'souffleurs';
 
+/**
+ * Dernier échange RÉELLEMENT envoyé sur le fil, capturé sans condition (deux
+ * strings, coût nul). Sert au diagnostic hors console : /debug/prompt l'affiche.
+ * C'est le seul moyen de répondre à « le bloc List of tools est-il là ? »
+ * autrement qu'en croyant ce qu'on suppose.
+ */
+let _lastWire: { prompt: string; raw: string; at: number } | null = null;
+
+export function getLastWire(): { prompt: string; raw: string; at: number } | null {
+  return _lastWire;
+}
+
 interface PendingHandlers {
   onProgress?: (p: WorkerFileProgress) => void;
-  onReady?: (adapter: AdapterName, ms: number) => void;
+  onReady?: (adapter: AdapterName | 'vision', ms: number) => void;
   onChunk?: (delta: string) => void;
   onDone?: (usage: {
     inputTokens: number;
@@ -85,7 +98,9 @@ function getWorker(): Worker {
           handlers?.onProgress?.(msg);
           break;
         case 'ready':
-          _loadedAdapter = msg.adapter;
+          // 'vision' n'est pas un adapter : le trio VL a pris la place du pipe
+          // texte, donc plus aucun adapter n'est chargé.
+          _loadedAdapter = msg.adapter === 'vision' ? null : msg.adapter;
           handlers?.onReady?.(msg.adapter, msg.ms);
           break;
         case 'chunk':
@@ -125,12 +140,32 @@ function enqueue<T>(op: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/**
+ * Verbosité par défaut, INJECTÉE (ce module ne connaît pas Angular, donc pas
+ * `isDevMode()`) : l'app la pose à `isDevMode()` au boot. En dev on est bavard
+ * sans rien avoir à activer — c'est le mode où on débugue.
+ */
+let _debugDefault = false;
+
+export function setSouffleurDebug(enabled: boolean): void {
+  _debugDefault = enabled;
+}
+
+/**
+ * `bp.debug` reste un OVERRIDE explicite, dans les deux sens :
+ *   '1' → force les traces (utile sur un build de prod)
+ *   '0' → les fait taire (utile quand le dev est trop bruyant)
+ * absent → on suit le mode de l'app.
+ */
 function isDebug(): boolean {
   try {
-    return localStorage.getItem('bp.debug') === '1';
+    const flag = localStorage.getItem('bp.debug');
+    if (flag === '1') return true;
+    if (flag === '0') return false;
   } catch {
-    return false;
+    /* stockage indisponible : on suit le défaut */
   }
+  return _debugDefault;
 }
 
 /** Résout les fichiers versionnés d'un adapter via le manifest (+ markSeen après ready). */
@@ -138,7 +173,14 @@ async function resolveAdapterFiles(adapter: AdapterName) {
   const manifest = await getSouffleurManifest();
   const role = adapterRole(adapter);
   return {
-    files: { baseWeightsFile: manifest.baseWeightsFile(), adapterFile: manifest.file(role) },
+    files: {
+      baseWeightsFile: manifest.baseWeightsFile(),
+      adapterFile: manifest.file(role),
+      // Le graphe greffé est bit-identique en texte (écart de logits mesuré :
+      // 0) — on l'utilise donc pour TOUT dès qu'il est publié, et texte/vision
+      // ne diffèrent plus que par `adapter.data`, comme un swap de souffleur.
+      modelFileName: manifest.modelFileName(),
+    },
     size: manifest.size(role) ?? SIZE_ADAPTER_BYTES,
     markSeen: () => manifest.markSeen(role),
   };
@@ -186,18 +228,35 @@ export const SouffleursProvider: AparteAIProvider = {
     const system = buildSystemPrompt(enabledTools, files);
     const prompt = buildWirePrompt(system, request.messages);
     const maxNewTokens = Math.max(request.maxTokens ?? 0, CALLER_MAX_NEW_TOKENS);
-    // Diagnostic : localStorage.setItem('bp.debug', '1') → prompt wire exact,
-    // sortie brute et appels parsés dans la console (+ ids côté worker).
+    // Diagnostic : actif d'office en dev (voir setSouffleurDebug) — prompt wire
+    // exact, sortie brute et appels parsés dans la console, + ids côté worker.
+    // `localStorage.setItem('bp.debug','0')` fait taire, '1' force en prod.
     const debug = isDebug();
 
     let raw = '';
     const demux = new WireStreamDemux();
+    _lastWire = { prompt, raw: '', at: Date.now() };
+
+    // Annulation : le consommateur ferme le controller AVANT que le worker
+    // n'ait fini son tour (`stopping.interrupt()` n'est vu qu'au token suivant).
+    // Sans ce drapeau, le `done` tardif appelait enqueue() sur un stream fermé
+    // → TypeError DANS onmessage, donc `resolve()` jamais atteint et `_chain`
+    // bloquée à vie (plus AUCUNE génération ensuite).
+    let closed = false;
 
     return new ReadableStream<AparteStreamEvent>({
       start: (controller) => {
+        const emit = (ev: AparteStreamEvent) => {
+          if (!closed) controller.enqueue(ev);
+        };
+        const finish = () => {
+          if (closed) return;
+          closed = true;
+          controller.close();
+        };
         const emitDemux = (deltas: ReturnType<WireStreamDemux['push']>) => {
           for (const ev of deltas) {
-            controller.enqueue(
+            emit(
               ev.kind === 'text'
                 ? { type: 'text', delta: ev.delta }
                 : { type: 'thinking', delta: ev.delta },
@@ -222,33 +281,38 @@ export const SouffleursProvider: AparteAIProvider = {
                 },
                 onDone: (usage) => {
                   emitDemux(demux.flush());
+                  if (_lastWire) _lastWire.raw = raw;
                   const parsed = parsePythonicOutput(raw);
                   if (debug) {
                     console.log('[souffleurs] PROMPT WIRE >>>\n%s', prompt);
                     console.log('[souffleurs] SORTIE BRUTE >>>\n%s', raw);
                     console.log('[souffleurs] PARSED >>>', parsed);
                   }
-                  for (const call of parsed.calls) {
-                    if (call.name === UNPARSEABLE) {
-                      console.warn('[souffleurs] tool_call imparsable ignoré:', call.args['raw']);
-                      continue;
+                  // Tour annulé : on ne déclenche PAS les outils que le modèle
+                  // avait commencé à annoncer (emit() est déjà neutralisé).
+                  if (!closed) {
+                    for (const call of parsed.calls) {
+                      if (call.name === UNPARSEABLE) {
+                        console.warn('[souffleurs] tool_call imparsable ignoré:', call.args['raw']);
+                        continue;
+                      }
+                      emit({
+                        type: 'tool_use',
+                        id: genCallId(),
+                        name: call.name,
+                        input: call.args,
+                      });
                     }
-                    controller.enqueue({
-                      type: 'tool_use',
-                      id: genCallId(),
-                      name: call.name,
-                      input: call.args,
-                    });
                   }
-                  controller.enqueue({ type: 'done', usage });
+                  emit({ type: 'done', usage });
                   setSouffleurStatus({ status: 'ready', device });
-                  controller.close();
+                  finish();
                   resolve();
                 },
                 onError: (message) => {
-                  controller.enqueue({ type: 'error', message });
+                  emit({ type: 'error', message });
                   setSouffleurStatus({ status: 'error', message, device });
-                  controller.close();
+                  finish();
                   resolve();
                 },
               });
@@ -266,6 +330,11 @@ export const SouffleursProvider: AparteAIProvider = {
         );
       },
       cancel: () => {
+        // Le stream est DÉJÀ fermé par le consommateur : plus aucun enqueue ni
+        // close() (les deux jetteraient). Le handler `_pending` reste en place
+        // pour que le `done`/`error` du worker résolve la file (`_chain`).
+        closed = true;
+        setSouffleurStatus({ status: 'ready', device });
         getWorker().postMessage({ type: 'abort' } satisfies MainToWorker);
       },
     });
@@ -356,6 +425,83 @@ export type ExecutorAdapter = Exclude<AdapterName, 'souffleur-chat'>;
 export interface ExecutorResult {
   raw: string;
   usage: { inputTokens: number; outputTokens: number; ttftMs: number; durationMs: number };
+}
+
+/* ── Vision : hot-swap de l'encodeur ──────────────────────────────────────── */
+
+/**
+ * read_file(image) — rattache l'ENCODEUR et interroge l'image.
+ *
+ * Passe par la MÊME file que les souffleurs : mécaniquement c'est un swap de
+ * rôle (même graphe, mêmes poids, `adapter.data` neutre) plus une session tour.
+ * Le texte rendu repart en résultat d'outil et souffleur-chat enchaîne — lui
+ * reste text-only et ne voit jamais de pixels (règle du contrat).
+ *
+ * Jette si le bloc `vision` n'est pas dans le manifest : le handler read_file
+ * transforme ça en `ok:false` avec le message, désormais affiché à l'utilisateur.
+ */
+export async function describeImage(blob: Blob, question: string): Promise<string> {
+  const device = await detectComputeDevice();
+  const manifest = await getSouffleurManifest();
+  const vision = manifest.vision();
+  if (!vision) {
+    throw new Error(
+      "analyse d'image indisponible : l'encodeur vision n'est pas publié pour cette version du modèle",
+    );
+  }
+  const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
+  const base = `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`;
+  const debug = isDebug();
+
+  setSouffleurStatus({ status: 'loading', device });
+  return enqueue(
+    () =>
+      new Promise<string>((resolve, reject) => {
+        const id = _nextId++;
+        const aggregator = new ProgressAggregator(vision.size);
+        let text = '';
+        _pending.set(id, {
+          onProgress: (p) =>
+            setSouffleurStatus({ status: 'downloading', progress: aggregator.push(p), device }),
+          onReady: () => setSouffleurStatus({ status: 'generating', device }),
+          onChunk: (delta) => {
+            text += delta;
+          },
+          onDone: () => {
+            _pending.delete(id);
+            // Le rôle vision occupe la place : le souffleur se rechargera au
+            // tour suivant (même invariant que le swap d'un exécuteur).
+            _loadedAdapter = null;
+            setSouffleurStatus({ status: 'ready', device });
+            resolve(text.trim());
+          },
+          onError: (message) => {
+            _pending.delete(id);
+            _loadedAdapter = null;
+            setSouffleurStatus({ status: 'error', message, device });
+            reject(new Error(message));
+          },
+        });
+        getWorker().postMessage({
+          type: 'describe-image',
+          id,
+          device,
+          blob,
+          question,
+          maxNewTokens: VISION_MAX_NEW_TOKENS,
+          tower: {
+            graphUrl: `${base}/${vision.tower}`,
+            dataUrl: `${base}/${vision.tower_data}`,
+            internalDataName: vision.tower_internal_data,
+            // Gabarit de l'adapter neutre : exactement la taille d'un `.data`
+            // de souffleur, alloué côté worker (zéro octet réseau).
+            adapterByteLength: manifest.size(adapterRole(CALLER_ADAPTER)) ?? SIZE_ADAPTER_BYTES,
+          },
+          debug,
+          ...resolved.files,
+        } satisfies MainToWorker);
+      }),
+  );
 }
 
 /** Précharge un adapter exécuteur (86 MB, base partagée déjà en cache). */
