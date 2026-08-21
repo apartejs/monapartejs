@@ -53,6 +53,7 @@ export {
 export {
   extType,
   fileRegistry,
+  setConversationResolver,
   setFileStore,
   type FileStore,
   type RegisteredFile,

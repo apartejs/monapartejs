@@ -50,6 +50,16 @@ export interface SouffleurFileRow {
   mimeType: string;
   blob: Blob;
   addedAt: number;
+  /**
+   * Conversation propriétaire — c'est elle qui décide si le fichier entre dans
+   * le bloc « Files available ». Trois etats, tous porteurs de sens :
+   *  - une chaine : le fichier appartient a cette conversation ;
+   *  - null : joint avant que la conversation n'existe (nouveau fil), adopte
+   *    des sa creation ;
+   *  - absent : ligne ecrite avant la v3, rattachement inconnu. Jamais listee,
+   *    mais conservee : les file_id de l'historique doivent rester resolubles.
+   */
+  convId?: string | null;
 }
 
 export class monaparteDb extends Dexie {
@@ -79,6 +89,16 @@ export class monaparteDb extends Dexie {
     // aucune donnée existante n'est touchée.
     this.version(2).stores({
       souffleurFiles: 'id, addedAt',
+    });
+    // v3 : rattachement d'un fichier a sa conversation. Sans lui, le registre
+    // etait global et le bloc « Files available » annoncait au modele TOUS les
+    // fichiers jamais joints, dans n'importe quel fil — il appelait alors
+    // read_file sur une image absente de la conversation (et rattachait la tour
+    // vision pour rien). Index seul : les lignes existantes ne sont pas
+    // reecrites, leur `convId` reste absent, ce que le registre lit comme
+    // « rattachement inconnu ».
+    this.version(3).stores({
+      souffleurFiles: 'id, addedAt, convId',
     });
   }
 }

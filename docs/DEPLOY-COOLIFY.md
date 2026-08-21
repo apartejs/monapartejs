@@ -45,8 +45,16 @@ mutable s'il l'a en cache (`--pull` requis, que Coolify ne passe pas), et même
 après un `docker pull` manuel le cache BuildKit réutilise la couche `FROM` déjà
 résolue puisque le Dockerfile n'a pas changé. Mesuré : Coolify reconstruisait
 fidèlement le bon commit par-dessus une image vieille de 42 minutes, en boucle.
-Un compose sans clé `build:` ne construit rien — `docker compose pull` récupère
-toujours la dernière image publiée.
+Un compose sans clé `build:` ne construit rien.
+
+**Mais le compose seul ne suffit pas : il lui faut `pull_policy: always`.**
+Coolify ne lance jamais `docker compose pull`. Son étape « Pulling & building
+required images » lance `docker compose build`, qui n'a rien à faire ici — 0,2 s
+au chronomètre. Reste `docker compose up`, dont la politique par défaut est
+`missing` : l'image du déploiement précédent est encore sur le disque, donc il
+la réutilise. Le conteneur est recréé, le déploiement finit en `finished`, et le
+site sert l'ancien code sans que rien ne signale l'anomalie. Mesuré le 21/08 :
+trois déploiements successifs ont servi la même image, celle de 14:41.
 
 **Visibilité du paquet GHCR** : un paquet publié par Actions est privé par
 défaut, même depuis un dépôt public, et le `pull` échoue alors en
@@ -137,6 +145,16 @@ contexte sécurisé.
 ---
 
 ## 5. Ordre de vérification après déploiement
+
+0. **la fraîcheur de l'image** — le contrôle qui manquait, et le seul qu'un
+   déploiement vert ne garantit pas :
+
+   ```bash
+   curl -sI https://mon.apartejs.dev/ | grep -i last-modified   # ~= l'heure du build
+   ```
+
+   Une date antérieure au dernier build de la CI veut dire que le `pull` n'a pas
+   eu lieu. Vérifier `pull_policy: always` dans `docker-compose.yml`.
 
 1. les deux en-têtes (`curl` ci-dessus) et un `200` ;
 2. l'onboarding annonce le téléchargement, **tour vision comprise** (le total

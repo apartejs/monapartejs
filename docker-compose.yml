@@ -30,6 +30,24 @@
 services:
   web:
     image: ghcr.io/apartejs/monapartejs:main
+    # SANS CETTE LIGNE, le deploiement ne rapporte rien. Mesure le 21/08 sur le
+    # log Coolify du commit 54f6c1e :
+    #
+    #   18:22:51  Pulling & building required images.      <- 0,2 s
+    #   18:22:52  Removing old containers.
+    #   18:22:53  Starting new application.
+    #
+    # L'etape « Pulling & building » lance `docker compose build`, qui n'a rien
+    # a faire pour un service sans cle `build:` — d'ou les 0,2 s. Coolify ne
+    # lance PAS `docker compose pull`. Reste `docker compose up`, dont la
+    # politique par defaut est `missing` : l'image du deploiement precedent est
+    # encore la, donc il la reutilise. Le conteneur est bien recree, le
+    # deploiement est bien « finished », et le site sert l'ancien code.
+    #
+    # C'est la meme classe de piege que le `FROM :main` remplace en 14:50 : un
+    # tag mutable n'est jamais reverifie tant qu'on ne le demande pas.
+    # `always` le demande a chaque `up`.
+    pull_policy: always
     restart: unless-stopped
     # Variable MAGIQUE Coolify : c'est elle qui rattache le domaine AU SERVICE
     # et génère les labels Traefik vers le port 80.

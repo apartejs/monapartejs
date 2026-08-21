@@ -11,6 +11,12 @@ export interface RegisteredFile extends SouffleurFileRef {
   mime: string;
   blob: Blob;
   addedAt: number;
+  /**
+   * Conversation proprietaire. `null` = joint avant que la conversation
+   * n'existe (adopte a sa creation) ; absent = ligne d'avant le rattachement,
+   * jamais listee. Voir SouffleurFileRow.
+   */
+  convId?: string | null;
 }
 
 /** Extension → type du bloc Files available (mapping `_ext_type` du training). */
@@ -55,6 +61,30 @@ export function setFileStore(next: FileStore | null): void {
   store = next;
 }
 
+/**
+ * Resolveur de la conversation courante, INJECTE (le module souffleurs ne
+ * connait ni Angular ni le gestionnaire de conversations — meme patron que
+ * setFileStore). Il rattache chaque fichier a son fil.
+ *
+ * Sans lui, le registre etait global : le bloc « Files available » annoncait au
+ * modele tous les fichiers jamais joints, y compris dans un fil vierge. Le
+ * modele faisait alors ce qu'on lui demande — un read_file sur une image que
+ * l'utilisateur n'avait pas jointe, tour vision rattachee et dix secondes de
+ * GPU pour un « bonjour ».
+ *
+ * Il retourne une chaine vide tant que la conversation n'est pas creee : c'est
+ * l'etat « en attente », resolu par adoptPending().
+ */
+let resolveConv: (() => string | null) | null = null;
+
+export function setConversationResolver(next: (() => string | null) | null): void {
+  resolveConv = next;
+}
+
+function currentConv(): string | null {
+  return resolveConv?.() || null;
+}
+
 function persist(entry: RegisteredFile): void {
   void Promise.resolve(store?.put(entry)).catch((err) =>
     console.warn('[souffleurs] persistance du fichier joint impossible', err),
@@ -70,6 +100,7 @@ export const fileRegistry = {
       mime: file.type,
       blob: file,
       addedAt: Date.now(),
+      convId: currentConv(),
     };
     files.set(entry.id, entry);
     persist(entry);
@@ -84,6 +115,7 @@ export const fileRegistry = {
       mime,
       blob,
       addedAt: Date.now(),
+      convId: currentConv(),
     };
     files.set(entry.id, entry);
     persist(entry);
@@ -120,9 +152,39 @@ export const fileRegistry = {
     return files.get(id);
   },
 
-  /** Bloc « Files available » — clés id/name/type dans CET ordre (normatif). */
-  listForWire(): SouffleurFileRef[] {
-    return [...files.values()].map(({ id, name, type }) => ({ id, name, type }));
+  /**
+   * Bloc « Files available » — cles id/name/type dans CET ordre (normatif).
+   *
+   * Restreint a la conversation courante. Dans un fil qui n'existe pas encore,
+   * seuls les fichiers en attente sont listes : ce sont ceux que l'utilisateur
+   * vient de joindre au message qui va creer ce fil. Une ligne d'avant le
+   * rattachement (convId absent) n'est listee nulle part — elle reste
+   * resoluble par get(), ce dont un file_id de l'historique a besoin.
+   */
+  listForWire(convId: string | null = currentConv()): SouffleurFileRef[] {
+    const wanted = convId || null;
+    return [...files.values()]
+      .filter((entry) => (wanted === null ? entry.convId === null : entry.convId === wanted))
+      .map(({ id, name, type }) => ({ id, name, type }));
+  },
+
+  /**
+   * Rattache les fichiers en attente a la conversation qui vient de naitre.
+   * Une piece jointe est enregistree a l'envoi, donc AVANT que la conversation
+   * n'ait un id : sans cette adoption elle resterait en attente et fuirait dans
+   * le prochain fil vierge. Retourne le nombre de fichiers adoptes.
+   */
+  adoptPending(convId: string): number {
+    if (!convId) return 0;
+    let adopted = 0;
+    for (const entry of files.values()) {
+      if (entry.convId === null) {
+        entry.convId = convId;
+        persist(entry);
+        adopted++;
+      }
+    }
+    return adopted;
   },
 
   clear(): void {
