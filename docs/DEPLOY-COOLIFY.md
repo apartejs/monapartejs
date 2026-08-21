@@ -45,7 +45,7 @@ Sur la ressource actuelle, deux réglages :
 |---|---|
 | Build Pack | **Docker Compose** |
 | Docker Compose Location | `/docker-compose.yml` |
-| Domains | `https://apartejs.dev` (inchangé) |
+| Domains | `https://mon.apartejs.dev` (inchangé) |
 
 Le port et le healthcheck viennent du compose ; Coolify pose les labels Traefik
 et le certificat à partir du domaine. Aucune variable, aucun volume : le
@@ -82,7 +82,7 @@ déclenché ne doit pas passer pour un succès.
 Le domaine est déjà redirigé depuis OVH vers l'IP de Coolify, et renseigné dans
 la ressource. À vérifier seulement :
 
-1. que le FQDN porte bien le schéma dans **Domains** : `https://apartejs.dev` —
+1. que le FQDN porte bien le schéma dans **Domains** : `https://mon.apartejs.dev` —
    c'est le `https://` qui déclenche la génération Let's Encrypt par Traefik ;
 2. laisser le certificat s'émettre ;
 3. vérifier que ça répond en HTTPS **avant** de tester l'app.
@@ -113,7 +113,7 @@ depuis `cdn.jsdelivr.net`. `require-corp` exigerait de leur part un
 Contrôle, **avant** tout test fonctionnel :
 
 ```bash
-curl -sI https://apartejs.dev/ | grep -i cross-origin   # les deux lignes
+curl -sI https://mon.apartejs.dev/ | grep -i cross-origin   # les deux lignes
 ```
 
 Et dans la console : `crossOriginIsolated === true`. Si Traefik réécrit les
