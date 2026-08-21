@@ -32,6 +32,8 @@ const CARD_STYLES = `
 .bp-artifact-preview th, .bp-artifact-preview td { border: 1px solid var(--aparte-border); padding: 3px 8px; text-align: left; }
 .bp-artifact-preview th { background: var(--aparte-surface-2); }
 .bp-artifact-error { color: var(--aparte-error); font-size: 13px; }
+.bp-tool-line { display: flex; padding: 2px 0; }
+.bp-tool-note { color: var(--aparte-text-muted); font-size: 12.5px; font-family: var(--bp-mono, monospace); }
 .bp-artifact-live:empty { display: none; }
 .bp-artifact-code pre { margin: 10px 0 0; max-height: 200px; overflow: auto; font-family: var(--bp-mono, monospace); font-size: 11.5px; color: var(--aparte-text-muted); border-top: 1px solid var(--aparte-border); padding-top: 10px; }
 .bp-artifact-code pre.shiki { background: var(--aparte-surface-2) !important; border-radius: 8px; padding: 10px 12px; border-top: none; }
@@ -262,6 +264,53 @@ export const widgetRenderer: AparteToolRenderer = {
         }
       })();
     }
+  },
+  getStyles: () => CARD_STYLES,
+};
+
+/**
+ * read_file — le renderer GÉNÉRIQUE de la lib n'affiche que le nom de l'outil
+ * et une icône ✓/✗ : `segment.result` n'est jamais rendu. Un survol en échec
+ * (« file_id inconnu », image sans vision, lecture impossible) apparaissait
+ * donc comme une pastille muette — « l'outil tombe en erreur sans info ».
+ * Ici : succès = pastille discrète (le survol nourrit le modèle, pas l'humain),
+ * échec = message d'erreur RÉEL sous les yeux de l'utilisateur.
+ */
+export const readFileRenderer: AparteToolRenderer = {
+  render(segment) {
+    if (segment.status === 'pending') {
+      return `<div class="segment bp-tool-line" data-segment-id="${esc(segment.id)}"><span class="bp-tool-note">('.')… lecture du fichier</span></div>`;
+    }
+    const result = parseResult(segment);
+    if (result && result['ok'] === false) {
+      const detail = result['error'] ?? 'lecture impossible';
+      return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}"><span class="bp-artifact-error">(x.x) ${esc(detail)}</span></div>`;
+    }
+    const name = result?.['name'] ?? result?.['file_id'] ?? '';
+    // Voie IMAGE : la description produite par l'encodeur est le seul retour
+    // visible de la vision. La montrer évite d'avoir à ouvrir la console pour
+    // savoir si le problème vient du VL ou du rendu de souffleur-chat.
+    const description = result?.['description'];
+    if (typeof description === 'string' && description) {
+      const dims =
+        result?.['width'] && result?.['height']
+          ? `${esc(result['width'])}×${esc(result['height'])}`
+          : '';
+      // Rend VISIBLE le chemin pris par le contrat : sans `query` c'est le
+      // survol, avec `query` la question ciblée. Évite d'aller en console pour
+      // savoir ce que le modèle a réellement demandé.
+      const q = result?.['query'];
+      const mode = typeof q === 'string' && q ? `« ${esc(q)} »` : 'survol';
+      return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
+  <div class="bp-artifact-head">
+    <span class="bp-artifact-icon">(o.o)</span>
+    <span class="bp-artifact-name">${esc(name)}</span>
+    <span class="bp-artifact-meta">${mode}${dims ? ` · ${dims}` : ''}</span>
+  </div>
+  <div class="bp-artifact-preview">${esc(description)}</div>
+</div>`;
+    }
+    return `<div class="segment bp-tool-line" data-segment-id="${esc(segment.id)}"><span class="bp-tool-note">(▤) fichier lu${name ? ` — ${esc(name)}` : ''}</span></div>`;
   },
   getStyles: () => CARD_STYLES,
 };

@@ -27,13 +27,17 @@ import {
   computeTool,
   createWidgetHandler,
   createWidgetTool,
+  extType,
   fileRegistry,
   installToolRendererStyles,
   invisibleRenderer,
   readFileHandler,
   readFileTool,
+  readFileRenderer,
   setArtifactLoader,
   setArtifactSink,
+  setFileStore,
+  setSouffleurDebug,
   setReminderHandler,
   setReminderTool,
   souffleurAskQuestionHandler,
@@ -58,7 +62,7 @@ export function currentLocale(): 'fr' | 'en' {
   return (navigator.language || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en';
 }
 
-export function provideBonaparte(): EnvironmentProviders[] {
+export function providemonaparte(): EnvironmentProviders[] {
   return [
     provideAparte({
       providers: [SouffleursProvider],
@@ -78,7 +82,22 @@ export function provideBonaparte(): EnvironmentProviders[] {
       },
     }),
     provideAppInitializer(async () => {
+      // En dev, les traces du fil (prompt wire, sortie brute, appels parsés)
+      // sont actives d'office : c'est le mode où on débugue, on ne doit pas
+      // avoir à penser à un flag. `bp.debug` reste un override explicite.
+      setSouffleurDebug(isDevMode());
+
       AparteConfig.setTransport(new DirectTransport({ byok: true }));
+      // Depuis aparté 0.5, TOUTES les actions sauf `copy` sont désactivées par
+      // défaut : la lib ne rend que ce que quelqu'un honore (« a button nobody
+      // answers is a lie told to the user »). On active donc ce qu'on traite :
+      //  - retry/edit : pris en charge par AparteClient, nécessaires aux branches ;
+      //  - info : le bouton « i » émet `aparte-message-info`, écouté par
+      //    ChatPageComponent qui ouvre le popover de stats. Le popover et son
+      //    écouteur existaient déjà — seule l'activation manquait, donc le
+      //    bouton avait disparu au passage en 0.5.
+      // Rappel lib : `info` ne s'affiche que si le message porte un `usage`.
+      AparteConfig.setBubbleActions({ retry: true, edit: true, info: true });
 
       setupMarkedProvider();
       setupStreamingMarkdownProvider();
@@ -99,6 +118,9 @@ export function provideBonaparte(): EnvironmentProviders[] {
       AparteConfig.registerTool(transformFileTool, transformFileHandler);
       AparteConfig.registerTool(setReminderTool, setReminderHandler);
 
+      // Sans renderer dédié, la lib n'affiche que le nom de l'outil : l'erreur
+      // du survol (file_id inconnu, image, lecture impossible) restait muette.
+      AparteConfig.registerToolRenderer('read_file', readFileRenderer);
       AparteConfig.registerToolRenderer('write_file', artifactCardRenderer);
       AparteConfig.registerToolRenderer('transform_file', artifactCardRenderer);
       AparteConfig.registerToolRenderer('create_widget', widgetRenderer);
@@ -106,6 +128,38 @@ export function provideBonaparte(): EnvironmentProviders[] {
       // La lib n'injecte les styles des tool renderers qu'au tool-start (live) —
       // au reload il n'y en a pas : injection à l'enregistrement.
       installToolRendererStyles();
+
+      // Persistance des pièces jointes : sans elle la Map du fileRegistry est
+      // vide au reload → bloc « Files available » vide et tous les file_id de
+      // l'historique « inconnus » (les images « disparaissaient »).
+      // Table dédiée : ces ids sont ceux que le modèle recopie, indépendants
+      // du cycle de vie des conversations (cf. SouffleurFileRow).
+      setFileStore({
+        put: (entry) =>
+          conversationAdapter.db.souffleurFiles.put({
+            id: entry.id,
+            name: entry.name,
+            type: entry.type,
+            mimeType: entry.mime,
+            blob: entry.blob,
+            addedAt: entry.addedAt,
+          }),
+        loadAll: async () => {
+          const rows = await conversationAdapter.db.souffleurFiles.orderBy('addedAt').toArray();
+          return rows
+            .filter((row) => !!row.blob)
+            .map((row) => ({
+              id: row.id,
+              name: row.name,
+              type: row.type || extType(row.name, row.mimeType),
+              mime: row.mimeType,
+              blob: row.blob,
+              addedAt: row.addedAt,
+            }));
+        },
+        remove: (id) => conversationAdapter.db.souffleurFiles.delete(id),
+        clear: () => conversationAdapter.db.souffleurFiles.clear(),
+      });
 
       // Persistance des artefacts produits (blob + aperçu) — indispensable pour
       // réhydrater les cartes après un reload (la Map mémoire est vide).
@@ -161,6 +215,9 @@ export function provideBonaparte(): EnvironmentProviders[] {
       await Promise.all([
         manager.init(conversationAdapter),
         settings.init(conversationAdapter),
+        // AVANT tout envoi : le bloc « Files available » et la résolution des
+        // file_id par les outils sont synchrones, la Map doit être pleine.
+        fileRegistry.hydrate(),
       ]);
     }),
     provideServiceWorker('ngsw-worker.js', {

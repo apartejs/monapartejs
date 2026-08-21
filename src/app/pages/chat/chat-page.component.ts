@@ -3,6 +3,7 @@ import {
   CUSTOM_ELEMENTS_SCHEMA,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   HostListener,
   computed,
   inject,
@@ -40,6 +41,7 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
         [placeholder]="t().chat.placeholder"
         [centerWhenEmpty]="true"
         [submitOnEnter]="sendOnEnter()"
+        attachments
         (conversationCreated)="onConversationCreated($event)"
         (typingChange)="onTypingChange($event)"
       >
@@ -72,6 +74,7 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       @if (stats(); as s) {
         <div
           class="stats-pop"
+          [class.flip]="s.flip"
           role="status"
           [style.left.px]="s.x"
           [style.top.px]="s.y"
@@ -164,9 +167,9 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
     }
 
     .stats-pop {
-      /* Ancré au bouton « i » de la bulle (coordonnées de l'événement). */
+      /* Déroulé SOUS le bouton « i » de la bulle (coordonnées de l'événement).
+       * .flip le repasse au-dessus quand il déborderait du bas de fenêtre. */
       position: fixed;
-      transform: translateY(-100%);
       z-index: 20;
       background: var(--aparte-surface-1);
       border: 1px solid var(--aparte-border);
@@ -177,7 +180,10 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       animation: bp-pop 0.18s ease;
       min-width: 180px;
     }
-    @keyframes bp-pop { from { opacity: 0; transform: translateY(6px); } }
+    .stats-pop.flip { transform: translateY(-100%); }
+    /* N'anime que l'opacite : animer transform ecrasait le translateY(-100%)
+     * de .flip pendant la transition (le popover sautait). */
+    @keyframes bp-pop { from { opacity: 0; } }
     .stats-title {
       margin: 0 0 8px;
       font-size: 12px;
@@ -201,9 +207,30 @@ export class ChatPageComponent {
   private readonly generating = inject(GeneratingService);
   private readonly modelStatus = inject(ModelStatusService);
   private readonly manager = inject(ConversationManagerService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    // Le popover est en `position: fixed` : dès que le fil défile il se
+    // détacherait de son bouton. Le viewport de la lib scrolle EN INTERNE, donc
+    // `window:scroll` ne le voit pas — il faut la phase CAPTURE sur le
+    // document, que @HostListener ne sait pas exprimer.
+    const onScroll = () => {
+      if (this.stats()) this.stats.set(null);
+    };
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    this.destroyRef.onDestroy(() =>
+      document.removeEventListener('scroll', onScroll, { capture: true }),
+    );
+  }
 
   protected readonly t = this.i18n.t;
-  protected readonly stats = signal<{ usage: AparteUsage; x: number; y: number } | null>(null);
+  protected readonly stats = signal<{
+    usage: AparteUsage;
+    x: number;
+    y: number;
+    /** true = affiché au-dessus du bouton (déborderait en bas). */
+    flip: boolean;
+  } | null>(null);
 
   protected readonly conversationId = toSignal(
     this.route.paramMap.pipe(map((params) => params.get('id'))),
@@ -269,12 +296,41 @@ export class ChatPageComponent {
       this.stats.set(null);
       return;
     }
+    // composedPath()[0] = le bouton lui-même : l'événement traverse le shadow
+    // DOM de la bulle, `target` y serait l'hôte et l'ancrage sauterait.
     const source = (event.composedPath?.()[0] ?? event.target) as HTMLElement | null;
     const rect = source?.getBoundingClientRect?.();
     const width = 220;
+    // Hauteur max du popover (5 lignes + titre) : suffisant pour décider de la
+    // bascule sans avoir à mesurer après rendu.
+    const height = 190;
     const x = Math.max(8, Math.min(rect?.left ?? 16, window.innerWidth - width - 8));
-    const y = Math.max(60, (rect?.top ?? window.innerHeight / 2) - 8);
-    this.stats.set({ usage: detail.usage, x, y });
+    const below = (rect?.bottom ?? window.innerHeight / 2) + 6;
+    const flip = below + height > window.innerHeight - 8;
+    const y = flip ? Math.max(height + 8, (rect?.top ?? 0) - 6) : below;
+    this.stats.set({ usage: detail.usage, x, y, flip });
+  }
+
+  /**
+   * Fermeture du popover : il ne se refermait QUE si on cliquait dessus.
+   * `pointerdown` et pas `click` : le clic sur le bouton « i » ouvrirait puis
+   * refermerait dans le même geste (l'événement remonte jusqu'au document).
+   * Avec pointerdown, l'ordre est fermeture -> ouverture, donc jamais de
+   * clignotement, et un second clic sur le « i » le rouvre simplement.
+   */
+  @HostListener('document:pointerdown', ['$event'])
+  protected onDocumentPointerDown(event: Event): void {
+    if (!this.stats()) return;
+    const path = event.composedPath?.() ?? [];
+    const insidePopover = path.some(
+      (n) => n instanceof HTMLElement && n.classList?.contains('stats-pop'),
+    );
+    if (!insidePopover) this.stats.set(null);
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    this.stats.set(null);
   }
 
   protected speed(usage: AparteUsage): string | null {
