@@ -55,9 +55,13 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
              panneaux dans le composer via showPanel), sinon requestUserInput
              n'a aucun présentateur. Ne rend rien par lui-même. -->
         <aparte-elicitation slot="above-composer"></aparte-elicitation>
+        <!-- Une seule barre depuis aparté 0.7.0 : les trois emplacements
+             footer-left / footer-center / footer-right ont fusionné en
+             « toolbar ». La place se décide maintenant par l'ordre du DOM et par
+             les marges logiques (cf. .helper plus bas). -->
         @if (contextTokens(); as ctx) {
           <span
-            slot="footer-left"
+            slot="toolbar"
             class="context-pill"
             [class.warn]="ctx.ratio > 0.75"
             [class.danger]="ctx.ratio > 0.9"
@@ -66,7 +70,7 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
             ≈ {{ ctx.tokens }} / {{ ctx.budget }} · {{ t().context.label }}
           </span>
         }
-        <div slot="footer-center" class="helper">{{ t().chat.helper }}</div>
+        <div slot="toolbar" class="helper">{{ t().chat.helper }}</div>
       </aparte-chat>
 
       <bp-conversation-minimap />
@@ -151,7 +155,12 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       font-size: 11px;
       color: var(--aparte-text-muted);
       text-align: center;
-      padding: 4px 0 8px;
+      /* La toolbar d'aparté est une simple ligne flex : sans marge, l'astuce
+       * suit l'indicateur de contexte au lieu d'être centrée. « auto » des deux
+       * côtés la recentre dans la place restante — logique, donc correct aussi
+       * en lecture droite-à-gauche. La toolbar apporte son propre
+       * padding : ne pas en rajouter, sinon la ligne grandit. */
+      margin-inline: auto;
     }
     .context-pill {
       font-family: var(--bp-mono);
