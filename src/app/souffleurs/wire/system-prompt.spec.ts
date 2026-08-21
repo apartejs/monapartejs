@@ -38,7 +38,7 @@ describe('buildSystemPrompt', () => {
   });
 
   it('nom d’assistant configurable', () => {
-    const s = buildSystemPrompt([], [], 'Bonaparte');
-    expect(s.startsWith('Tu es Bonaparte,')).toBe(true);
+    const s = buildSystemPrompt([], [], 'monaparte');
+    expect(s.startsWith('Tu es monaparte,')).toBe(true);
   });
 });
