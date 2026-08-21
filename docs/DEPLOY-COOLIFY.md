@@ -29,30 +29,36 @@ place, et le serveur ne fait plus que tirer une image de quelques dizaines de Mo
 
 ## 1. La ressource Coolify
 
-⚠️ **Si une ressource existe déjà en « Dockerfile »**, c'est elle qui a produit
-l'échec `COPY dist/bonaparte/browser: not found` : elle construisait depuis le
-dépôt. Il faut la basculer en image, ou en créer une nouvelle.
+Tu as déjà une application git avec **Build Pack = Dockerfile**, et c'est elle
+qui a produit l'échec `COPY dist/bonaparte/browser: not found` : elle
+construisait depuis le dépôt.
 
-**+ New** → **Resource** → **Docker Image**.
+⚠️ **« Docker Image » n'est pas dans le menu déroulant** d'une application git :
+c'est un *type de ressource* à créer. Inutile d'en créer une — le Build Pack
+**Docker Compose**, lui, est bien dans le menu de la ressource existante, et un
+compose qui ne déclare qu'une `image:` (sans clé `build:`) **ne construit rien,
+il tire**.
+
+Sur la ressource actuelle, deux réglages :
 
 | Réglage | Valeur |
 |---|---|
-| Image | `ghcr.io/apartejs/monapartejs:main` |
-| Port (Ports Exposes) | **80** |
-| Health check | activé — l'image en déclare un sur `/index.html` |
+| Build Pack | **Docker Compose** |
+| Docker Compose Location | `/docker-compose.yml` |
+| Domains | `https://apartejs.dev` (inchangé) |
 
-Aucune variable d'environnement, aucun volume, aucune commande de démarrage.
+Le port et le healthcheck viennent du compose ; Coolify pose les labels Traefik
+et le certificat à partir du domaine. Aucune variable, aucun volume : le
+conteneur est sans état.
 
 **Visibilité du paquet GHCR.** Par défaut, un paquet publié par Actions est
-**privé**. Deux options :
+**privé**, et le `pull` échoue en `unauthorized`. Deux options :
 - le passer en **public** (GitHub → le paquet → *Package settings* →
-  *Change visibility*) : Coolify tire sans authentification ;
+  *Change visibility*) ;
 - le laisser privé et ajouter les identifiants du registre dans Coolify
   (**Keys & Tokens** → *Docker Registries*), avec un PAT ayant `read:packages`.
 
-Le paquet n'apparaît qu'**après le premier passage réussi** du workflow.
-
----
+Le paquet n'apparaît qu'**après le premier passage réussi** du job `image`.
 
 ## 2. Les deux secrets GitHub
 
@@ -73,11 +79,11 @@ déclenché ne doit pas passer pour un succès.
 
 ## 3. Domaine et HTTPS
 
-Le sous-domaine est déjà redirigé depuis OVH vers l'IP de Coolify. Reste à :
+Le domaine est déjà redirigé depuis OVH vers l'IP de Coolify, et renseigné dans
+la ressource. À vérifier seulement :
 
-1. renseigner le FQDN dans **Domains** avec le schéma :
-   `https://mon-sous-domaine.exemple.fr` — c'est le `https://` qui déclenche la
-   génération Let's Encrypt par Traefik ;
+1. que le FQDN porte bien le schéma dans **Domains** : `https://apartejs.dev` —
+   c'est le `https://` qui déclenche la génération Let's Encrypt par Traefik ;
 2. laisser le certificat s'émettre ;
 3. vérifier que ça répond en HTTPS **avant** de tester l'app.
 
@@ -107,7 +113,7 @@ depuis `cdn.jsdelivr.net`. `require-corp` exigerait de leur part un
 Contrôle, **avant** tout test fonctionnel :
 
 ```bash
-curl -sI https://<domaine>/ | grep -i cross-origin   # les deux lignes
+curl -sI https://apartejs.dev/ | grep -i cross-origin   # les deux lignes
 ```
 
 Et dans la console : `crossOriginIsolated === true`. Si Traefik réécrit les
@@ -136,8 +142,7 @@ Les traces console sont **silencieuses en production** (elles suivent
 ## 6. Revenir en arrière
 
 Chaque build publie aussi un tag court par commit (`sha-abc1234`). Pour revenir,
-pointer l'image de la ressource Coolify sur ce tag et redéployer — sans toucher
-au dépôt.
+remplacer `:main` par ce tag dans `docker-compose.yml` et redéployer.
 
 ---
 

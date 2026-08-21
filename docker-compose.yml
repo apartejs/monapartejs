@@ -1,0 +1,42 @@
+# Déploiement Coolify — TIRE une image, ne construit rien.
+#
+# Pourquoi un compose plutôt qu'un Dockerfile : le build tourne sur les runners
+# GitHub (un build Angular en production dépasse volontiers 2 Go de RAM, de trop
+# pour une petite instance). Coolify ne doit donc que récupérer l'image publiée.
+#
+# Et pourquoi CE fichier plutôt qu'une ressource « Docker Image » : ce type est
+# une ressource À CRÉER, absent du menu déroulant d'une application git déjà en
+# place. Le Build Pack « Docker Compose », lui, est dans le menu de la ressource
+# existante — un compose sans clé `build:` ne construit rien, il tire.
+#
+# Coolify :
+#   Build Pack             = Docker Compose
+#   Docker Compose Location = /docker-compose.yml
+#   le domaine reste réglé dans Domains (apartejs.dev), Coolify pose les labels
+#   Traefik et le certificat lui-même.
+#
+# ⚠️ Le paquet GHCR est PRIVÉ par défaut : soit le passer en public, soit
+# ajouter les identifiants du registre dans Coolify (Keys & Tokens → Docker
+# Registries). Sinon le `pull` échoue en « unauthorized ».
+#
+# Retour arrière : remplacer `:main` par un tag `:sha-abc1234` publié par la CI.
+
+services:
+  web:
+    image: ghcr.io/apartejs/monapartejs:main
+    restart: unless-stopped
+    # nginx écoute 80 dans l'image. Pas de publication de port : Coolify route
+    # via Traefik sur le réseau interne à partir du domaine configuré.
+    expose:
+      - '80'
+    healthcheck:
+      # L'image en déclare déjà un ; on le répète ici pour que Coolify le voie
+      # sans avoir à inspecter l'image.
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost/index.html']
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    # Aucun volume, aucune variable : le conteneur est sans état. Tout le modèle
+    # (base 834 Mo, adapters, tour vision 269 Mo) vit dans le Cache API du
+    # navigateur du visiteur, téléchargé depuis Hugging Face.
