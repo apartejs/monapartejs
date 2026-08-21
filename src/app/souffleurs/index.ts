@@ -4,10 +4,13 @@
  */
 export {
   SouffleursProvider,
+  describeImage,
   detectComputeDevice,
+  getLastWire,
   prepareCaller,
   prepareExecutor,
   runExecutor,
+  setSouffleurDebug,
   type ExecutorAdapter,
   type ExecutorResult,
 } from './souffleurs-provider';
@@ -34,6 +37,12 @@ export {
   type SouffleurRole,
   type SouffleursManifest,
 } from './manifest';
+export {
+  isTowerCached,
+  prefetchTower,
+  TOWER_CACHE,
+  type TowerProgress,
+} from './vision/tower-cache';
 export { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
 export { SOUFFLEUR_TOOL_NAMES } from './wire/tool-defs';
 export {
@@ -41,7 +50,13 @@ export {
   souffleurAskQuestionHandler,
   souffleurAskQuestionTool,
 } from './tools/ask-question.adapter';
-export { extType, fileRegistry, type RegisteredFile } from './files/file-registry';
+export {
+  extType,
+  fileRegistry,
+  setFileStore,
+  type FileStore,
+  type RegisteredFile,
+} from './files/file-registry';
 export { readFileHandler, readFileTool } from './tools/read-file.tool';
 export { writeFileHandler, writeFileTool } from './tools/write-file.tool';
 export { computeHandler, computeTool } from './tools/compute.tool';
@@ -58,5 +73,6 @@ export {
   artifactCardRenderer,
   installToolRendererStyles,
   invisibleRenderer,
+  readFileRenderer,
   widgetRenderer,
 } from './tools/tool-renderers';

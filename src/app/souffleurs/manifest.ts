@@ -13,6 +13,8 @@ import { SOUFFLEURS_HF_REPO, type AdapterName } from './model-catalog';
 
 const SEEN_KEY = 'bp.souffleurs.seen';
 const CACHED_MANIFEST_KEY = 'bp.souffleurs.manifest';
+/** Clé « vue » de la tour vision (hors de l'espace des rôles souffleurs). */
+const VISION_SEEN_KEY = '__vision';
 
 export type SouffleurRole = 'chat' | 'pdf' | 'xlsx-docx' | 'sandbox';
 
@@ -26,10 +28,27 @@ interface ManifestSouffleur {
   sha256?: string;
 }
 
+/**
+ * Bloc `vision` — la tour détachable (ADR-001) et le graphe greffé qui l'accepte.
+ * Absent du manifest = vision non publiée : l'app doit dégrader proprement.
+ */
+export interface ManifestVision {
+  version: string;
+  /** Graphe avec les entrées image_features/image_indices. MÊMES poids que base.weights. */
+  graph: string;
+  /** Tour vision, nom versionné immuable. */
+  tower: string;
+  tower_data: string;
+  /** Nom d'external data inscrit DANS le graphe de la tour (à mapper). */
+  tower_internal_data: string;
+  size: number;
+}
+
 export interface SouffleursManifest {
   schema: string;
   base: { rev: string; graph: string; weights: string; [k: string]: unknown };
   souffleurs: Record<string, ManifestSouffleur>;
+  vision?: ManifestVision;
 }
 
 /** Manifest legacy (avant le premier push versionné sur HF) : noms historiques. */
@@ -130,6 +149,56 @@ export class SouffleurManifestClient {
     return this.manifest?.base?.rev ?? 'legacy';
   }
 
+  /** Bloc vision, ou null si la tour n'est pas publiée. */
+  vision(): ManifestVision | null {
+    return this.manifest?.vision ?? null;
+  }
+
+  /** Poids de la tour annoncé par le manifest (0 si pas de vision). */
+  visionSize(): number {
+    return this.manifest?.vision?.size ?? 0;
+  }
+
+  /** URLs absolues des deux fichiers de la tour, ou null. */
+  visionUrls(): { graphUrl: string; dataUrl: string } | null {
+    const v = this.manifest?.vision;
+    if (!v) return null;
+    return { graphUrl: `${this.baseUrl}/${v.tower}`, dataUrl: `${this.baseUrl}/${v.tower_data}` };
+  }
+
+  /**
+   * true si une tour est publiée dans une version jamais vue. La vision fait
+   * partie du téléchargement du modèle (pas une option), donc ce signal doit
+   * déclencher le MÊME flux de mise à jour que les souffleurs — sans lui, une
+   * install existante n'aurait jamais rien proposé.
+   */
+  visionHasUpdate(): boolean {
+    const version = this.manifest?.vision?.version;
+    return !!version && this.seen[VISION_SEEN_KEY] !== version;
+  }
+
+  markSeenVision(): void {
+    const version = this.manifest?.vision?.version;
+    if (!version) return;
+    this.seen[VISION_SEEN_KEY] = version;
+    lsSet(SEEN_KEY, JSON.stringify(this.seen));
+  }
+
+  /**
+   * `model_file_name` à passer à transformers.js. Le graphe greffé est
+   * bit-identique au graphe texte (écart de logits mesuré : 0), donc on
+   * l'utilise pour TOUT dès qu'il est publié : texte et vision ne diffèrent
+   * plus que par `adapter.data`, exactement comme un swap de souffleur.
+   * Sans bloc vision, on retombe sur le graphe texte historique.
+   */
+  modelFileName(): string {
+    const graph = this.manifest?.vision?.graph;
+    if (!graph) return 'model';
+    // 'onnx/model_vision_q4.onnx' -> 'model_vision' (tjs recolle le suffixe dtype)
+    const base = graph.split('/').pop() ?? '';
+    return base.replace(/_q4\.onnx$/, '') || 'model';
+  }
+
   /** true si la version courante diffère de la dernière vue (= MAJ dispo). */
   hasUpdate(role: string): boolean {
     return this.version(role) !== (this.seen[role] ?? null);
@@ -148,6 +217,8 @@ export class SouffleurManifestClient {
     if (role) this.seen[role] = this.version(role) ?? '';
     else for (const r of this.roles()) this.seen[r] = this.version(r) ?? '';
     this.seen['__base'] = this.baseRev();
+    const visionVersion = this.manifest?.vision?.version;
+    if (!role && visionVersion) this.seen[VISION_SEEN_KEY] = visionVersion;
     lsSet(SEEN_KEY, JSON.stringify(this.seen));
   }
 

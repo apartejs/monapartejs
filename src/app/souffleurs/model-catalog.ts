@@ -10,6 +10,24 @@ export type AdapterName =
 
 export const CALLER_ADAPTER: AdapterName = 'souffleur-chat';
 
+/**
+ * Vision (ADR-001) — MÊME repo, MÊMES poids, MÊME graphe que le texte.
+ * Le graphe publié (`onnx/model_vision_q4.onnx`) est notre base avec une porte
+ * d'entrée `image_features`/`image_indices` greffée : bit-identique en texte
+ * (écart de logits mesuré 0.000e+00), donc utilisé pour tout. Le seul artefact
+ * en plus est la TOUR (`vision-tower-<ver>`, ~269 Mo), décrite par le bloc
+ * `vision` du manifest et rattachée en session à part à la 1ʳᵉ image.
+ * Produit par `aparte-repetitions/export/graft_image_embeds.py`.
+ */
+
+/**
+ * Bornes de l'appel describe. 128 tronquait : une description détaillée AVEC
+ * transcription du texte visible (logo, capture d'écran, document photographié)
+ * dépasse largement. Ça reste borné — le résultat nourrit un tour d'outil, pas
+ * une réponse à l'utilisateur.
+ */
+export const VISION_MAX_NEW_TOKENS = 320;
+
 /** Id du modèle visible côté aparté (sélecteur, model config). */
 export const CALLER_MODEL_ID = 'souffleur-chat';
 

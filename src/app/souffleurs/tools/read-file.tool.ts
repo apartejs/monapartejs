@@ -3,10 +3,12 @@
  * survol structuré du fichier joint. Le résultat JSON réinjecté (rôle tool,
  * indent 2) reproduit les formes vues à l'entraînement :
  *   xlsx → { ok, type:'read_file', file_id, mime, schema:{sheets…}, preview }
- * La voie image (vision) attend le packaging de l'encodeur (J4).
+ * La voie image passe par le hot-swap de l'ENCODEUR vision (appel describe
+ * séparé, sans LoRA) — cf. surveyImage.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { fileRegistry } from '../files/file-registry';
+import { describeImage } from '../souffleurs-provider';
 
 export const readFileTool: AparteTool = {
   name: 'read_file',
@@ -44,9 +46,7 @@ export const readFileHandler: AparteToolHandler = async (call) => {
         result = await surveyText(entry.blob);
         break;
       case 'image':
-        result = {
-          error: "analyse d'image indisponible pour l'instant (vision en préparation)",
-        };
+        result = await surveyImage(entry.blob, String(call.input['query'] ?? ''));
         break;
       default:
         result = { note: 'survol non structuré pour ce format — métadonnées seulement' };
@@ -108,6 +108,50 @@ export async function surveyXlsx(blob: Blob): Promise<Record<string, unknown>> {
     }
   }
   return { schema: { sheets }, preview: previewLines.join('\n') };
+}
+
+/**
+ * Voie IMAGE = hot-swap de l'ENCODEUR vision + appel describe séparé
+ * (CONTRACT-HANDOFF §4 : « archi, pas de LoRA »). Le texte rendu part en
+ * `description` dans le JSON réinjecté — souffleur-chat, lui, reste text-only
+ * et ne voit JAMAIS de pixels.
+ */
+async function surveyImage(blob: Blob, query: string): Promise<Record<string, unknown>> {
+  // Consigne au modèle EN ANGLAIS. Sa réponse repart telle quelle dans
+  // `description` et c'est souffleur-chat qui rend en français à l'utilisateur.
+  // ATTENTION : « Describe this image in one or two sentences » donnait
+  // littéralement UNE phrase creuse (« In this image we can see a logo. ») —
+  // le VL obéit au pied de la lettre, et souffleur-chat n’avait alors plus rien
+  // à dire que les dimensions. On demande donc explicitement ce qui sert en
+  // aval, dont la TRANSCRIPTION du texte visible (décisive pour un logo, une
+  // capture d’écran, un document photographié).
+  const question = query.trim()
+    ? `${query.trim()}\n\nAnswer using only what is visible in the image. ` +
+      'Transcribe any text you can read, exactly as written.'
+    : 'Describe this image in detail: the subject, the setting, colours, and ' +
+      'anything notable. Transcribe any text you can read, exactly as written. ' +
+      'Be specific and factual — do not describe what you cannot see.';
+  const { width, height } = await imageDimensions(blob);
+  const description = await describeImage(blob, question);
+  // `description` en TÊTE : souffleur-chat s’appuyait sur width/height
+  // (« un logo de 128x128 pixels ») quand le contenu venait après.
+  return {
+    description,
+    ...(query.trim() ? { query: query.trim() } : {}),
+    width,
+    height,
+  };
+}
+
+async function imageDimensions(blob: Blob): Promise<{ width: number; height: number }> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const dims = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return dims;
+  } catch {
+    return { width: 0, height: 0 };
+  }
 }
 
 async function surveyText(blob: Blob): Promise<Record<string, unknown>> {

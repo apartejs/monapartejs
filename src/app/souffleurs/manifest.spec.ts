@@ -85,3 +85,138 @@ describe('SouffleurManifestClient', () => {
     expect(adapterRole('souffleur-xlsx-docx')).toBe('xlsx-docx');
   });
 });
+
+/**
+ * Bloc `vision` : la tour détachable + le graphe greffé qui l'accepte.
+ * Le graphe greffé étant bit-identique en texte (écart de logits mesuré :
+ * 0.000e+00), il sert pour TOUT dès qu'il est publié — texte et vision ne
+ * diffèrent alors plus que par `adapter.data`, comme un swap de souffleur.
+ */
+describe('SouffleurManifestClient — bloc vision', () => {
+  const VISION = {
+    version: '0.1.0',
+    graph: 'onnx/model_vision_q4.onnx',
+    tower: 'onnx/vision-tower-0.1.0.onnx',
+    tower_data: 'onnx/vision-tower-0.1.0.onnx_data',
+    tower_internal_data: 'embed_images_q4.onnx_data',
+    size: 269_390_206,
+  };
+
+  it('vision publiée : modelFileName pointe le graphe greffé', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ ...MANIFEST, vision: VISION }), { status: 200 })),
+    );
+    const m = new SouffleurManifestClient('https://hf.example/r');
+    await m.load();
+    // 'onnx/model_vision_q4.onnx' -> 'model_vision' (tjs recolle le suffixe dtype)
+    expect(m.modelFileName()).toBe('model_vision');
+    expect(m.vision()?.tower).toBe('onnx/vision-tower-0.1.0.onnx');
+    expect(m.vision()?.tower_internal_data).toBe('embed_images_q4.onnx_data');
+    // Les poids ne sont PAS dupliqués : la vision partage base.weights.
+    expect(m.baseWeightsFile()).toBe('onnx/model_q4.onnx_data');
+  });
+
+  it('vision absente : on retombe sur le graphe texte, rien ne casse', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(MANIFEST), { status: 200 })),
+    );
+    const m = new SouffleurManifestClient('https://hf.example/r');
+    await m.load();
+    expect(m.vision()).toBeNull();
+    expect(m.modelFileName()).toBe('model');
+  });
+
+  it('manifest legacy (hors-ligne, jamais chargé) : pas de vision', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 404 })));
+    const m = new SouffleurManifestClient('https://hf.example/r');
+    await m.load();
+    expect(m.vision()).toBeNull();
+    expect(m.modelFileName()).toBe('model');
+  });
+});
+
+/**
+ * Flux de mise à jour de la tour. La vision fait partie du modèle (pas une
+ * option), donc une tour publiée jamais vue doit ouvrir le MÊME modal que les
+ * souffleurs. `markSeen()`/`hasUpdate()` n'itéraient que sur les rôles, donc
+ * une install existante ne se voyait JAMAIS rien proposer.
+ */
+describe('SouffleurManifestClient — mise à jour de la tour', () => {
+  const VISION = {
+    version: '0.1.0',
+    graph: 'onnx/model_vision_q4.onnx',
+    tower: 'onnx/vision-tower-0.1.0.onnx',
+    tower_data: 'onnx/vision-tower-0.1.0.onnx_data',
+    tower_internal_data: 'embed_images_q4.onnx_data',
+    size: 269_390_206,
+  };
+  const withVision = (vision: unknown = VISION) =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ ...MANIFEST, vision }), { status: 200 })),
+    );
+
+  it('tour jamais vue → mise à jour proposée, puis plus après markSeenVision', async () => {
+    withVision();
+    const m = new SouffleurManifestClient('https://hf.example/r');
+    await m.load();
+    expect(m.visionHasUpdate()).toBe(true);
+    m.markSeenVision();
+    expect(m.visionHasUpdate()).toBe(false);
+
+    // Reboot : la version vue est persistée.
+    const m2 = new SouffleurManifestClient('https://hf.example/r');
+    await m2.load();
+    expect(m2.visionHasUpdate()).toBe(false);
+  });
+
+  it('tour bumpée → reproposée', async () => {
+    withVision();
+    const m = new SouffleurManifestClient('https://hf.example/r');
+    await m.load();
+    m.markSeenVision();
+
+    withVision({ ...VISION, version: '0.2.0' });
+    const m2 = new SouffleurManifestClient('https://hf.example/r');
+    await m2.load();
+    expect(m2.visionHasUpdate()).toBe(true);
+  });
+
+  it('markSeen() global mémorise aussi la tour', async () => {
+    withVision();
+    const m = new SouffleurManifestClient('https://hf.example/r');
+    await m.load();
+    m.markSeen();
+    expect(m.visionHasUpdate()).toBe(false);
+  });
+
+  it('markSeen(role) ciblé ne clôt PAS le cycle de la tour', async () => {
+    withVision();
+    const m = new SouffleurManifestClient('https://hf.example/r');
+    await m.load();
+    m.markSeen('chat');
+    expect(m.visionHasUpdate()).toBe(true);
+  });
+
+  it('urls et poids de la tour résolus depuis le manifest', async () => {
+    withVision();
+    const m = new SouffleurManifestClient('https://hf.example/repo/resolve/main');
+    await m.load();
+    expect(m.visionUrls()).toEqual({
+      graphUrl: 'https://hf.example/repo/resolve/main/onnx/vision-tower-0.1.0.onnx',
+      dataUrl: 'https://hf.example/repo/resolve/main/onnx/vision-tower-0.1.0.onnx_data',
+    });
+    expect(m.visionSize()).toBe(269_390_206);
+  });
+
+  it('pas de tour publiée : rien à proposer, rien à résoudre', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(MANIFEST), { status: 200 })));
+    const m = new SouffleurManifestClient('https://hf.example/r');
+    await m.load();
+    expect(m.visionHasUpdate()).toBe(false);
+    expect(m.visionUrls()).toBeNull();
+    expect(m.visionSize()).toBe(0);
+  });
+});
