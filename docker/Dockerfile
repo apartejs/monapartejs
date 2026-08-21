@@ -34,5 +34,11 @@ EXPOSE 80
 
 # Le conteneur ne sert que du statique : pas d'état, pas de volume. Tout le
 # modèle vit dans le Cache API du navigateur du visiteur.
+# 127.0.0.1 et NON localhost : `localhost` résout d’abord en ::1, et une
+# config nginx personnalisée n’écoute pas forcément en IPv6 (le script
+# d’entrée n’ajoute `listen [::]:80` que si la config est celle du paquet).
+# Le healthcheck échouait donc en « Connection refused », le conteneur
+# passait `unhealthy`, et Coolify refusait de router -> 503 côté Traefik.
+# Ceinture et bretelles : nginx.conf écoute maintenant aussi en IPv6.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-  CMD wget -q --spider http://localhost/index.html || exit 1
+  CMD wget -q --spider http://127.0.0.1/index.html || exit 1
