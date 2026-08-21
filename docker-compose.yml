@@ -4,10 +4,16 @@
 # GitHub (un build Angular en production dépasse volontiers 2 Go de RAM, de trop
 # pour une petite instance). Coolify ne doit donc que récupérer l'image publiée.
 #
-# Et pourquoi CE fichier plutôt qu'une ressource « Docker Image » : ce type est
-# une ressource À CRÉER, absent du menu déroulant d'une application git déjà en
-# place. Le Build Pack « Docker Compose », lui, est dans le menu de la ressource
-# existante — un compose sans clé `build:` ne construit rien, il tire.
+# Et pourquoi CE fichier plutôt qu'un Dockerfile `FROM ghcr.io/...:main` : parce
+# que ce montage est structurellement cassé, mesuré le 21/08. Docker ne
+# re-télécharge PAS un `FROM` sur un tag mutable s'il l'a en cache (il faut
+# `--pull`, que Coolify ne passe pas), et même après un `docker pull` manuel le
+# cache de BuildKit réutilise la couche `FROM` déjà résolue puisque le
+# Dockerfile n'a pas changé. Résultat : Coolify reconstruisait fidèlement le bon
+# commit par-dessus une image vieille de 42 minutes, en boucle.
+#
+# Un compose sans clé `build:` ne construit rien : Coolify fait un vrai
+# `docker compose pull`, donc l'image servie est toujours la dernière publiée.
 #
 # Coolify :
 #   Build Pack             = Docker Compose
