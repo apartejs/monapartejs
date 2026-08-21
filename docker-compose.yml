@@ -12,7 +12,7 @@
 # Coolify :
 #   Build Pack             = Docker Compose
 #   Docker Compose Location = /docker-compose.yml
-#   le domaine reste réglé dans Domains (apartejs.dev), Coolify pose les labels
+#   le domaine reste réglé dans Domains (mon.apartejs.dev), Coolify pose les labels
 #   Traefik et le certificat lui-même.
 #
 # ⚠️ Le paquet GHCR est PRIVÉ par défaut : soit le passer en public, soit
