@@ -1,0 +1,76 @@
+<!doctype html>
+<!--
+  Gabarit de la carte sociale (og:image / twitter:image).
+
+  Rendu en PNG par `tools/render-assets.mjs`, qui pilote Chrome sans interface.
+  Le PNG est COMMITÉ dans public/ : les moissonneurs sociaux ne rendent pas de
+  JavaScript et n'acceptent pas le SVG. Ce fichier n'est pas servi en ligne, il
+  n'existe que pour pouvoir refabriquer la carte à l'identique.
+
+  Dimensions 1200x630 : le rapport attendu par Open Graph et par la grande
+  carte Twitter. En dessous de 600x315, les plateformes rétrogradent en
+  vignette carrée.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    background: #17141c;
+    color: #f2eee7;
+    font-family: Georgia, 'Times New Roman', serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 88px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Halo laiton, très diffus : donne de la profondeur sans voler la lisibilité. */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: -40% -10% auto auto;
+    width: 780px; height: 780px;
+    background: radial-gradient(circle, rgba(217,162,75,.16) 0%, rgba(217,162,75,0) 62%);
+  }
+  .glyph {
+    font-size: 92px;
+    color: #d9a24b;
+    letter-spacing: -2px;
+    margin-bottom: 26px;
+  }
+  .glyph em { color: #e7c588; font-style: normal; }
+  h1 {
+    font-size: 96px;
+    font-weight: 400;
+    letter-spacing: -1.5px;
+    line-height: 1;
+  }
+  p {
+    font-size: 40px;
+    line-height: 1.32;
+    color: #a89bb6;
+    margin-top: 26px;
+    max-width: 26ch;
+  }
+  .foot {
+    position: absolute;
+    left: 88px; bottom: 64px;
+    display: flex; align-items: center; gap: 18px;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 25px;
+    color: #d9a24b;
+  }
+  .foot span { color: #6d6479; }
+</style>
+</head>
+<body>
+  <div class="glyph">(<em>'.'</em>)</div>
+  <h1>monaparte</h1>
+  <p>Un assistant qui tourne entièrement dans votre navigateur.</p>
+  <div class="foot">mon.apartejs.dev <span>·</span> 100 % local</div>
+</body>
+</html>
