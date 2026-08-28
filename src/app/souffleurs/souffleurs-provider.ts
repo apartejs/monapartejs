@@ -13,16 +13,13 @@
 import type {
   AparteAIModel,
   AparteAIProvider,
+  AparteAIProviderMetadata,
   AparteChatRequest,
   AparteChatResponse,
   AparteStreamEvent,
   ModelLoadProgress,
   ModelStatus,
 } from '@aparte/core';
-
-// 0.15.0 announces `AparteAIProviderMetadata` exported from core, but it only
-// reached `dist/types/index.d.ts`, not the root barrel (FRICTIONS-LIB L4).
-type AparteAIProviderMetadata = ReturnType<AparteAIProvider['getMetadata']>;
 
 import {
   CALLER_ADAPTER,
