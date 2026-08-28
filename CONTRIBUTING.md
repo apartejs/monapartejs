@@ -44,16 +44,17 @@ Some older comments are still in French. Translate them when you touch the file.
 ```bash
 pnpm install
 pnpm start          # http://localhost:4200 — COOP/COEP served by ng serve
-pnpm verify         # what CI runs: lint, format, app types, worker types, tests
+pnpm verify         # what CI runs: lint, format, app types + templates, worker types, tests
 ```
 
 Node 24 (`.nvmrc`), pnpm 10 through corepack. The first launch downloads ~1.1 GB from
 Hugging Face. Before looking for a bug anywhere else, check `crossOriginIsolated === true`
 in the console.
 
-`typecheck` and `typecheck:worker` are two separate passes, and that is not redundancy:
-`tsc` does not follow `new Worker(new URL(...))`, so the inference worker is only checked
-by the second one.
+`typecheck` runs `ngc`, not `tsc`, because plain `tsc` never looks at an Angular template:
+a wrong binding compiles clean and only fails at `ng build`. `typecheck:worker` is a
+separate pass again — `tsc` does not follow `new Worker(new URL(...))`, so the inference
+worker belongs to no program otherwise.
 
 ## Branches and commits
 

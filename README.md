@@ -24,15 +24,17 @@ Hugging Face; allow a few minutes and keep the tab open.
 
 | Command | What it does |
 |---|---|
-| `pnpm verify` | lint + format + app types + **worker** types + tests — what CI runs |
+| `pnpm verify` | lint + format + app types **and templates** + **worker** types + tests — what CI runs |
 | `pnpm test` | Vitest, no browser |
 | `pnpm lint`, `pnpm format` | ESLint (`--max-warnings 0`) and Prettier |
 | `pnpm build` | production build into `dist/monaparte/browser` |
 | `node tools/render-assets.mjs` | rebuilds the social card and icons from the SVGs |
 
-`typecheck` and `typecheck:worker` are **two** commands, and that is not an oversight:
-`tsc` does not follow `new Worker(new URL(...))`, so the inference worker is never checked
-by the application pass. Without the second one, a type error there reaches production.
+`typecheck` runs `ngc`, not `tsc`: plain `tsc` never looks at an Angular template, so a
+binding to a property that does not exist — or an input given the wrong type — compiles
+clean and fails at `ng build`. And `typecheck:worker` is a separate pass for a different
+reason: `tsc` does not follow `new Worker(new URL(...))`, so the inference worker belongs
+to no program otherwise. Without either, the error reaches production.
 
 ---
 

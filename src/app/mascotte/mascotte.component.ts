@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  booleanAttribute,
   computed,
   effect,
   inject,
@@ -231,8 +232,12 @@ export class MascotteComponent {
   readonly state = input<MascotteState>('idle');
   readonly size = input<number>(32);
   readonly interactive = input<boolean>(false);
-  /** Draw the house around the face — the product mark (ADR-012). */
-  readonly housed = input<boolean>(false);
+  /**
+   * Draw the house around the face — the product mark (ADR-012).
+   * `booleanAttribute` so it can be written bare, like any HTML boolean: a bare
+   * attribute hands the template a '', which a plain boolean input rejects.
+   */
+  readonly housed = input(false, { transform: booleanAttribute });
 
   protected readonly housePath = HOUSE_PATH;
 

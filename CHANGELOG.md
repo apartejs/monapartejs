@@ -14,6 +14,9 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   records (`docs/decisions/`), issue and PR templates, Dependabot.
 - ESLint (angular-eslint) and Prettier; `pnpm verify` now runs lint and format checks
   before types and tests.
+- `pnpm typecheck` runs `ngc` instead of `tsc`, so Angular templates are checked too: a
+  binding to a missing property, or an input given the wrong type, used to compile clean
+  and only fail at `ng build`.
 
 ### Fixed
 - Executors: the task is prefixed with `intent: ` as in 100 % of the training examples —
