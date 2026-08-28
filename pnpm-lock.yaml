@@ -33,32 +33,32 @@ importers:
         specifier: ^19.2.25
         version: 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@aparte/angular':
-        specifier: 0.14.0
-        version: 0.14.0(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.14.0)(rxjs@7.8.2)
+        specifier: 0.15.0
+        version: 0.15.0(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.15.0)(rxjs@7.8.2)
       '@aparte/core':
-        specifier: 0.14.0
-        version: 0.14.0
+        specifier: 0.15.0
+        version: 0.15.0
       '@aparte/engine':
-        specifier: 0.14.0
-        version: 0.14.0(@aparte/core@0.14.0)
+        specifier: 0.15.0
+        version: 0.15.0(@aparte/core@0.15.0)
       '@aparte/locale-fr':
-        specifier: 0.14.0
-        version: 0.14.0(@aparte/core@0.14.0)
+        specifier: 0.15.0
+        version: 0.15.0(@aparte/core@0.15.0)
       '@aparte/plugin-ask-user':
-        specifier: 0.14.0
-        version: 0.14.0(@aparte/core@0.14.0)
+        specifier: 0.15.0
+        version: 0.15.0(@aparte/core@0.15.0)
       '@aparte/plugin-marked':
-        specifier: 0.14.0
-        version: 0.14.0(@aparte/core@0.14.0)(marked@18.0.7)
+        specifier: 0.15.0
+        version: 0.15.0(@aparte/core@0.15.0)(marked@18.0.7)
       '@aparte/plugin-model-selector':
-        specifier: 0.14.0
-        version: 0.14.0(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.14.0)
+        specifier: 0.15.0
+        version: 0.15.0(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.15.0)
       '@aparte/plugin-shiki':
-        specifier: 0.14.0
-        version: 0.14.0(@aparte/core@0.14.0)(shiki@4.3.1)
+        specifier: 0.15.0
+        version: 0.15.0(@aparte/core@0.15.0)(shiki@4.3.1)
       '@aparte/plugin-streaming-markdown':
-        specifier: 0.14.0
-        version: 0.14.0(@aparte/core@0.14.0)(streaming-markdown@0.2.15)
+        specifier: 0.15.0
+        version: 0.15.0(@aparte/core@0.15.0)(streaming-markdown@0.2.15)
       '@faker-js/faker':
         specifier: ^10.5.0
         version: 10.5.0
@@ -400,21 +400,21 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@aparte/angular@0.14.0':
-    resolution: {integrity: sha512-vbWNtJ7slQGsDgnU0dKv2pyMvhBKrHoaFcTqx2FQ6m3U/nElfo1Fix+Y9cHVYaD2QlXp1tMM6NLRo551WY7jJQ==}
+  '@aparte/angular@0.15.0':
+    resolution: {integrity: sha512-GTF1c2jwAzcFnynXbR3Tbjczn4AekJMa96fO0/mnNLRFWjsA7fda7HTwiXqUXLiQyAkF0i6GjXLtBccOOR2wQA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@angular/common': ^19.2.0
       '@angular/core': ^19.2.0
-      '@aparte/core': '>=0.14.0 <1.0.0'
+      '@aparte/core': '>=0.15.0 <1.0.0'
       rxjs: ^7.8.0
 
-  '@aparte/core@0.14.0':
-    resolution: {integrity: sha512-aGCwOcYAPd3+pnehFdIEaVp6Oc23rcH+AAYTm8IY6SjFEUAuXAaaEiMXdiwu+xPlBwhRWZJqGKM1O7QSaZ+dww==}
+  '@aparte/core@0.15.0':
+    resolution: {integrity: sha512-cAi1Yb2Lg98xq0jTgJ/hVceDom2mClbKGtuWn+004ePm/xzf9WyrmhaxUcUxN0sUAxQwXCQrxG6Tnv8bGlg2jw==}
     engines: {node: '>=18'}
 
-  '@aparte/engine@0.14.0':
-    resolution: {integrity: sha512-xfL9ZTFAxxj1LmFhvQHatx8EZiAXl2f2PCO3T0eSK/v2luCh5B5jGtaV2rTsCgw2OTym0H84O4pMME1L19PRAA==}
+  '@aparte/engine@0.15.0':
+    resolution: {integrity: sha512-rQAbfQdcrxf+1Ih7xZZ8COReQcAxNHmebmNgGAKI8d5TCs7NiBQMlWCAXVeWx62btAbiyZRa1OTeYSQ/hXwleQ==}
     engines: {node: '>=18'}
     peerDependencies:
       '@aparte/core': '*'
@@ -422,31 +422,31 @@ packages:
       '@aparte/core':
         optional: true
 
-  '@aparte/locale-fr@0.14.0':
-    resolution: {integrity: sha512-kSZPB1nrpszk4/5AS5vPlnjg3qIynVlB6aeDLXaDa+nmE1UVbAg2AKkyBaEDn0JHH5N9JP+jyXut9taOurTdsQ==}
+  '@aparte/locale-fr@0.15.0':
+    resolution: {integrity: sha512-+f6otXEShXx14Ai/c12ivrCSX/20be1Cs2PW777ml3IZJ60XtjAK6GUOSRcb4TCmEgoh+ACMV4qWvwqNeBRS1w==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.14.0 <1.0.0'
+      '@aparte/core': '>=0.15.0 <1.0.0'
 
-  '@aparte/plugin-ask-user@0.14.0':
-    resolution: {integrity: sha512-Ta4AnZV6CMGnhrloIWDGum59IDoAkuKLea4WPtACyA8TmPjKPvoZm4e9b9bDWuffWw3TmgLSofry5mNxvSAIXA==}
+  '@aparte/plugin-ask-user@0.15.0':
+    resolution: {integrity: sha512-oayODT8QfhXjOED6NNlKEwDi7FMH4iovego+KeRgh04bXUTBIs0DkIEKjJrEmmj630k5DD0gLJwSlwQiRXBqQQ==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.14.0 <1.0.0'
+      '@aparte/core': '>=0.15.0 <1.0.0'
 
-  '@aparte/plugin-marked@0.14.0':
-    resolution: {integrity: sha512-6fyaZWUI+RqZngnyo81c01U+Btg0aJtC7FhU6UOjp7M3yAOMgpDR9PJwIgFOJm58FUsrsP97SUmao80+uKO/eQ==}
+  '@aparte/plugin-marked@0.15.0':
+    resolution: {integrity: sha512-fYDa3C6x28kYqq+V7CWb/TRxRDkyenFgDJaSfOoXGrXzKZ3/05zaARPJxWuj4nT+uZCywdyw2KDKZq6BEcgjfg==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.14.0 <1.0.0'
+      '@aparte/core': '>=0.15.0 <1.0.0'
       marked: ^18.0.0
 
-  '@aparte/plugin-model-selector@0.14.0':
-    resolution: {integrity: sha512-W834m5uDN8EAwJVMkXtD14D8fbTzVv9N3c+7XhuHFmOdjt2C+LzCtkqMBTEUR5vC6DgZHqV/lJ94+Uf52Zo86Q==}
+  '@aparte/plugin-model-selector@0.15.0':
+    resolution: {integrity: sha512-19Br9MK2aVVYjWLAjNkyJnInB0dJIPAZn/dOauoqD2+dVp/NJ8g0kcK3cbcEyGA2V3R5hy/yHcMdoTPyaUt8sA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@angular/core': ^19.2.0
-      '@aparte/core': '>=0.14.0 <1.0.0'
+      '@aparte/core': '>=0.15.0 <1.0.0'
       react: ^18.0.0 || ^19.0.0
       svelte: ^4.0.0 || ^5.0.0
       vue: ^3.5.0
@@ -460,18 +460,18 @@ packages:
       vue:
         optional: true
 
-  '@aparte/plugin-shiki@0.14.0':
-    resolution: {integrity: sha512-N9Zpl/ph6xzpCwSW7QPEsmW3SPSPABa83s6BfW52aVZ7pbcRz1x2+bdOxwgwJB+y7V190GFxxqIqLQQ4LUfxjw==}
+  '@aparte/plugin-shiki@0.15.0':
+    resolution: {integrity: sha512-ybQcRe1hrUgodqrkTLk3fGGxt2xvy2TsVQy2GYJM2xSpVrZPnAsda4ZUsUK5y3CIHWtfAQKmIwZIqD8J3V4obw==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.14.0 <1.0.0'
+      '@aparte/core': '>=0.15.0 <1.0.0'
       shiki: ^4.0.0
 
-  '@aparte/plugin-streaming-markdown@0.14.0':
-    resolution: {integrity: sha512-XSC1H8/dieiW+s+7QCADUS3FFdxpaTjCIEMw/FwEwaKewDo9mWFQy+OMqiIFcMoZLmflIXp0sUi5QKovGxrGaQ==}
+  '@aparte/plugin-streaming-markdown@0.15.0':
+    resolution: {integrity: sha512-wo1TsFHtWQolwHf64WpMGkRIonLe9RQKv/94JgBD44itOFp6mxJnFvvHRt7b2ln+g9pG6IiydnbvsZqNXuM+8Q==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.14.0 <1.0.0'
+      '@aparte/core': '>=0.15.0 <1.0.0'
       streaming-markdown: ^0.2.15
 
   '@babel/code-frame@7.29.7':
@@ -6962,48 +6962,48 @@ snapshots:
       package-manager-detector: 1.8.0
       tinyexec: 1.2.4
 
-  '@aparte/angular@0.14.0(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.14.0)(rxjs@7.8.2)':
+  '@aparte/angular@0.15.0(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.15.0)(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@angular/core': 19.2.25(rxjs@7.8.2)(zone.js@0.15.1)
-      '@aparte/core': 0.14.0
+      '@aparte/core': 0.15.0
       rxjs: 7.8.2
 
-  '@aparte/core@0.14.0':
+  '@aparte/core@0.15.0':
     dependencies:
-      '@aparte/engine': 0.14.0(@aparte/core@0.14.0)
+      '@aparte/engine': 0.15.0(@aparte/core@0.15.0)
 
-  '@aparte/engine@0.14.0(@aparte/core@0.14.0)':
+  '@aparte/engine@0.15.0(@aparte/core@0.15.0)':
     optionalDependencies:
-      '@aparte/core': 0.14.0
+      '@aparte/core': 0.15.0
 
-  '@aparte/locale-fr@0.14.0(@aparte/core@0.14.0)':
+  '@aparte/locale-fr@0.15.0(@aparte/core@0.15.0)':
     dependencies:
-      '@aparte/core': 0.14.0
+      '@aparte/core': 0.15.0
 
-  '@aparte/plugin-ask-user@0.14.0(@aparte/core@0.14.0)':
+  '@aparte/plugin-ask-user@0.15.0(@aparte/core@0.15.0)':
     dependencies:
-      '@aparte/core': 0.14.0
+      '@aparte/core': 0.15.0
 
-  '@aparte/plugin-marked@0.14.0(@aparte/core@0.14.0)(marked@18.0.7)':
+  '@aparte/plugin-marked@0.15.0(@aparte/core@0.15.0)(marked@18.0.7)':
     dependencies:
-      '@aparte/core': 0.14.0
+      '@aparte/core': 0.15.0
       marked: 18.0.7
 
-  '@aparte/plugin-model-selector@0.14.0(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.14.0)':
+  '@aparte/plugin-model-selector@0.15.0(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.15.0)':
     dependencies:
-      '@aparte/core': 0.14.0
+      '@aparte/core': 0.15.0
     optionalDependencies:
       '@angular/core': 19.2.25(rxjs@7.8.2)(zone.js@0.15.1)
 
-  '@aparte/plugin-shiki@0.14.0(@aparte/core@0.14.0)(shiki@4.3.1)':
+  '@aparte/plugin-shiki@0.15.0(@aparte/core@0.15.0)(shiki@4.3.1)':
     dependencies:
-      '@aparte/core': 0.14.0
+      '@aparte/core': 0.15.0
       shiki: 4.3.1
 
-  '@aparte/plugin-streaming-markdown@0.14.0(@aparte/core@0.14.0)(streaming-markdown@0.2.15)':
+  '@aparte/plugin-streaming-markdown@0.15.0(@aparte/core@0.15.0)(streaming-markdown@0.2.15)':
     dependencies:
-      '@aparte/core': 0.14.0
+      '@aparte/core': 0.15.0
       streaming-markdown: 0.2.15
 
   '@babel/code-frame@7.29.7':

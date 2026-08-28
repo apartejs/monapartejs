@@ -20,7 +20,10 @@ import type {
   ModelStatus,
 } from '@aparte/core';
 
-type ProviderMetadata = ReturnType<AparteAIProvider['getMetadata']>;
+// 0.15.0 announces `AparteAIProviderMetadata` exported from core, but it only
+// reached `dist/types/index.d.ts`, not the root barrel (FRICTIONS-LIB L4).
+type AparteAIProviderMetadata = ReturnType<AparteAIProvider['getMetadata']>;
+
 import {
   CALLER_ADAPTER,
   CALLER_DOWNLOAD_BYTES,
@@ -205,7 +208,7 @@ const MODELS: AparteAIModel[] = [
 export const SouffleursProvider: AparteAIProvider = {
   id: PROVIDER_ID,
 
-  getMetadata(): ProviderMetadata {
+  getMetadata(): AparteAIProviderMetadata {
     return {
       id: PROVIDER_ID,
       name: 'aparté',
