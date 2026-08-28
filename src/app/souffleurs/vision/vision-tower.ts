@@ -1,53 +1,54 @@
 /**
- * Tour vision — l'« encodeur détachable » d'ADR-001.
+ * Vision tower — ADR-001's "detachable encoder".
  *
- * C'est une session ONNX À PART, pas un modèle : elle se crée à la première
- * image et se relâche seule, sans toucher au décodeur. Le décodeur, lui, ne
- * swappe QUE son `adapter.data`, exactement comme pour un souffleur.
+ * It's a SEPARATE ONNX session, not a model: it's created on the first image
+ * and releases itself, without touching the decoder. The decoder, on the
+ * other hand, only swaps its `adapter.data`, exactly like a souffleur.
  *
- * Interface du graphe (`vision-tower-<ver>.onnx`, publié depuis
- * `bases/vl16b/r1/onnx/embed_images_q4.onnx`) :
+ * Graph interface (`vision-tower-<ver>.onnx`, published from
+ * `bases/vl16b/r1/onnx/embed_images_q4.onnx`):
  *   IN  pixel_values          FLOAT [batch, num_patches, 768]
  *       pixel_attention_mask  INT64 [batch, num_patches]
  *       spatial_shapes        INT64 [batch, 2]
  *   OUT image_features        FLOAT [num_image_tokens, 2048]
  *
- * `image_features` entre TEL QUEL dans l'entrée du même nom greffée sur notre
- * décodeur (`export/graft_image_embeds.py`) : même nom, même forme, même espace
- * hidden 2048 — c'est le même modèle texte, vérifié config + tenseurs.
+ * `image_features` goes in AS-IS into the same-named input grafted onto our
+ * decoder (`export/graft_image_embeds.py`): same name, same shape, same 2048
+ * hidden space — it's the same text model, verified via config + tensors.
  *
- * ORT est piloté directement ici parce que transformers.js ne sait pas charger
- * un graphe isolé de ce genre.
+ * ORT is driven directly here because transformers.js doesn't know how to
+ * load an isolated graph of this kind.
  *
- * ⚠️ COÛT ASSUMÉ, MESURÉ : le `dist` de @huggingface/transformers a ORT
- * **inliné**, et `env.backends.onnx` n'est qu'un objet de configuration — la
- * lib n'expose pas son `InferenceSession`. Cet import ajoute donc un SECOND
- * runtime ORT au chunk worker (vérifié : les littéraux d'erreur uniques d'ORT
- * y apparaissent 2×). Épingler la version ne change rien, le dédoublonnage
- * pnpm n'atteint pas un bundle déjà figé.
- * Ce qui est dupliqué, c'est du JS de runtime — PAS les poids : la base reste
- * un seul `model_q4.onnx_data`, une seule session décodeur, et le seul artefact
- * réseau en plus est la tour. C'est ce qui compte pour la VRAM et le download.
- * Alternative si ce surcoût devient gênant : créer la session via les internes
- * de la lib (`model.sessions`), au prix d'une dépendance à du non-public.
+ * ⚠️ ACCEPTED, MEASURED COST: @huggingface/transformers's `dist` has ORT
+ * **inlined**, and `env.backends.onnx` is only a config object — the lib
+ * doesn't expose its `InferenceSession`. This import therefore adds a SECOND
+ * ORT runtime to the worker chunk (verified: ORT's unique error literals
+ * appear there 2×). Pinning the version changes nothing, pnpm dedup doesn't
+ * reach an already-frozen bundle.
+ * What's duplicated is runtime JS — NOT the weights: the base stays a single
+ * `model_q4.onnx_data`, a single decoder session, and the only extra network
+ * artifact is the tower. That's what matters for VRAM and download size.
+ * Alternative if this overhead becomes an issue: create the session via the
+ * lib's internals (`model.sessions`), at the cost of depending on something
+ * non-public.
  */
 import * as ort from 'onnxruntime-web';
 import type { PreprocessedImage } from './image-preprocess';
 import { fetchTowerFile, type TowerProgress } from './tower-cache';
 
 export interface TowerSpec {
-  /** URL absolue du graphe (`onnx/vision-tower-<ver>.onnx`). */
+  /** Absolute URL of the graph (`onnx/vision-tower-<ver>.onnx`). */
   graphUrl: string;
-  /** URL absolue de l'external data versionnée. */
+  /** Absolute URL of the versioned external data. */
   dataUrl: string;
-  /** Nom d'external data inscrit DANS le graphe — à mapper sur `dataUrl`. */
+  /** External data name registered INSIDE the graph — to be mapped onto `dataUrl`. */
   internalDataName: string;
   device: 'webgpu' | 'wasm';
   onProgress?: TowerProgress;
 }
 
 export interface ImageEmbeddings {
-  /** [numTokens * 2048] aplati, prêt pour `image_features`. */
+  /** [numTokens * 2048] flattened, ready for `image_features`. */
   features: Float32Array;
   numTokens: number;
   hiddenSize: number;
@@ -58,21 +59,21 @@ let sessionKey: string | null = null;
 let wasmConfigured = false;
 
 /**
- * Chemins du runtime wasm de NOTRE instance ORT.
+ * Wasm runtime paths for OUR ORT instance.
  *
- * ⚠️ SYMPTÔME VÉCU si on l'oublie : `WebAssembly.instantiate(): expected magic
- * word 00 61 73 6d, found 3c 21 44 4f` — `3c 21 44 4f` = « <!DO », c'est-à-dire
- * l'`index.html` renvoyé par le fallback SPA du dev server pour un `.wasm`
- * introuvable. transformers.js configure les chemins de SA copie d'ORT, pas de
- * la nôtre : sans ça la nôtre part sur un chemin relatif qui n'existe pas.
- * On reproduit donc exactement sa configuration (même CDN, même version).
+ * ⚠️ SYMPTOM SEEN FIRSTHAND if forgotten: `WebAssembly.instantiate(): expected
+ * magic word 00 61 73 6d, found 3c 21 44 4f` — `3c 21 44 4f` = "<!DO", i.e.
+ * the `index.html` returned by the dev server's SPA fallback for a `.wasm`
+ * not found. transformers.js configures the paths of ITS OWN copy of ORT,
+ * not ours: without this, ours ends up on a relative path that doesn't
+ * exist. So we reproduce its configuration exactly (same CDN, same version).
  */
 function ensureWasmPaths(): void {
   if (wasmConfigured) return;
   wasmConfigured = true;
-  if (ort.env.wasm.wasmPaths) return; // déjà configuré (instance partagée)
+  if (ort.env.wasm.wasmPaths) return; // already configured (shared instance)
   const version = ort.env.versions?.web;
-  if (!version) return; // pas de web build : rien à configurer
+  if (!version) return; // no web build: nothing to configure
   const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${version}/dist/`;
   const isSafari =
     typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -87,14 +88,14 @@ function ensureWasmPaths(): void {
       };
 }
 
-/** true si la tour est actuellement rattachée. */
+/** true if the tower is currently attached. */
 export function isTowerAttached(): boolean {
   return session !== null;
 }
 
 /**
- * Rattache la tour (idempotent). Une version différente force la recréation —
- * même règle que le swap d'un `.data` versionné.
+ * Attaches the tower (idempotent). A different version forces recreation —
+ * same rule as swapping a versioned `.data`.
  */
 export async function attachTower(spec: TowerSpec): Promise<number> {
   if (session && sessionKey === spec.graphUrl) return 0;
@@ -106,32 +107,32 @@ export async function attachTower(spec: TowerSpec): Promise<number> {
   const data = await fetchTowerFile(spec.dataUrl, spec.onProgress);
 
   session = await ort.InferenceSession.create(new Uint8Array(graph), {
-    // Chaîne, jamais un seul EP : un souci WebGPU doit dégrader vers wasm au
-    // lieu de faire échouer l'analyse d'image (c'est ce que fait la lib pour
-    // le décodeur, via deviceToExecutionProviders).
+    // A chain, never a single EP: a WebGPU issue must degrade to wasm
+    // instead of failing image analysis outright (this is what the lib does
+    // for the decoder, via deviceToExecutionProviders).
     executionProviders: spec.device === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'],
-    // `path` = la chaîne inscrite dans le graphe ; `data` = les octets réels.
-    // Même indirection que `adapter.data` pour les souffleurs, ce qui permet de
-    // versionner le fichier publié sans réécrire le graphe.
+    // `path` = the string registered in the graph; `data` = the actual bytes.
+    // Same indirection as `adapter.data` for the souffleurs, which allows
+    // versioning the published file without rewriting the graph.
     externalData: [{ path: spec.internalDataName, data: new Uint8Array(data) }],
   });
   sessionKey = spec.graphUrl;
   return Math.round(performance.now() - t0);
 }
 
-/** Détache la tour et rend sa mémoire. Le décodeur n'est pas touché. */
+/** Detaches the tower and frees its memory. The decoder isn't touched. */
 export async function detachTower(): Promise<void> {
   if (!session) return;
   try {
     await session.release();
   } catch {
-    /* déjà relâchée */
+    /* already released */
   }
   session = null;
   sessionKey = null;
 }
 
-/** Encode une image prétraitée en embeds prêts pour le décodeur. */
+/** Encodes a preprocessed image into embeds ready for the decoder. */
 export async function encodeImage(image: PreprocessedImage): Promise<ImageEmbeddings> {
   if (!session) throw new Error('tour vision non rattachée');
 

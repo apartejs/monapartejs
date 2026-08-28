@@ -1,22 +1,21 @@
 /**
- * Fabrique les images bitmap que le web social et les systèmes d'exploitation
- * exigent, à partir des sources vectorielles du dépôt.
+ * Produces the bitmap images that the social web and operating systems
+ * require, from the repo's vector sources.
  *
  *   node tools/render-assets.mjs
  *
- * Pourquoi un script et pas des PNG posés à la main : les sources sont du SVG
- * et du HTML, versionnés et lisibles ; les PNG en sont dérivés et doivent le
- * rester. Sans ce script, retoucher la mascotte laisserait les icônes et la
- * carte sociale en arrière, sans que rien ne le signale.
+ * Why a script and not hand-placed PNGs: the sources are SVG and HTML,
+ * versioned and readable; the PNGs are derived from them and must stay that
+ * way. Without this script, touching up the mascot would leave the icons
+ * and the social card behind, with nothing to flag it.
  *
- * Pourquoi Chrome plutôt qu'une bibliothèque : le projet n'embarque ni sharp ni
- * resvg, et en ajouter une pour quatre images à regénérer une fois par an
- * serait un mauvais échange. Chrome rend déjà du SVG et du HTML avec les mêmes
- * polices que le site.
+ * Why Chrome rather than a library: the project bundles neither sharp nor
+ * resvg, and adding one for four images to regenerate once a year would be
+ * a bad trade. Chrome already renders SVG and HTML with the same fonts as
+ * the site.
  *
- * Les PNG produits SONT commités : ni les moissonneurs sociaux ni les systèmes
- * d'exploitation ne rendent de JavaScript, et aucun d'eux n'accepte le SVG de
- * façon fiable.
+ * The produced PNGs ARE committed: neither social crawlers nor operating
+ * systems render JavaScript, and none of them reliably accepts SVG.
  */
 import { execFileSync } from 'node:child_process';
 import {
@@ -39,20 +38,20 @@ const CHROME = [
 ].find((p) => existsSync(p));
 
 if (!CHROME) {
-  console.error('Aucun Chrome ni Edge trouvé. Éditez la liste CHROME en tête de ce script.');
+  console.error('No Chrome or Edge found. Edit the CHROME list at the top of this script.');
   process.exit(1);
 }
 
 const root = resolve(import.meta.dirname, '..');
 
 /**
- * Enveloppe un SVG dans une page à la taille EXACTE demandée.
+ * Wraps an SVG in a page at the EXACT requested size.
  *
- * Capturer le fichier .svg directement ne marche pas : Chrome l'ouvre comme un
- * document, et un SVG sans attributs `width`/`height` — le nôtre n'a qu'un
- * `viewBox` — est alors dimensionné par ses propres règles, pas par la taille
- * de la fenêtre. Les icônes sortaient en tranche noire décentrée. Ici le SVG
- * est injecté en ligne, forcé aux bonnes dimensions, sur une page sans marge.
+ * Capturing the .svg file directly doesn't work: Chrome opens it as a
+ * document, and an SVG without `width`/`height` attributes — ours only has
+ * a `viewBox` — is then sized by its own rules, not by the window size.
+ * The icons came out as an off-center black slice. Here the SVG is inlined,
+ * forced to the right dimensions, on a page with no margin.
  */
 function wrapSvg(svgPath, w, h) {
   const svg = readFileSync(join(root, svgPath), 'utf8')
@@ -63,7 +62,7 @@ function wrapSvg(svgPath, w, h) {
 svg{display:block}</style>${svg}`;
 }
 
-/** Une capture = une page, une taille, un fichier de sortie. */
+/** One capture = one page, one size, one output file. */
 const JOBS = [
   {
     page: () => readFileSync(join(root, 'tools/og-card.html'), 'utf8'),
@@ -89,10 +88,10 @@ const JOBS = [
     w: 512,
     h: 512,
   },
-  // iOS ne lit ni le manifeste ni le SVG pour l'icône de l'écran d'accueil :
-  // il lui faut ce PNG, à cette taille, sous ce nom. Et il applique SON propre
-  // masque arrondi — d'où la variante pleine page plutôt que la mascotte aux
-  // coins déjà arrondis, qui se serait retrouvée arrondie deux fois.
+  // iOS reads neither the manifest nor the SVG for the home-screen icon:
+  // it needs this PNG, at this size, under this name. And it applies ITS
+  // OWN rounded mask — hence the full-bleed variant rather than the mascot
+  // with already-rounded corners, which would have ended up rounded twice.
   {
     page: (w, h) => wrapSvg('public/icons/mascotte-maskable.svg', w, h),
     out: 'public/apple-touch-icon.png',
@@ -104,9 +103,9 @@ const JOBS = [
 for (const job of JOBS) {
   const dir = mkdtempSync(join(tmpdir(), 'monaparte-render-'));
   try {
-    // La page est écrite DANS le dossier des sources : le gabarit de la carte
-    // pourrait référencer un fichier voisin, et une page servie depuis /tmp ne
-    // le trouverait pas.
+    // The page is written INTO the source folder: the card template might
+    // reference a neighboring file, and a page served from /tmp wouldn't
+    // find it.
     const pagePath = join(root, 'tools', `.render-${Date.now()}.html`);
     writeFileSync(pagePath, job.page(job.w, job.h), 'utf8');
     try {

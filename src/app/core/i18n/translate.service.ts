@@ -1,7 +1,7 @@
 /**
- * i18n minimal signals (port du mécanisme aimi) : `t()` renvoie l'objet complet
- * de la locale courante — usage template : `t().sidebar.newChat`.
- * Bascule aussi la locale des composants aparte (fr ↔ défaut anglais).
+ * Minimal i18n signals (port of the aimi mechanism): `t()` returns the full
+ * object of the current locale — template usage: `t().sidebar.newChat`.
+ * Also switches the aparte components' locale (fr ↔ default English).
  */
 import { Injectable, computed, signal } from '@angular/core';
 import { aparteGlobalConfig, APARTE_DEFAULT_LOCALE } from '@aparte/core';

@@ -1,7 +1,7 @@
 /**
- * Schéma Dexie de monaparte — iso au schéma v2 d'aimi (split storage) :
- * méta de conversation d'un côté, messages/pièces jointes/artefacts/mémoire/
- * settings dans leurs tables. Candidat plugin @aparte/plugin-storage-indexeddb.
+ * monaparte's Dexie schema — mirrors aimi's v2 schema (split storage):
+ * conversation meta on one side, messages/attachments/artifacts/memory/
+ * settings in their own tables. Candidate for the @aparte/plugin-storage-indexeddb plugin.
  */
 import Dexie, { type Table } from 'dexie';
 import type {
@@ -13,7 +13,7 @@ import type {
 } from '@aparte/core';
 
 export interface ConversationRow extends AparteConversationMeta {
-  /** Arbre de branches complet (exportTree) — null si conversation linéaire. */
+  /** Full branch tree (exportTree) — null if the conversation is linear. */
   tree: unknown | null;
 }
 
@@ -36,28 +36,28 @@ export interface FolderRow {
 }
 
 /**
- * Fichiers du registre souffleurs — TABLE À PART, et pas `attachments`.
- * Ce sont deux choses différentes : `attachments` porte les pièces jointes de
- * la lib (ids UUID, scopées par conversation, purgées avec elle), tandis qu'ici
- * les ids sont ceux que le MODÈLE recopie (`file_<base36>_<n>`, format iso
- * training) et doivent survivre indépendamment des conversations.
+ * Files from the souffleurs registry — SEPARATE TABLE, not `attachments`.
+ * These are two different things: `attachments` carries the lib's
+ * attachments (UUID ids, scoped by conversation, purged with it), whereas
+ * here the ids are the ones the MODEL copies back (`file_<base36>_<n>`,
+ * format mirroring training) and must survive independently of conversations.
  */
 export interface SouffleurFileRow {
   id: string;
   name: string;
-  /** Type du bloc « Files available » (xlsx/pdf/image/txt…). */
+  /** Type for the "Files available" block (xlsx/pdf/image/txt…). */
   type: string;
   mimeType: string;
   blob: Blob;
   addedAt: number;
   /**
-   * Conversation propriétaire — c'est elle qui décide si le fichier entre dans
-   * le bloc « Files available ». Trois etats, tous porteurs de sens :
-   *  - une chaine : le fichier appartient a cette conversation ;
-   *  - null : joint avant que la conversation n'existe (nouveau fil), adopte
-   *    des sa creation ;
-   *  - absent : ligne ecrite avant la v3, rattachement inconnu. Jamais listee,
-   *    mais conservee : les file_id de l'historique doivent rester resolubles.
+   * Owning conversation — it decides whether the file enters the
+   * "Files available" block. Three states, all meaningful:
+   *  - a string: the file belongs to this conversation;
+   *  - null: attached before the conversation existed (new thread), adopted
+   *    as soon as it's created;
+   *  - absent: row written before v3, unknown attachment. Never listed,
+   *    but kept: the file_id's from history must stay resolvable.
    */
   convId?: string | null;
 }
@@ -66,12 +66,12 @@ export class monaparteDb extends Dexie {
   conversations!: Table<ConversationRow, string>;
   messages!: Table<MessageRow, string>;
   attachments!: Table<AparteAttachmentRow & { convId: string }, string>;
-  /** blob + preview (dans `content`) persistés pour réhydrater les cartes après reload. */
+  /** blob + preview (in `content`) persisted to rehydrate the cards after a reload. */
   artifacts!: Table<AparteArtifactRow & { blob?: Blob }, string>;
   memory!: Table<AparteMemoryFact, string>;
   settings!: Table<SettingRow, string>;
   folders!: Table<FolderRow, string>;
-  /** Registre des `file_id` vus par le modèle — voir SouffleurFileRow. */
+  /** Registry of `file_id`s seen by the model — see SouffleurFileRow. */
   souffleurFiles!: Table<SouffleurFileRow, string>;
 
   constructor(name = 'monaparte') {
@@ -85,18 +85,18 @@ export class monaparteDb extends Dexie {
       settings: 'key',
       folders: 'id, updatedAt',
     });
-    // v2 : registre des fichiers souffleurs. Ajout d'une table uniquement —
-    // aucune donnée existante n'est touchée.
+    // v2: souffleurs files registry. Table addition only — no existing
+    // data is touched.
     this.version(2).stores({
       souffleurFiles: 'id, addedAt',
     });
-    // v3 : rattachement d'un fichier a sa conversation. Sans lui, le registre
-    // etait global et le bloc « Files available » annoncait au modele TOUS les
-    // fichiers jamais joints, dans n'importe quel fil — il appelait alors
-    // read_file sur une image absente de la conversation (et rattachait la tour
-    // vision pour rien). Index seul : les lignes existantes ne sont pas
-    // reecrites, leur `convId` reste absent, ce que le registre lit comme
-    // « rattachement inconnu ».
+    // v3: attaching a file to its conversation. Without it, the registry
+    // was global and the "Files available" block announced to the model
+    // EVERY file ever attached, in any thread — it would then call
+    // read_file on an image absent from the conversation (and attach the
+    // vision tower for nothing). Index only: existing rows are not
+    // rewritten, their `convId` stays absent, which the registry reads as
+    // "unknown attachment".
     this.version(3).stores({
       souffleurFiles: 'id, addedAt, convId',
     });

@@ -326,11 +326,11 @@ export class SidebarComponent {
   });
 
   protected newChat(): void {
-    // Après une création de conversation, l'URL est réécrite en /chat/:id SANS
-    // navigation (replaceState) : le routeur croit toujours être sur '/' et
-    // navigate('/') devient un no-op. L'événement de désélection (id: null)
-    // remet le fil à zéro dans tous les cas — le contrôleur de la lib l'écoute
-    // globalement.
+    // After a conversation is created, the URL is rewritten to /chat/:id WITHOUT
+    // navigation (replaceState): the router still thinks it's on '/' and
+    // navigate('/') becomes a no-op. The deselection event (id: null)
+    // resets the thread to zero in all cases — the lib's controller listens
+    // for it globally.
     void this.router.navigate(['/']);
     this.location.replaceState('/');
     window.dispatchEvent(new CustomEvent('aparte-select-conversation', { detail: { id: null } }));

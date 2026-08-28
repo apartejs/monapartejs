@@ -4,7 +4,7 @@ import { ChatPageComponent } from './pages/chat/chat-page.component';
 export const routes: Routes = [
   { path: 'chat/:id', component: ChatPageComponent },
   {
-    // Diagnostic du fil : ce que le modèle a RÉELLEMENT reçu et produit.
+    // Thread diagnostic: what the model REALLY received and produced.
     path: 'debug/prompt',
     loadComponent: () =>
       import('./pages/debug/debug-prompt.component').then((m) => m.DebugPromptComponent),

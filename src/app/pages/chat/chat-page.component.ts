@@ -23,17 +23,17 @@ import { buildSystemPrompt, fileRegistry } from '../../souffleurs';
 import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
 import { ConversationMinimapComponent } from './conversation-minimap.component';
 
-/** Fenêtre de contexte pratique du caller (MAX_SEQ_LEN d'entraînement). */
+/** Caller's practical context window (training MAX_SEQ_LEN). */
 const CONTEXT_BUDGET_TOKENS = 4096;
 const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
 
 @Component({
   selector: 'bp-chat-page',
   standalone: true,
-  // `AparteElicitationDirective` plutôt que CUSTOM_ELEMENTS_SCHEMA : depuis
-  // aparté 0.11 chaque élément de core a sa directive Angular. Le schéma
-  // éteignait la vérification de template pour TOUTES les balises inconnues du
-  // fichier — une faute de frappe sur un binding d'<aparte-chat> passait.
+  // `AparteElicitationDirective` rather than CUSTOM_ELEMENTS_SCHEMA: since
+  // aparté 0.11 every core element has its Angular directive. The schema used
+  // to turn off template checking for ALL unknown tags in the file — a typo
+  // on an <aparte-chat> binding would get through.
   imports: [
     AparteChatComponent,
     AparteElicitationDirective,
@@ -58,14 +58,14 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
           <p class="tagline bp-serif">{{ t().welcome.tagline }}</p>
           <p class="sub">{{ t().welcome.sub }}</p>
         </div>
-        <!-- Présentateur ask_question : OBLIGATOIRE dans le chat (il monte ses
-             panneaux dans le composer via showPanel), sinon requestUserInput
-             n'a aucun présentateur. Ne rend rien par lui-même. -->
+        <!-- ask_question presenter: MANDATORY in the chat (it mounts its
+             panels in the composer via showPanel), otherwise requestUserInput
+             has no presenter. Renders nothing by itself. -->
         <aparte-elicitation slot="above-composer"></aparte-elicitation>
-        <!-- Une seule barre depuis aparté 0.7.0 : les trois emplacements
-             footer-left / footer-center / footer-right ont fusionné en
-             « toolbar ». La place se décide maintenant par l'ordre du DOM et par
-             les marges logiques (cf. .helper plus bas). -->
+        <!-- A single bar since aparté 0.7.0: the three slots
+             footer-left / footer-center / footer-right merged into a single
+             "toolbar". Placement is now decided by DOM order and by
+             logical margins (see .helper below). -->
         @if (contextTokens(); as ctx) {
           <span
             slot="toolbar"
@@ -127,9 +127,9 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
     </div>
   `,
   styles: `
-    /* La lib exige un parent dimensionné (« size the element yourself — a
-     * height, or a sized parent », aparte.css). Chaîne bornée + overflow
-     * hidden : le SEUL scroll est celui du viewport interne. */
+    /* The lib requires a sized parent ("size the element yourself — a
+     * height, or a sized parent", aparte.css). Bounded chain + overflow
+     * hidden: the ONLY scroll is that of the internal viewport. */
     :host {
       display: block;
       height: 100%;
@@ -141,11 +141,11 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       max-width: var(--bp-content-max-width);
       margin: 0 auto;
       width: 100%;
-      /* Le bas RESPIRE. Cet espace venait du « padding: 4px 0 8px » de l'astuce
-       * sous le composer ; la barre unique d'aparté 0.7.0 apporte son propre
-       * padding, j'ai donc retiré celui-là — et le composer s'est retrouvé
-       * collé au bord de l'écran. Il appartient de toute façon à la mise en
-       * page, pas à l'astuce, qui disparaît sur écran tactile. */
+      /* The bottom BREATHES. This space used to come from the "padding: 4px 0 8px"
+       * of the hint below the composer; the single bar of aparté 0.7.0 brings its
+       * own padding, so I removed that one — and the composer ended up stuck
+       * to the edge of the screen. It belongs to the layout anyway, not to
+       * the hint, which disappears on touch screens. */
       padding: 0 12px 12px;
       position: relative;
     }
@@ -180,11 +180,11 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       font-size: 11px;
       color: var(--aparte-text-muted);
       text-align: center;
-      /* La toolbar d'aparté est une simple ligne flex : sans marge, l'astuce
-       * suit l'indicateur de contexte au lieu d'être centrée. « auto » des deux
-       * côtés la recentre dans la place restante — logique, donc correct aussi
-       * en lecture droite-à-gauche. La toolbar apporte son propre
-       * padding : ne pas en rajouter, sinon la ligne grandit. */
+      /* aparté's toolbar is a simple flex line: without a margin, the hint
+       * follows the context indicator instead of being centered. "auto" on both
+       * sides recenters it in the remaining space — logical, so also correct
+       * in right-to-left reading. The toolbar brings its own
+       * padding: don't add more, or the line grows. */
       margin-inline: auto;
     }
     .context-pill {
@@ -207,8 +207,8 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
     }
 
     .stats-pop {
-      /* Déroulé SOUS le bouton « i » de la bulle (coordonnées de l'événement).
-       * .flip le repasse au-dessus quand il déborderait du bas de fenêtre. */
+      /* Unfolds BELOW the bubble's "i" button (event coordinates).
+       * .flip puts it back above when it would overflow the bottom of the window. */
       position: fixed;
       z-index: 20;
       background: var(--aparte-surface-1);
@@ -223,8 +223,8 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
     .stats-pop.flip {
       transform: translateY(-100%);
     }
-    /* N'anime que l'opacite : animer transform ecrasait le translateY(-100%)
-     * de .flip pendant la transition (le popover sautait). */
+    /* Only animates opacity: animating transform used to overwrite the
+     * translateY(-100%) of .flip during the transition (the popover jumped). */
     @keyframes bp-pop {
       from {
         opacity: 0;
@@ -274,10 +274,10 @@ export class ChatPageComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
-    // Le popover est en `position: fixed` : dès que le fil défile il se
-    // détacherait de son bouton. Le viewport de la lib scrolle EN INTERNE, donc
-    // `window:scroll` ne le voit pas — il faut la phase CAPTURE sur le
-    // document, que @HostListener ne sait pas exprimer.
+    // The popover is `position: fixed`: as soon as the thread scrolls it would
+    // detach from its button. The lib's viewport scrolls INTERNALLY, so
+    // `window:scroll` doesn't see it — the CAPTURE phase on the document is
+    // needed, which @HostListener can't express.
     const onScroll = () => {
       if (this.stats()) this.stats.set(null);
     };
@@ -292,7 +292,7 @@ export class ChatPageComponent {
     usage: AparteUsage;
     x: number;
     y: number;
-    /** true = affiché au-dessus du bouton (déborderait en bas). */
+    /** true = shown above the button (would overflow at the bottom). */
     flip: boolean;
   } | null>(null);
 
@@ -324,7 +324,7 @@ export class ChatPageComponent {
     this.modelStatus.state().device === 'webgpu' ? 'WebGPU' : 'WASM (CPU)',
   );
 
-  /** Pastille budget contexte (iso context-stats aimi) — estimation lib. */
+  /** Context budget pill (iso context-stats aimi) — lib estimate. */
   protected readonly contextTokens = computed(() => {
     const conv = this.manager.activeConversation();
     if (!conv || !conv.messages.length) return null;
@@ -340,16 +340,16 @@ export class ChatPageComponent {
   });
 
   protected onConversationCreated(id: string): void {
-    // Les pieces jointes sont enregistrees a l'ENVOI, donc avant que la
-    // conversation n'ait un id : on les lui rattache maintenant, sinon elles
-    // resteraient « en attente » et le prochain fil vierge les annoncerait au
-    // modele comme si l'utilisateur venait de les joindre.
+    // Attachments are registered at SEND time, so before the conversation has
+    // an id: we attach them to it now, otherwise they would stay "pending"
+    // and the next blank thread would announce them to the model as if the
+    // user had just attached them.
     fileRegistry.adoptPending(id);
 
-    // SURTOUT PAS router.navigate : '' et 'chat/:id' sont deux routes → le
-    // composant serait détruit EN PLEIN STREAM de la première réponse (bug
-    // « le premier message ne part pas »). On réécrit l'URL sans navigation ;
-    // le wrapper garde déjà le bon id en interne.
+    // ABSOLUTELY NOT router.navigate: '' and 'chat/:id' are two routes -> the
+    // component would be destroyed MID-STREAM of the first response (the
+    // "first message doesn't go out" bug). We rewrite the URL without
+    // navigation; the wrapper already keeps the right id internally.
     this.location.replaceState(`/chat/${id}`);
   }
 
@@ -358,7 +358,7 @@ export class ChatPageComponent {
     if (isTyping) this.stats.set(null);
   }
 
-  /** Bouton « i » des bulles assistant (aparte-message-info, bubbling) — popover ancré au bouton. */
+  /** Assistant bubbles' "i" button (aparte-message-info, bubbling) — popover anchored to the button. */
   @HostListener('window:aparte-message-info', ['$event'])
   protected onMessageInfo(event: Event): void {
     const detail = (event as CustomEvent<AparteMessageInfoEventDetail>).detail;
@@ -366,13 +366,13 @@ export class ChatPageComponent {
       this.stats.set(null);
       return;
     }
-    // composedPath()[0] = le bouton lui-même : l'événement traverse le shadow
-    // DOM de la bulle, `target` y serait l'hôte et l'ancrage sauterait.
+    // composedPath()[0] = the button itself: the event crosses the bubble's
+    // shadow DOM, `target` there would be the host and the anchoring would break.
     const source = (event.composedPath?.()[0] ?? event.target) as HTMLElement | null;
     const rect = source?.getBoundingClientRect?.();
     const width = 220;
-    // Hauteur max du popover (5 lignes + titre) : suffisant pour décider de la
-    // bascule sans avoir à mesurer après rendu.
+    // Max popover height (5 lines + title): enough to decide the flip
+    // without having to measure after render.
     const height = 190;
     const x = Math.max(8, Math.min(rect?.left ?? 16, window.innerWidth - width - 8));
     const below = (rect?.bottom ?? window.innerHeight / 2) + 6;
@@ -382,11 +382,11 @@ export class ChatPageComponent {
   }
 
   /**
-   * Fermeture du popover : il ne se refermait QUE si on cliquait dessus.
-   * `pointerdown` et pas `click` : le clic sur le bouton « i » ouvrirait puis
-   * refermerait dans le même geste (l'événement remonte jusqu'au document).
-   * Avec pointerdown, l'ordre est fermeture -> ouverture, donc jamais de
-   * clignotement, et un second clic sur le « i » le rouvre simplement.
+   * Closing the popover: it used to close ONLY if you clicked on it.
+   * `pointerdown` and not `click`: clicking the "i" button would open then
+   * close in the same gesture (the event bubbles up to the document).
+   * With pointerdown, the order is close -> open, so never any
+   * flickering, and a second click on the "i" simply reopens it.
    */
   @HostListener('document:pointerdown', ['$event'])
   protected onDocumentPointerDown(event: Event): void {

@@ -1,10 +1,10 @@
 /**
- * xlsx-ops-runtime.ts — executes le souffleur-xlsx-docx's declarative JSON ops.
+ * xlsx-ops-runtime.ts — executes the souffleur-xlsx-docx's declarative JSON ops.
  *
  * The xlsx-docx aimini does NOT emit JS code (unlike V0.1's sandbox-js). It emits
  * a JSON array of declarative ops ({op:"addWorksheet"}, {op:"fillRange", generator},
  * {op:"applyFormula"}, …) targeting the "xlsx-kit" runtime. This module IS that
- * runtime — a faithful port of executor.js du lab (v6, exécuteurs réutilisés tels quels en v7)
+ * runtime — a faithful port of executor.js from the lab (v6, executors reused as-is in v7)
  * (applyXlsxOps + helpers), backed by ExcelJS.
  *
  * Generators (fillRange) use a LIGHTWEIGHT faker (the ~15 methods the aiminis
@@ -12,7 +12,7 @@
  * offline-first bundle lean.
  */
 import type { Row } from 'exceljs';
-// ExcelJS est chargé dynamiquement (chunk différé — jamais dans le bundle initial).
+// ExcelJS is loaded dynamically (deferred chunk — never in the initial bundle).
 
 export type XlsxOp = Record<string, unknown>;
 
@@ -392,7 +392,7 @@ async function buildWorkbook(ops: XlsxOp[], original?: ArrayBuffer | null): Prom
           console.warn('[xlsx_ops] addChart not supported by ExcelJS (op ignored)');
           break;
         default:
-          console.warn(`[xlsx_ops] op non gérée: ${op['op']}`);
+          console.warn(`[xlsx_ops] unhandled op: ${op['op']}`);
       }
     } catch (err) {
       throw new Error(`op ${op['op']} failed: ${err instanceof Error ? err.message : String(err)}`);

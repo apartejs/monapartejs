@@ -17,11 +17,11 @@ import { TranslateService } from '../../core/i18n/translate.service';
 interface SearchHit {
   convId: string;
   title: string;
-  /** [avant, correspondance, après] pour le surlignage sans innerHTML. */
+  /** [before, match, after] for highlighting without innerHTML. */
   snippet: [string, string, string] | null;
 }
 
-/** Palette ⌘K — recherche client-side sur titres + contenus (iso aimi). */
+/** ⌘K palette — client-side search over titles + content (iso aimi). */
 @Component({
   selector: 'bp-search-palette',
   standalone: true,

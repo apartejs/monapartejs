@@ -1,14 +1,14 @@
 /**
- * /debug/prompt — le dernier échange RÉELLEMENT parti sur le fil.
+ * /debug/prompt — the last exchange that ACTUALLY went out on the thread.
  *
- * Existe parce qu'une question revient sans arrêt et qu'on ne peut y répondre
- * qu'en regardant : « le bloc List of tools est-il dans le prompt ? ». Sans ça
- * on suppose, et on suppose mal — le modèle a nié savoir lire des documents
- * alors que le corps de sp-chat n'en dit rien, et les deux causes possibles
- * (comportement appris VS outils absents du prompt) ne se distinguent QUE ici.
+ * Exists because one question keeps coming back and can only be answered
+ * by looking: "is the List of tools block in the prompt?". Without this
+ * we guess, and guess wrong — the model denied knowing how to read documents
+ * while sp-chat's body says nothing about it, and the two possible causes
+ * (learned behavior VS tools missing from the prompt) can ONLY be told apart here.
  *
- * Aucune condition, aucun flag : le provider garde les deux dernières strings
- * en mémoire. Rien n'est persisté, rien ne sort de l'appareil.
+ * No condition, no flag: the provider keeps the last two strings
+ * in memory. Nothing is persisted, nothing leaves the device.
  */
 import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { SOUFFLEUR_TOOL_NAMES, getLastWire } from '../../souffleurs';
@@ -141,9 +141,9 @@ export class DebugPromptComponent {
   });
 
   /**
-   * Les contrôles qui comptent, dans l'ordre où ils cassent en pratique.
-   * `List of tools` absent = le gate `function_calling` du client n'a pas passé
-   * les outils, et le modèle a alors RAISON de dire qu'il ne sait rien faire.
+   * The checks that matter, in the order they break in practice.
+   * `List of tools` missing = the client's `function_calling` gate didn't pass
+   * the tools through, and the model is then RIGHT to say it can't do anything.
    */
   protected readonly checks = computed(() => {
     const w = this.wire();

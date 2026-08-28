@@ -1,6 +1,6 @@
 /**
- * transform_file — transformation DÉTERMINISTE, sans IA (règle du contrat) :
- * conversions de format, merge/split PDF, conversion/redimensionnement d'image.
+ * transform_file — DETERMINISTIC transformation, no AI (a contract rule):
+ * format conversions, PDF merge/split, image conversion/resizing.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { fileRegistry } from '../files/file-registry';
@@ -71,7 +71,7 @@ export const transformFileHandler: AparteToolHandler = async (call) => {
         return fail(`conversion vers ${target} non prise en charge pour ${source.type}`);
     }
 
-    // Pas de téléchargement auto : la carte a le bouton.
+    // No auto-download: the card has the button.
     const registered = fileRegistry.registerBlob(blob, filename, blob.type);
     notifyArtifact(
       call.id,
@@ -189,7 +189,7 @@ async function mergePdfs(fileIds: string[]): Promise<Blob> {
   return new Blob([(await out.save()) as unknown as BlobPart], { type: 'application/pdf' });
 }
 
-/** options.pages : "1-3" ou [1,2,5] (1-indexé). Sans option : première page. */
+/** options.pages: "1-3" or [1,2,5] (1-indexed). Without an option: first page. */
 async function splitPdf(blob: Blob, options: Record<string, unknown>): Promise<Blob> {
   const { PDFDocument } = await import('pdf-lib');
   const src = await PDFDocument.load(await blob.arrayBuffer());

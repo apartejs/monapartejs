@@ -1,33 +1,33 @@
 /**
- * Adaptateur ask_question : deux écarts avec le plugin, pas un.
+ * ask_question adapter: two mismatches with the plugin, not one.
  *
- * 1. LE NOM. Depuis aparté 0.8 le plugin s'appelle `@aparte/plugin-ask-user` et
- *    son outil `ask_user` (alignement sur la convention d'écosystème). Le
- *    contrat d'entraînement des souffleurs, lui, dit `ask_question` — c'est le
- *    nom que le modèle émet et celui de `SOUFFLEUR_TOOL_DEFS`. On réétiquette
- *    donc l'outil du plugin : le renommer côté lib ne renomme pas des poids.
- * 2. LA FORME. Le contrat émet `{question, options: string[], multi_select,
- *    allow_other}` là où le plugin attend `{question, options: {title}[],
- *    multiple, allowOther}`. Sans ce shim, une multi-sélection serait
- *    silencieusement traitée en radio.
+ * 1. THE NAME. Since aparté 0.8 the plugin is called `@aparte/plugin-ask-user` and
+ *    its tool `ask_user` (alignment on the ecosystem convention). The souffleurs
+ *    training contract, on the other hand, says `ask_question` — that's the
+ *    name the model emits and the one in `SOUFFLEUR_TOOL_DEFS`. So we relabel
+ *    the plugin's tool: renaming it on the lib side doesn't rename weights.
+ * 2. THE SHAPE. The contract emits `{question, options: string[], multi_select,
+ *    allow_other}` where the plugin expects `{question, options: {title}[],
+ *    multiple, allowOther}`. Without this shim, a multi-selection would be
+ *    silently treated as a radio button.
  *
- * Seul le NOM compte ici : c'est la clé de dispatch de `getToolHandler`. Le
- * schéma et la prose du plugin, eux, ne doivent pas atteindre le modèle — et
- * depuis aparté 0.13 (`a453df1`) ce n'est plus théorique : `AparteTool.systemPrompt`
- * est réellement envoyé, joint aux autres et poussé comme message système. Celui
- * du plugin annonce « You have access to the ask_user tool », soit un nom que le
- * contrat ne connaît pas, en anglais hors contrat d'entraînement.
+ * Only the NAME matters here: it's the dispatch key for `getToolHandler`. The
+ * plugin's schema and prose, on the other hand, must not reach the model — and
+ * since aparté 0.13 (`a453df1`) that's no longer theoretical: `AparteTool.systemPrompt`
+ * is actually sent, joined with the others and pushed as a system message. The
+ * plugin's announces "You have access to the ask_user tool", i.e. a name the
+ * contract doesn't know, in English outside the training contract.
  *
- * Notre `buildWirePrompt` jette les messages `role: 'system'` de l'historique
- * (`case 'system': break;`), donc rien n'arrive au modèle aujourd'hui. On retire
- * quand même les deux champs plutôt que de dépendre de ça : le jour où le
- * constructeur de prompt honorerait un rôle système, la régression serait
- * silencieuse et le modèle appellerait un outil qui n'existe pas.
+ * Our `buildWirePrompt` drops `role: 'system'` messages from the history
+ * (`case 'system': break;`), so nothing reaches the model today. We still remove
+ * both fields rather than depend on that: the day the prompt builder honors a
+ * system role, the regression would be silent and the model would call a tool
+ * that doesn't exist.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { askUserHandler, createAskUserTool } from '@aparte/plugin-ask-user';
 
-/** Nom du contrat souffleurs, pas celui du plugin. */
+/** Name from the souffleurs contract, not the plugin's. */
 export const SOUFFLEUR_ASK_QUESTION_TOOL_NAME = 'ask_question';
 
 const { systemPrompt: _pluginSystemPrompt, ...askUserToolShape } = createAskUserTool();
@@ -35,19 +35,19 @@ const { systemPrompt: _pluginSystemPrompt, ...askUserToolShape } = createAskUser
 export const souffleurAskQuestionTool: AparteTool = {
   ...askUserToolShape,
   name: SOUFFLEUR_ASK_QUESTION_TOOL_NAME,
-  // Reprend le vocabulaire du contrat, pas celui du plugin.
+  // Uses the contract's vocabulary, not the plugin's.
   description: "Pose une question à l'utilisateur avec des options structurées.",
 };
 
 /**
- * Chaîne que le plugin renvoie quand l'utilisateur ferme le panneau sans
- * répondre. Le plugin ne l'exporte pas depuis son index (`ASK_USER_DECLINED`,
- * interne à `ask-user-*.js`) ; on la recopie. À CONTRÔLER à chaque montée du
- * plugin : si elle change, un refus serait pris pour une réponse « value ».
+ * String the plugin returns when the user closes the panel without
+ * answering. The plugin doesn't export it from its index (`ASK_USER_DECLINED`,
+ * internal to `ask-user-*.js`); we copy it here. To CHECK on every plugin
+ * upgrade: if it changes, a decline would be mistaken for a "value" answer.
  */
 export const PLUGIN_DECLINED_TEXT = 'The user declined to answer.';
 
-/** Une réponse par question, forme du dataset : `{value}` ou `{values}` en multi. */
+/** One answer per question, dataset shape: `{value}` or `{values}` for multi. */
 export type AskQuestionAnswer = { value: string } | { values: string[] };
 
 export interface AskQuestionResult {
@@ -58,14 +58,14 @@ export interface AskQuestionResult {
 }
 
 /**
- * 3. L'OBSERVATION. À l'entraînement, le tour `tool` qui suit `ask_question` est
- *    le JSON `{ok:true, type:'ask_question', answers:[{value}|{values}]}` — c'est
- *    ce que pousse `browser/app/app.js` du lab (`onAskQuestionSubmit`), et ce que
- *    le modèle a appris à lire (HANDOFF-fixes-bonaparte §4). Le plugin, lui,
- *    répond en prose (« a, b » ou « question → réponse » par ligne). On garde le
- *    plugin pour le panneau et on ne convertit que le tour d'outil, dans les
- *    deux sens : vers le JSON pour le modèle ici, vers la prose pour le reçu
- *    affiché dans `askQuestionReceiptText`.
+ * 3. THE OBSERVATION. During training, the `tool` turn that follows `ask_question`
+ *    is the JSON `{ok:true, type:'ask_question', answers:[{value}|{values}]}` — that's
+ *    what the lab's `browser/app/app.js` pushes (`onAskQuestionSubmit`), and what
+ *    the model learned to read (HANDOFF-fixes-bonaparte §4). The plugin, on the
+ *    other hand, answers in prose ("a, b" or "question → answer" per line). We
+ *    keep the plugin for the panel and only convert the tool turn, in both
+ *    directions: to JSON for the model here, to prose for the receipt
+ *    displayed in `askQuestionReceiptText`.
  */
 export const souffleurAskQuestionHandler: AparteToolHandler = async (call, signal) => {
   const input = normalizeAskQuestionInput(call.input);
@@ -91,7 +91,7 @@ function questionsOf(input: Record<string, unknown>): QuestionShape[] {
   });
 }
 
-/** Sépare une liste jointe par le plugin (`formatAnswer` : `values.join(', ')`). */
+/** Splits a list joined by the plugin (`formatAnswer`: `values.join(', ')`). */
 const splitValues = (s: string): string[] =>
   s
     .split(', ')
@@ -99,9 +99,9 @@ const splitValues = (s: string): string[] =>
     .filter(Boolean);
 
 /**
- * Prose du plugin → JSON du dataset. Le plugin joint les valeurs d'une
- * multi-sélection par « , » : une valeur qui contiendrait elle-même « , »
- * serait coupée — assumé, les options viennent du modèle et sont courtes.
+ * Plugin prose → dataset JSON. The plugin joins a multi-selection's values
+ * with ", ": a value that itself contained "," would be cut — accepted,
+ * the options come from the model and are short.
  */
 export function toTrainingResult(plain: string, input: Record<string, unknown>): AskQuestionResult {
   const text = plain.trim();
@@ -126,9 +126,9 @@ export function toTrainingResult(plain: string, input: Record<string, unknown>):
 }
 
 /**
- * JSON du dataset → prose du plugin, pour `buildReceipt` (qui relit
- * `segment.result` au format de son propre handler). Un résultat qui n'est pas
- * notre JSON (historique d'avant ce changement) est rendu tel quel.
+ * Dataset JSON → plugin prose, for `buildReceipt` (which reads back
+ * `segment.result` in its own handler's format). A result that isn't our
+ * JSON (history from before this change) is rendered as-is.
  */
 export function askQuestionReceiptText(
   result: string | undefined,

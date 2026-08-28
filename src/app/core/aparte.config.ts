@@ -1,13 +1,13 @@
 /**
- * Le câblage de la lib apartéJS : transport, plugins, outils, client et
- * conversation manager. Depuis aparté 0.8 la config n'est plus une classe à
- * statiques — `AparteConfig` est le TYPE, `aparteGlobalConfig` l'instance de la
- * page, celle où écrit aussi `provideAparte`.
+ * The wiring for the apartéJS lib: transport, plugins, tools, client and
+ * conversation manager. Since aparté 0.8 the config is no longer a class with
+ * statics — `AparteConfig` is the TYPE, `aparteGlobalConfig` the page's
+ * instance, the same one `provideAparte` writes to.
  *
- * L'enregistrement passe par ici, mais trois modules touchent l'instance de leur
- * côté parce qu'ils POSENT un rendu et non une configuration : `mascotte/`
- * (status + erreur), `souffleurs/tools/tool-renderers` (coloration live) et
- * `core/i18n/translate.service` (bascule de locale).
+ * Registration goes through here, but three modules touch the instance on
+ * their own because they SET a render, not a configuration: `mascotte/`
+ * (status + error), `souffleurs/tools/tool-renderers` (live highlighting) and
+ * `core/i18n/translate.service` (locale switch).
  */
 import { inject, isDevMode, provideAppInitializer, type EnvironmentProviders } from '@angular/core';
 import { provideServiceWorker } from '@angular/service-worker';
@@ -56,7 +56,7 @@ import { LOCAL_KEYS, SettingsService, localGet } from '../storage/settings.servi
 import { LinkGuardService } from './link-guard.service';
 import { RichRenderService } from './rich-render.service';
 
-/** Adapter partagé (conversations + settings + export/import). */
+/** Shared adapter (conversations + settings + export/import). */
 export const conversationAdapter = new DexieConversationAdapter();
 
 export function currentLocale(): 'fr' | 'en' {
@@ -70,13 +70,13 @@ export function provideMonaparte(): EnvironmentProviders[] {
     provideAparte({
       providers: [SouffleursProvider],
       modelConfig: { defaultProvider: 'souffleurs', defaultModel: CALLER_MODEL_ID },
-      // Locale lib : fr explicite, en = défaut embarqué.
+      // Lib locale: fr explicit, en = built-in default.
       ...(currentLocale() === 'fr' ? { locale: fr } : {}),
       clientOptions: {
-        // Borne de la boucle agentique du contrat souffleurs (MAX_AGENTIC_ITERATIONS).
+        // Bound on the souffleurs contract's agentic loop (MAX_AGENTIC_ITERATIONS).
         maxTurns: 6,
-        // Les fichiers joints passent par le bloc « Files available » du prompt
-        // système, jamais inlinés en base64 dans les messages.
+        // Attached files go through the system prompt's "Files available"
+        // block, never inlined as base64 in the messages.
         rawFileInject: 'none',
         requestInterceptor: (request) => ({
           ...request,
@@ -85,40 +85,40 @@ export function provideMonaparte(): EnvironmentProviders[] {
       },
     }),
     provideAppInitializer(async () => {
-      // En dev, les traces du fil (prompt wire, sortie brute, appels parsés)
-      // sont actives d'office : c'est le mode où on débugue, on ne doit pas
-      // avoir à penser à un flag. `bp.debug` reste un override explicite.
+      // In dev, thread traces (prompt wire, raw output, parsed calls) are on
+      // by default: it's the mode where we debug, we shouldn't have to
+      // remember a flag. `bp.debug` stays an explicit override.
       setSouffleurDebug(isDevMode());
 
       aparteGlobalConfig.setTransport(new AparteDirectTransport({ byok: true }));
-      // Depuis aparté 0.5, TOUTES les actions sauf `copy` sont désactivées par
-      // défaut : la lib ne rend que ce que quelqu'un honore (« a button nobody
-      // answers is a lie told to the user »). On active donc ce qu'on traite :
-      //  - retry/edit : pris en charge par AparteClient, nécessaires aux branches ;
-      //  - info : le bouton « i » émet `aparte-message-info`, écouté par
-      //    ChatPageComponent qui ouvre le popover de stats. Le popover et son
-      //    écouteur existaient déjà — seule l'activation manquait, donc le
-      //    bouton avait disparu au passage en 0.5.
-      // Rappel lib : `info` ne s'affiche que si le message porte un `usage`.
+      // Since aparté 0.5, ALL actions except `copy` are disabled by default:
+      // the lib only renders what someone honors ("a button nobody answers
+      // is a lie told to the user"). So we enable what we handle:
+      //  - retry/edit: handled by AparteClient, needed for branches;
+      //  - info: the "i" button emits `aparte-message-info`, listened to by
+      //    ChatPageComponent which opens the stats popover. The popover and
+      //    its listener already existed — only the activation was missing,
+      //    so the button had disappeared with the move to 0.5.
+      // Lib reminder: `info` only shows if the message carries a `usage`.
       aparteGlobalConfig.setBubbleActions({ retry: true, edit: true, info: true });
 
       setupMarkedProvider();
       setupStreamingMarkdownProvider();
-      // Shiki charge ses langues à la demande — ne bloque pas le boot.
+      // Shiki loads its languages on demand — doesn't block boot.
       void setupShikiProvider();
 
-      // Pas de `setupAskUser()` : il enregistrerait l'outil sous le nom du
-      // plugin (`ask_user`), que le modèle n'émet jamais, et le renderer de
-      // reçu sous cette même clé. On repose donc ses trois gestes à la main,
-      // sur le nom du contrat. Le shim (multi_select→multiple, options
-      // string[]→{title}[]) est dans l'adaptateur.
+      // No `setupAskUser()`: it would register the tool under the plugin's
+      // name (`ask_user`), which the model never emits, and the receipt
+      // renderer under that same key. So we redo its three gestures by hand,
+      // under the contract's name. The shim (multi_select→multiple, options
+      // string[]→{title}[]) is in the adapter.
       aparteGlobalConfig.registerTool(souffleurAskQuestionTool, souffleurAskQuestionHandler);
-      // Depuis 0.13 la question posée et la réponse reçue laissent une trace
-      // dans le fil (segment `question-receipt`) : avant, le panneau répondu
-      // ne laissait rien et l'échange disparaissait du défilement.
+      // Since 0.13 the question asked and the answer received leave a trace
+      // in the thread (`question-receipt` segment): before, the answered
+      // panel left nothing and the exchange disappeared from the scroll.
       registerSegmentRenderer(questionReceiptRenderer);
-      // Le résultat stocké est le JSON du contrat (ce que lit le modèle) ; le
-      // reçu du plugin attend sa prose — conversion inverse dans l'adaptateur.
+      // The stored result is the contract's JSON (what the model reads); the
+      // plugin's receipt expects its prose — reverse conversion in the adapter.
       aparteGlobalConfig.registerToolRenderer(SOUFFLEUR_ASK_QUESTION_TOOL_NAME, {
         render: (segment) =>
           buildReceipt({
@@ -127,8 +127,8 @@ export function provideMonaparte(): EnvironmentProviders[] {
           }),
       });
 
-      // Les 9 outils du contrat (search_knowledge/remember = leurres RAG, non
-      // enregistrés : ils restent hors de la liste d'activation).
+      // The contract's 9 tools (search_knowledge/remember = RAG decoys, not
+      // registered: they stay out of the activation list).
       aparteGlobalConfig.registerTool(readFileTool, readFileHandler);
       aparteGlobalConfig.registerTool(writeFileTool, writeFileHandler);
       aparteGlobalConfig.registerTool(computeTool, computeHandler);
@@ -136,22 +136,22 @@ export function provideMonaparte(): EnvironmentProviders[] {
       aparteGlobalConfig.registerTool(transformFileTool, transformFileHandler);
       aparteGlobalConfig.registerTool(setReminderTool, setReminderHandler);
 
-      // Sans renderer dédié, la lib n'affiche que le nom de l'outil : l'erreur
-      // du survol (file_id inconnu, image, lecture impossible) restait muette.
+      // Without a dedicated renderer, the lib only shows the tool name: the
+      // hover error (unknown file_id, image, unreadable) stayed silent.
       aparteGlobalConfig.registerToolRenderer('read_file', readFileRenderer);
       aparteGlobalConfig.registerToolRenderer('write_file', artifactCardRenderer);
       aparteGlobalConfig.registerToolRenderer('transform_file', artifactCardRenderer);
       aparteGlobalConfig.registerToolRenderer('create_widget', widgetRenderer);
       aparteGlobalConfig.registerToolRenderer('compute', invisibleRenderer);
-      // La lib n'injecte les styles des tool renderers qu'au tool-start (live) —
-      // au reload il n'y en a pas : injection à l'enregistrement.
+      // The lib only injects tool renderer styles on tool-start (live) —
+      // on reload there is none: inject at registration instead.
       installToolRendererStyles();
 
-      // Persistance des pièces jointes : sans elle la Map du fileRegistry est
-      // vide au reload → bloc « Files available » vide et tous les file_id de
-      // l'historique « inconnus » (les images « disparaissaient »).
-      // Table dédiée : ces ids sont ceux que le modèle recopie, indépendants
-      // du cycle de vie des conversations (cf. SouffleurFileRow).
+      // Persistence of attachments: without it the fileRegistry's Map is
+      // empty on reload → empty "Files available" block and every file_id
+      // from the history "unknown" (images "disappeared").
+      // Dedicated table: these ids are the ones the model copies back,
+      // independent of the conversations' lifecycle (cf. SouffleurFileRow).
       setFileStore({
         put: (entry) =>
           conversationAdapter.db.souffleurFiles.put({
@@ -174,8 +174,8 @@ export function provideMonaparte(): EnvironmentProviders[] {
               mime: row.mimeType,
               blob: row.blob,
               addedAt: row.addedAt,
-              // `undefined` conserve tel quel : c'est une ligne d'avant le
-              // rattachement, a distinguer de `null` (en attente d'adoption).
+              // `undefined` keeps it as-is: it's a row from before the
+              // attachment feature, to be distinguished from `null` (pending adoption).
               convId: row.convId,
             }));
         },
@@ -183,8 +183,8 @@ export function provideMonaparte(): EnvironmentProviders[] {
         clear: () => conversationAdapter.db.souffleurFiles.clear(),
       });
 
-      // Persistance des artefacts produits (blob + aperçu) — indispensable pour
-      // réhydrater les cartes après un reload (la Map mémoire est vide).
+      // Persistence of produced artifacts (blob + preview) — needed to
+      // rehydrate the cards after a reload (the in-memory Map is empty).
       setArtifactSink((toolCallId, artifact, fileId) => {
         void conversationAdapter.db.artifacts.put({
           id: fileId,
@@ -199,7 +199,7 @@ export function provideMonaparte(): EnvironmentProviders[] {
         });
       });
       setArtifactLoader(async (toolCallId) => {
-        // msgId non indexé : simple scan (table artifacts petite).
+        // msgId not indexed: plain scan (small artifacts table).
         const row = await conversationAdapter.db.artifacts
           .filter((r) => r.msgId === toolCallId)
           .first();
@@ -213,8 +213,8 @@ export function provideMonaparte(): EnvironmentProviders[] {
         };
       });
 
-      // Capture des pièces jointes AU MOMENT de l'envoi : le détail
-      // d'aparte-send ne les porte pas, mais le composer source les expose.
+      // Capture attachments AT SEND TIME: aparte-send's detail doesn't carry
+      // them, but the source composer exposes them.
       window.addEventListener(
         'aparte-send',
         (event) => {
@@ -232,23 +232,23 @@ export function provideMonaparte(): EnvironmentProviders[] {
       inject(RichRenderService).install();
 
       const manager = inject(ConversationManagerService);
-      // Rattache chaque fichier joint a son fil. Sans ce resolveur, le bloc
-      // « Files available » annonce au modele TOUS les fichiers jamais joints,
-      // dans n'importe quelle conversation. Pose avant le premier envoi : le
-      // registre le consulte a l'enregistrement et a la construction du bloc.
+      // Attaches each joined file to its thread. Without this resolver, the
+      // "Files available" block would announce to the model EVERY file ever
+      // attached, in any conversation. Set before the first send: the
+      // registry consults it at registration and when building the block.
       setConversationResolver(() => manager.activeId() || null);
       const settings = inject(SettingsService);
       await Promise.all([
         manager.init(conversationAdapter),
         settings.init(conversationAdapter),
-        // AVANT tout envoi : le bloc « Files available » et la résolution des
-        // file_id par les outils sont synchrones, la Map doit être pleine.
+        // BEFORE any send: the "Files available" block and the resolution of
+        // file_id by the tools are synchronous, the Map must be full.
         fileRegistry.hydrate(),
       ]);
     }),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
-      // Ne concurrence jamais le téléchargement du modèle au premier lancement.
+      // Never competes with the model download on first launch.
       registrationStrategy: 'registerWhenStable:30000',
     }),
   ];

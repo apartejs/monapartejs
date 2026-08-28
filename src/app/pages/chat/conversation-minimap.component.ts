@@ -15,9 +15,9 @@ interface MinimapDot {
 }
 
 /**
- * Minimap de conversation (iso aimi) : rail de pastilles, une par bulle,
- * hauteur ∝ hauteur du message, scroll-spy, clic pour naviguer. Purement
- * décoratif : observe le DOM du chat sans toucher au state. Caché <1100px.
+ * Conversation minimap (iso aimi): rail of dots, one per bubble,
+ * height ∝ message height, scroll-spy, click to navigate. Purely
+ * decorative: observes the chat DOM without touching state. Hidden <1100px.
  */
 @Component({
   selector: 'bp-conversation-minimap',
@@ -103,7 +103,7 @@ export class ConversationMinimapComponent implements AfterViewInit {
     resize.observe(chat);
 
     const onScroll = () => this.updateActive();
-    // Le conteneur défilant apparaît après le premier rendu du web component.
+    // The scrolling container appears after the web component's first render.
     const attach = () => {
       const scroller = chat.querySelector<HTMLElement>('.aparte-viewport-container');
       if (scroller && scroller !== this.scroller) {

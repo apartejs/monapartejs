@@ -1,8 +1,8 @@
 /**
- * Modal de mise à jour du modèle (équivalent aimini-update-modal d'aimi) :
- * s'affiche quand les poids en cache ne correspondent plus à la version du
- * catalogue. Obligatoire — pas de « plus tard » (choix produit aimi V0.2 :
- * un caller dépassé ≠ contrat, l'expérience serait cassée).
+ * Model update modal (equivalent to aimi's aimini-update-modal):
+ * shown when the cached weights no longer match the catalog version.
+ * Mandatory — no "later" (aimi V0.2 product choice: an outdated caller
+ * != contract, the experience would be broken).
  */
 import {
   ChangeDetectionStrategy,
@@ -120,10 +120,10 @@ export class ModelUpdateModalComponent {
   protected readonly t = this.i18n.t;
 
   /**
-   * Poids réel de la mise à jour. Fichiers versionnés immuables : la base
-   * reste en cache, seul l'adapter change (~86 Mo) — PLUS la tour vision
-   * (~269 Mo) quand elle est publiée et pas encore téléchargée. Annoncer 86 Mo
-   * alors qu'on en tire 355 serait mentir à l'utilisateur.
+   * Actual weight of the update. Immutable versioned files: the base stays
+   * cached, only the adapter changes (~86 MB) — PLUS the vision tower
+   * (~269 MB) when it's published and not yet downloaded. Announcing 86 MB
+   * while actually pulling 355 would be lying to the user.
    */
   private readonly pendingBytes = signal(SIZE_ADAPTER_BYTES);
 
@@ -145,7 +145,7 @@ export class ModelUpdateModalComponent {
       }
       this.pendingBytes.set(bytes || SIZE_ADAPTER_BYTES);
     } catch {
-      /* hors-ligne : on garde l'estimation par défaut */
+      /* offline: keep the default estimate */
     }
   }
 
@@ -170,9 +170,9 @@ export class ModelUpdateModalComponent {
   });
 
   protected async update(): Promise<void> {
-    // Pas de purge : le nouveau .data a un NOM versionné inédit → cache-miss,
-    // téléchargement naturel, base réutilisée. markSeen est fait par le
-    // provider au chargement réussi.
+    // No purge: the new .data has a brand-new versioned NAME -> cache miss,
+    // natural download, base reused. markSeen is done by the provider on
+    // successful load.
     await this.preload.start();
     if (this.preload.state() === 'done') this.updated.emit();
   }

@@ -1,6 +1,6 @@
 /**
- * Runner de la sandbox : un Worker FRAIS par exécution (isolation maximale),
- * timeout dur par terminate(). Le code généré ne partage jamais d'état.
+ * Sandbox runner: a FRESH Worker per execution (maximum isolation),
+ * hard timeout via terminate(). The generated code never shares state.
  */
 import type { SandboxLib } from './sandbox.worker';
 
@@ -57,7 +57,7 @@ export function runInSandbox(
   });
 }
 
-/** Nettoie la sortie code d'un souffleur : fences markdown, im_end résiduel. */
+/** Cleans up a souffleur's code output: markdown fences, leftover im_end. */
 export function extractCode(raw: string): string {
   let code = raw.split('<|im_end|>')[0].trim();
   const fence = code.match(/```(?:javascript|js)?\s*\n?([\s\S]*?)```/);

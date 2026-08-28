@@ -1,7 +1,7 @@
 /**
- * compute — souffleur-sandbox : le code généré est exécuté en sandbox Worker,
- * SEUL le résultat est réinjecté (l'utilisateur ne voit jamais le code —
- * règle du contrat). Segment invisible (renderer vide).
+ * compute — souffleur-sandbox: the generated code is executed in a sandbox Worker,
+ * ONLY the result is reinjected (the user never sees the code —
+ * a contract rule). Invisible segment (empty renderer).
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { SANDBOX_JS_SYSTEM } from '../executors/executor-prompts';

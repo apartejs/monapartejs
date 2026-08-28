@@ -34,7 +34,7 @@ const okFetch = () =>
   );
 
 describe('SouffleurManifestClient', () => {
-  it('charge le manifest en no-store et résout fichiers/versions', async () => {
+  it('loads the manifest in no-store and resolves files/versions', async () => {
     okFetch();
     const m = new SouffleurManifestClient('https://hf.example/repo/resolve/main/');
     await m.load();
@@ -48,7 +48,7 @@ describe('SouffleurManifestClient', () => {
     expect(m.size('chat')).toBe(90544128);
   });
 
-  it('détection : hasUpdate tant que markSeen n’a pas mémorisé, plus après', async () => {
+  it('detection: hasUpdate until markSeen has remembered, not after', async () => {
     okFetch();
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
@@ -57,14 +57,14 @@ describe('SouffleurManifestClient', () => {
     m.markSeen('chat');
     expect(m.hasUpdate('chat')).toBe(false);
 
-    // Nouveau client (reboot) : versions vues persistées.
+    // New client (reboot): seen versions persisted.
     const m2 = new SouffleurManifestClient('https://hf.example/r');
     await m2.load();
     expect(m2.hasUpdate('chat')).toBe(false);
     expect(m2.hasUpdate('pdf')).toBe(true);
   });
 
-  it('hors-ligne : retombe sur le dernier manifest bon connu', async () => {
+  it('offline: falls back to the last known-good manifest', async () => {
     okFetch();
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
@@ -80,7 +80,7 @@ describe('SouffleurManifestClient', () => {
     expect(m2.file('chat')).toBe('adapters/souffleur-chat-0.2.0.data');
   });
 
-  it('premier lancement sans réseau ni cache : fallback legacy (noms non versionnés)', async () => {
+  it('first launch with no network or cache: legacy fallback (unversioned names)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('nope', { status: 404 })),
@@ -91,19 +91,19 @@ describe('SouffleurManifestClient', () => {
     expect(m.version('chat')).toBe('legacy');
   });
 
-  it('adapterRole mappe les noms d’adapters vers les rôles du manifest', () => {
+  it('adapterRole maps adapter names to manifest roles', () => {
     expect(adapterRole('souffleur-chat')).toBe('chat');
     expect(adapterRole('souffleur-xlsx-docx')).toBe('xlsx-docx');
   });
 });
 
 /**
- * Bloc `vision` : la tour détachable + le graphe greffé qui l'accepte.
- * Le graphe greffé étant bit-identique en texte (écart de logits mesuré :
- * 0.000e+00), il sert pour TOUT dès qu'il est publié — texte et vision ne
- * diffèrent alors plus que par `adapter.data`, comme un swap de souffleur.
+ * `vision` block: the detachable tower + the grafted graph that accepts it.
+ * Since the grafted graph is bit-identical in text (measured logits gap:
+ * 0.000e+00), it's used for EVERYTHING once published — text and vision then
+ * only differ by `adapter.data`, like a souffleur swap.
  */
-describe('SouffleurManifestClient — bloc vision', () => {
+describe('SouffleurManifestClient — vision block', () => {
   const VISION = {
     version: '0.1.0',
     graph: 'onnx/model_vision_q4.onnx',
@@ -113,7 +113,7 @@ describe('SouffleurManifestClient — bloc vision', () => {
     size: 269_390_206,
   };
 
-  it('vision publiée : modelFileName pointe le graphe greffé', async () => {
+  it('vision published: modelFileName points to the grafted graph', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(
@@ -122,15 +122,15 @@ describe('SouffleurManifestClient — bloc vision', () => {
     );
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
-    // 'onnx/model_vision_q4.onnx' -> 'model_vision' (tjs recolle le suffixe dtype)
+    // 'onnx/model_vision_q4.onnx' -> 'model_vision' (tjs re-appends the dtype suffix)
     expect(m.modelFileName()).toBe('model_vision');
     expect(m.vision()?.tower).toBe('onnx/vision-tower-0.1.0.onnx');
     expect(m.vision()?.tower_internal_data).toBe('embed_images_q4.onnx_data');
-    // Les poids ne sont PAS dupliqués : la vision partage base.weights.
+    // Weights are NOT duplicated: vision shares base.weights.
     expect(m.baseWeightsFile()).toBe('onnx/model_q4.onnx_data');
   });
 
-  it('vision absente : on retombe sur le graphe texte, rien ne casse', async () => {
+  it('vision absent: falls back to the text graph, nothing breaks', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify(MANIFEST), { status: 200 })),
@@ -141,7 +141,7 @@ describe('SouffleurManifestClient — bloc vision', () => {
     expect(m.modelFileName()).toBe('model');
   });
 
-  it('manifest legacy (hors-ligne, jamais chargé) : pas de vision', async () => {
+  it('legacy manifest (offline, never loaded): no vision', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('nope', { status: 404 })),
@@ -154,12 +154,12 @@ describe('SouffleurManifestClient — bloc vision', () => {
 });
 
 /**
- * Flux de mise à jour de la tour. La vision fait partie du modèle (pas une
- * option), donc une tour publiée jamais vue doit ouvrir le MÊME modal que les
- * souffleurs. `markSeen()`/`hasUpdate()` n'itéraient que sur les rôles, donc
- * une install existante ne se voyait JAMAIS rien proposer.
+ * Tower update flow. Vision is part of the model (not an option), so a
+ * published tower never seen before must open the SAME modal as the
+ * souffleurs. `markSeen()`/`hasUpdate()` only iterated over roles, so an
+ * existing install was NEVER offered anything.
  */
-describe('SouffleurManifestClient — mise à jour de la tour', () => {
+describe('SouffleurManifestClient — tower update', () => {
   const VISION = {
     version: '0.1.0',
     graph: 'onnx/model_vision_q4.onnx',
@@ -174,7 +174,7 @@ describe('SouffleurManifestClient — mise à jour de la tour', () => {
       vi.fn(async () => new Response(JSON.stringify({ ...MANIFEST, vision }), { status: 200 })),
     );
 
-  it('tour jamais vue → mise à jour proposée, puis plus après markSeenVision', async () => {
+  it('tower never seen → update offered, then not after markSeenVision', async () => {
     withVision();
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
@@ -182,13 +182,13 @@ describe('SouffleurManifestClient — mise à jour de la tour', () => {
     m.markSeenVision();
     expect(m.visionHasUpdate()).toBe(false);
 
-    // Reboot : la version vue est persistée.
+    // Reboot: the seen version is persisted.
     const m2 = new SouffleurManifestClient('https://hf.example/r');
     await m2.load();
     expect(m2.visionHasUpdate()).toBe(false);
   });
 
-  it('tour bumpée → reproposée', async () => {
+  it('tower bumped → re-offered', async () => {
     withVision();
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
@@ -200,7 +200,7 @@ describe('SouffleurManifestClient — mise à jour de la tour', () => {
     expect(m2.visionHasUpdate()).toBe(true);
   });
 
-  it('markSeen() global mémorise aussi la tour', async () => {
+  it('global markSeen() also remembers the tower', async () => {
     withVision();
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
@@ -208,7 +208,7 @@ describe('SouffleurManifestClient — mise à jour de la tour', () => {
     expect(m.visionHasUpdate()).toBe(false);
   });
 
-  it('markSeen(role) ciblé ne clôt PAS le cycle de la tour', async () => {
+  it('targeted markSeen(role) does NOT close the tower cycle', async () => {
     withVision();
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
@@ -216,7 +216,7 @@ describe('SouffleurManifestClient — mise à jour de la tour', () => {
     expect(m.visionHasUpdate()).toBe(true);
   });
 
-  it('urls et poids de la tour résolus depuis le manifest', async () => {
+  it('tower urls and weight resolved from the manifest', async () => {
     withVision();
     const m = new SouffleurManifestClient('https://hf.example/repo/resolve/main');
     await m.load();
@@ -227,7 +227,7 @@ describe('SouffleurManifestClient — mise à jour de la tour', () => {
     expect(m.visionSize()).toBe(269_390_206);
   });
 
-  it('pas de tour publiée : rien à proposer, rien à résoudre', async () => {
+  it('no tower published: nothing to offer, nothing to resolve', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(JSON.stringify(MANIFEST), { status: 200 })),

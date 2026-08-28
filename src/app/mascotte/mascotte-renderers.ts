@@ -1,6 +1,6 @@
 /**
- * Renderers lib (DOM pur, sans Angular) — la mascotte remplace l'indicateur
- * de frappe et le rendu d'erreur d'aparté. Candidat @aparte/plugin-mascot.
+ * Lib renderers (plain DOM, no Angular) — the mascot replaces aparté's
+ * typing indicator and error rendering. Candidate for @aparte/plugin-mascot.
  */
 import { aparteGlobalConfig } from '@aparte/core';
 
@@ -19,7 +19,7 @@ function faceEl(face: string, suffixClass?: string): HTMLElement {
   return wrap;
 }
 
-/** Indicateur « en train d'écrire » : ('.')… + texte de statut. */
+/** "Currently writing" indicator: ('.')… + status text. */
 function statusRenderer(text: string): HTMLElement {
   const el = faceEl("('.')", 'bp-mascotte-dots');
   const label = document.createElement('span');
@@ -29,7 +29,7 @@ function statusRenderer(text: string): HTMLElement {
   return el;
 }
 
-/** Erreur : (x.x) + message (textContent — jamais d'innerHTML). */
+/** Error: (x.x) + message (textContent — never innerHTML). */
 function errorRenderer({ message }: { message: string }): HTMLElement {
   const el = faceEl('(x.x)');
   const label = document.createElement('span');

@@ -1,7 +1,7 @@
 /**
- * Garde-liens (iso aimi) : tout lien http(s) externe cliqué dans une réponse
- * générée passe par une confirmation avant ouverture (noopener, noreferrer).
- * Dialog en DOM pur (même approche que les renderers mascotte).
+ * Link guard (mirrors aimi): every external http(s) link clicked in a
+ * generated reply goes through a confirmation before opening (noopener, noreferrer).
+ * Dialog in plain DOM (same approach as the mascot renderers).
  */
 import { Injectable, inject } from '@angular/core';
 import { TranslateService } from './i18n/translate.service';
@@ -19,7 +19,7 @@ export class LinkGuardService {
       (event) => {
         const anchor = (event.target as HTMLElement | null)?.closest?.('a[href]');
         if (!anchor) return;
-        // Uniquement les liens à l'intérieur du chat (contenu généré).
+        // Only links inside the chat (generated content).
         if (!anchor.closest('aparte-chat, [data-aparte-chat]')) return;
         const href = anchor.getAttribute('href') ?? '';
         let url: URL;

@@ -6,9 +6,9 @@
 .shell {
   display: grid;
   grid-template-columns: var(--bp-sidebar-width) minmax(0, 1fr);
-  /* Ligne EXPLICITE : une ligne implicite se dimensionne au contenu et casse
-   * toute la chaîne height:100% en dessous (le viewport de la lib ne reçoit
-   * jamais sa hauteur → plus aucun scroll interne). */
+  /* EXPLICIT row: an implicit row sizes itself to its content and breaks
+   * the whole height:100% chain below (the lib's viewport never receives
+   * its height → no more internal scroll at all). */
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
   transition: grid-template-columns 0.25s ease;
@@ -96,16 +96,16 @@
 .content {
   flex: 1;
   min-height: 0;
-  /* Pistes explicites : l'enfant routé (bp-chat-page) est étiré sur une piste
-   * DÉFINIE — son height:100% se résout de façon fiable. */
+  /* Explicit tracks: the routed child (bp-chat-page) is stretched onto a
+   * DEFINED track — its height:100% resolves reliably. */
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
 
-  /* <router-outlet> n'est qu'un marqueur (le composant routé s'insère comme
-   * FRÈRE) : on le sort du layout pour qu'il ne soit jamais étiré/affiché,
-   * et on cale le composant routé dans l'unique cellule. */
+  /* <router-outlet> is just a marker (the routed component is inserted as a
+   * SIBLING): we take it out of the layout so it's never stretched/shown,
+   * and pin the routed component into the single cell. */
   > router-outlet {
     display: none;
   }
@@ -117,9 +117,9 @@
   }
 }
 
-/* Comme sur aimi : la mascotte coin vit dans la gouttière à droite du contenu
- * centré (760px). Sous 1100px il n'y a plus de gouttière → masquée, jamais
- * par-dessus le composer. */
+/* As on aimi: the corner mascot lives in the gutter to the right of the
+ * centered content (760px). Below 1100px there's no more gutter → hidden,
+ * never over the composer. */
 .corner-mascotte {
   position: fixed;
   right: 22px;

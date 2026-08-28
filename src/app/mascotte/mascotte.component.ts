@@ -11,10 +11,10 @@ import {
 import { MASCOTTE_FACES, type MascotteFace, type MascotteState } from './mascotte-states';
 
 /**
- * Mascotte ('.') — typographique, hérite du thème (brass via --aparte-primary).
- * Interactive : clin d'œil aléatoire en idle (8-15 s), boop au clic.
- * Animations plafonnées en steps() ; décoratives → gelées par
- * `body.bp-generating .bp-decorative` pendant le décodage GPU.
+ * Mascot ('.') — typographic, inherits the theme (brass via --aparte-primary).
+ * Interactive: random wink while idle (8-15 s), boop on click.
+ * Animations capped with steps(); decorative ones → frozen by
+ * `body.bp-generating .bp-decorative` during GPU decoding.
  */
 @Component({
   selector: 'bp-mascotte',
@@ -158,7 +158,7 @@ export class MascotteComponent {
   });
 
   constructor() {
-    // Micro-expression : clin d'œil aléatoire toutes les 8-15 s en idle.
+    // Micro-expression: random wink every 8-15 s while idle.
     effect((onCleanup) => {
       clearTimeout(this.winkTimer);
       if (this.state() !== 'idle' || !this.interactive()) return;

@@ -1,4 +1,4 @@
-/** Traductions app (les chaînes des composants aparte viennent de la lib). */
+/** App translations (the aparte components' strings come from the lib). */
 
 export interface Translations {
   brand: string;

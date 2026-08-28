@@ -1,12 +1,12 @@
 /**
- * Parseur de la sortie du caller souffleur-chat — port TS de
- * toolmap_v6.py::parse_pythonic_calls (AST/literal-eval, PAS de regex sur le
- * contenu des appels) durci avec les leçons du harness navigateur :
- *  - kwargs uniquement : `nom(cle=valeur, ...)`, valeurs = littéraux Python
- *    (strings, nombres, True/False/None — et tolérance true/false/null),
- *    listes et dicts imbriqués ;
- *  - tolérance pseudo-python `{cle=valeur}` (kwarg halluciné dans un dict) ;
- *  - bloc imparsable → appel `__unparseable__` avec le texte brut, jamais de crash.
+ * Parser for the souffleur-chat caller's output — TS port of
+ * toolmap_v6.py::parse_pythonic_calls (AST/literal-eval, NO regex on the
+ * calls' content) hardened with lessons from the browser harness:
+ *  - kwargs only: `name(key=value, ...)`, values = Python literals
+ *    (strings, numbers, True/False/None — with true/false/null tolerance),
+ *    nested lists and dicts;
+ *  - pseudo-python `{key=value}` tolerance (hallucinated kwarg inside a dict);
+ *  - unparseable block → `__unparseable__` call with the raw text, never a crash.
  */
 
 export interface ParsedToolCall {
@@ -15,7 +15,7 @@ export interface ParsedToolCall {
 }
 
 export interface ParsedOutput {
-  /** Texte du tour, blocs tool_call et <think> retirés, trimmé. */
+  /** Turn text, tool_call and <think> blocks removed, trimmed. */
   text: string;
   calls: ParsedToolCall[];
 }
@@ -36,7 +36,7 @@ export function parsePythonicOutput(raw: string): ParsedOutput {
   return { text, calls };
 }
 
-/** Parse le contenu d'un bloc : liste d'appels `[a(...), b(...)]` ou appel nu. */
+/** Parses a block's content: list of calls `[a(...), b(...)]` or bare call. */
 export function parseCallList(inner: string): ParsedToolCall[] {
   if (!inner) return [];
   try {
@@ -114,7 +114,7 @@ class Scanner {
         case 'null':
           return null;
         default:
-          // Équivalent du fallback ast.unparse : représentation brute en string.
+          // Equivalent of the ast.unparse fallback: raw string representation.
           return word;
       }
     }
@@ -166,7 +166,7 @@ class Scanner {
             this.pos += 4;
             break;
           default:
-            // Python conserve l'antislash pour un échappement inconnu.
+            // Python keeps the backslash for an unknown escape.
             out += '\\' + e;
         }
       } else {
@@ -212,8 +212,8 @@ class Scanner {
         key = this.parseIdent();
       }
       this.skipWs();
-      // ':' = dict Python valide ; '=' = pseudo-python halluciné ({cle="val"}),
-      // toléré comme le fallback regex de toolmap_v6.py.
+      // ':' = valid Python dict; '=' = hallucinated pseudo-python ({key="val"}),
+      // tolerated like toolmap_v6.py's regex fallback.
       const sep = this.src[this.pos];
       if (sep !== ':' && sep !== '=') throw new Error(`expected : or = at ${this.pos}`);
       this.pos++;

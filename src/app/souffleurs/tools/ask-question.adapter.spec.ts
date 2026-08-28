@@ -1,8 +1,8 @@
 /**
- * Le tour d'outil qui suit `ask_question` doit avoir la forme du dataset
- * (`{ok, type, answers:[{value}|{values}]}`), et le reçu affiché doit retrouver
- * la prose que le plugin sait rendre. Les deux conversions sont inverses l'une
- * de l'autre — c'est ce qui est vérifié ici.
+ * The tool turn that follows `ask_question` must have the dataset's shape
+ * (`{ok, type, answers:[{value}|{values}]}`), and the displayed receipt must recover
+ * the prose that the plugin knows how to render. The two conversions are inverses
+ * of each other — that's what's verified here.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -36,8 +36,8 @@ const two = {
   ],
 };
 
-describe('toTrainingResult — prose du plugin → JSON du dataset', () => {
-  it('une question, une valeur', () => {
+describe('toTrainingResult — plugin prose → dataset JSON', () => {
+  it('one question, one value', () => {
     expect(toTrainingResult('pdf', single)).toEqual({
       ok: true,
       type: 'ask_question',
@@ -45,20 +45,20 @@ describe('toTrainingResult — prose du plugin → JSON du dataset', () => {
     });
   });
 
-  it('une question multi → values', () => {
+  it('one multi question → values', () => {
     expect(toTrainingResult('Nom, Prix', singleMulti).answers).toEqual([
       { values: ['Nom', 'Prix'] },
     ]);
   });
 
-  it('plusieurs questions : une ligne « question → réponse » chacune', () => {
+  it('several questions: one "question → answer" line each', () => {
     expect(toTrainingResult('Format ? → xlsx\nColonnes ? → Nom, Prix', two).answers).toEqual([
       { value: 'xlsx' },
       { values: ['Nom', 'Prix'] },
     ]);
   });
 
-  it('refus → ok:false, sans answers', () => {
+  it('decline → ok:false, no answers', () => {
     expect(toTrainingResult(PLUGIN_DECLINED_TEXT, single)).toEqual({
       ok: false,
       type: 'ask_question',
@@ -67,25 +67,25 @@ describe('toTrainingResult — prose du plugin → JSON du dataset', () => {
   });
 });
 
-describe('askQuestionReceiptText — JSON → prose, inverse exacte', () => {
+describe('askQuestionReceiptText — JSON → prose, exact inverse', () => {
   it.each([
     ['pdf', single],
     ['Nom, Prix', singleMulti],
     ['Format ? → xlsx\nColonnes ? → Nom, Prix', two],
     [PLUGIN_DECLINED_TEXT, single],
-  ])('aller-retour sur %j', (plain, input) => {
+  ])('round-trip on %j', (plain, input) => {
     const json = JSON.stringify(toTrainingResult(plain, input));
     expect(askQuestionReceiptText(json, input)).toBe(plain);
   });
 
-  it("laisse passer un résultat d'avant ce format (historique)", () => {
+  it('lets a pre-this-format result pass through (legacy)', () => {
     expect(askQuestionReceiptText('pdf', single)).toBe('pdf');
     expect(askQuestionReceiptText(undefined, single)).toBeUndefined();
   });
 });
 
 describe('souffleurAskQuestionHandler', () => {
-  it('renvoie le JSON du dataset au modèle, pas la prose du plugin', async () => {
+  it('returns the dataset JSON to the model, not the plugin prose', async () => {
     vi.mocked(askUserHandler).mockResolvedValue({ toolCallId: 'c1', content: 'pdf' });
     const out = await souffleurAskQuestionHandler(
       { id: 'c1', name: 'ask_question', input: single },
@@ -98,7 +98,7 @@ describe('souffleurAskQuestionHandler', () => {
     });
   });
 
-  it('garde le nom du contrat et retire le systemPrompt du plugin', () => {
+  it('keeps the contract name and strips the plugin systemPrompt', () => {
     expect(souffleurAskQuestionTool.name).toBe('ask_question');
     expect('systemPrompt' in souffleurAskQuestionTool).toBe(false);
   });

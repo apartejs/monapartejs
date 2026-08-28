@@ -1,6 +1,6 @@
 /**
- * Module souffleurs — provider IA local d'aparté (candidat @aparte/provider-souffleurs).
- * Framework-agnostic : aucune dépendance Angular ici.
+ * souffleurs module — aparté's local AI provider (candidate @aparte/provider-souffleurs).
+ * Framework-agnostic: no Angular dependency here.
  */
 export {
   SouffleursProvider,

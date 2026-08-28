@@ -1,9 +1,9 @@
 /**
- * Page de DEBUG (non liée dans l'UI) : /debug/artefacts
- * Exerce le renderer de carte artefact sur les trois chemins critiques SANS
- * modèle : carte fraîche (Map remplie), carte « reload » (Map vide →
- * réhydratation Dexie), live streaming (code coloré). Un vrai PDF 3 pages est
- * généré localement via jsPDF.
+ * DEBUG page (not linked in the UI): /debug/artefacts
+ * Exercises the artifact card renderer on the three critical paths WITHOUT
+ * a model: fresh card (Map filled), "reload" card (empty Map ->
+ * Dexie rehydration), live streaming (colored code). A real 3-page PDF is
+ * generated locally via jsPDF.
  */
 import { AfterViewInit, Component, ElementRef, inject, viewChild } from '@angular/core';
 import type { AparteToolCallSegment } from '@aparte/core';
@@ -66,12 +66,12 @@ export class DebugArtefactsComponent implements AfterViewInit {
   private readonly host = inject(ElementRef);
 
   async ngAfterViewInit(): Promise<void> {
-    // PAS d'injection manuelle de styles : le harnais doit passer par le même
-    // chemin que l'app réelle (installToolRendererStyles dans aparte.config) —
-    // c'est ce qui aurait détecté le bug « carte sans styles au reload ».
+    // NO manual style injection: the harness must go through the same
+    // path as the real app (installToolRendererStyles in aparte.config) —
+    // that's what would have caught the "card without styles on reload" bug.
     const artifact = await makePdfArtifact();
 
-    // ── Cas 1 : carte fraîche ──
+    // ── Case 1: fresh card ──
     artifactsByCall.set('dbg-fresh', artifact);
     this.mount(this.fresh().nativeElement, {
       id: 'seg-fresh',
@@ -81,7 +81,7 @@ export class DebugArtefactsComponent implements AfterViewInit {
       result: JSON.stringify({ ok: true, type: 'pdf', filename: artifact.filename, size_kb: 9.3 }),
     } as AparteToolCallSegment);
 
-    // ── Cas 2 : « reload » — rien en Map, PAS de result ; Dexie seulement ──
+    // ── Case 2: "reload" — nothing in Map, NO result; Dexie only ──
     await conversationAdapter.db.artifacts.put({
       id: 'dbg-file-reload',
       convId: '',
@@ -102,7 +102,7 @@ export class DebugArtefactsComponent implements AfterViewInit {
       result: undefined,
     } as unknown as AparteToolCallSegment);
 
-    // ── Cas 3 : live streaming du code ──
+    // ── Case 3: live code streaming ──
     this.mount(this.live().nativeElement, {
       id: 'seg-live',
       type: 'tool_call',
@@ -121,9 +121,9 @@ export class DebugArtefactsComponent implements AfterViewInit {
   }
 
   private mount(host: HTMLElement, segment: AparteToolCallSegment): void {
-    // Depuis aparté 0.13 un renderer peut rendre un HTMLElement déjà monté
-    // plutôt qu'une chaîne — le bras sûr, sans surface innerHTML. Le nôtre
-    // rend encore une chaîne, mais le contrat porte l'union : on traite les deux.
+    // Since aparté 0.13 a renderer can render an already-mounted HTMLElement
+    // rather than a string — the safe arm, with no innerHTML surface. Ours
+    // still renders a string, but the contract carries the union: we handle both.
     const rendered = artifactCardRenderer.render(segment);
     let el: HTMLElement | null;
     if (typeof rendered === 'string') {

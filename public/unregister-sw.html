@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>aparté — réinitialiser le service worker</title>
+  <title>aparté — reset the service worker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { font-family: Georgia, serif; background: #f6f2ea; color: #241f2b; display: grid; place-items: center; min-height: 100vh; margin: 0; }
@@ -15,10 +15,10 @@
 <body>
   <div class="card">
     <div class="face">(x.x)</div>
-    <h1>Réinitialiser le service worker</h1>
-    <p>Page de secours : désinscrit le service worker d'aparté et vide ses caches applicatifs.<br>
-       Le modèle téléchargé (cache Hugging Face) n'est pas touché.</p>
-    <button id="go">Désinscrire et recharger</button>
+    <h1>Reset the service worker</h1>
+    <p>Fallback page: unregisters aparté's service worker and clears its app caches.<br>
+       The downloaded model (Hugging Face cache) is left untouched.</p>
+    <button id="go">Unregister and reload</button>
     <p id="out"></p>
   </div>
   <script>
@@ -31,10 +31,10 @@
         for (const key of keys) {
           if (key.startsWith('ngsw:')) await caches.delete(key);
         }
-        out.textContent = 'Fait — rechargement…';
+        out.textContent = 'Done — reloading…';
         setTimeout(() => location.href = '/', 800);
       } catch (e) {
-        out.textContent = 'Erreur : ' + e;
+        out.textContent = 'Error: ' + e;
       }
     });
   </script>

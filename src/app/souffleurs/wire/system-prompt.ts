@@ -1,6 +1,6 @@
 import { ASSISTANT_NAME, SOUFFLEUR_TOOL_DEFS, SP_CORE_TEMPLATE } from './tool-defs';
 
-/** Référence de fichier joint, telle que sérialisée dans le bloc « Files available ». */
+/** Attached file reference, as serialized in the "Files available" block. */
 export interface SouffleurFileRef {
   id: string;
   name: string;
@@ -8,27 +8,27 @@ export interface SouffleurFileRef {
 }
 
 /**
- * MESURE, pour ne pas la refaire : ajouter au corps de sp-chat une phrase
- * affirmant « les fichiers de Files available SONT lisibles » ne change RIEN.
- * A/B sur le modèle réellement déployé (aparte-repetitions/export/run_souffleur.py
- * --ab, graphe injecté + adapter souffleur-chat) : sur « Bonjour, que sais-tu
- * faire ? » la réponse est identique AU TOKEN PRÈS, déni compris. Et sur les
- * demandes concrètes (« tu peux lire mes fichiers ? », « que peux-tu me dire de
- * cette image ? », « tu sais analyser un document ? ») le modèle appelle
- * correctement `read_file` — avec ET sans la phrase.
+ * MEASURED, so as not to redo it: adding a sentence to the sp-chat body
+ * asserting "the Files available files ARE readable" changes NOTHING.
+ * A/B on the actually deployed model (aparte-repetitions/export/run_souffleur.py
+ * --ab, injected graph + souffleur-chat adapter): on "Hello, what can you
+ * do?" the answer is identical DOWN TO THE TOKEN, denial included. And on
+ * concrete requests ("can you read my files?", "what can you tell me about
+ * this image?", "can you analyze a document?") the model correctly calls
+ * `read_file` — with AND without the sentence.
  *
- * Le défaut n'est donc PAS « il croit ne pas savoir lire des fichiers » : c'est
- * une auto-présentation mémorisée, déclenchée par la seule question d'inventaire
- * ouverte. Le prompt n'a pas de prise dessus ; le correctif est côté données
- * (aparte-repetitions), sur la forme « on lui demande ce qu'il sait faire ».
- * On garde donc le corps VERBATIM du contrat — 60 tokens par tour pour zéro
- * effet, ce n'était pas un échange acceptable.
+ * The defect is therefore NOT "it thinks it can't read files": it's a
+ * memorized self-presentation, triggered by the open inventory question
+ * alone. The prompt has no leverage over it; the fix is on the data side
+ * (aparte-repetitions), on the "asking it what it can do" shape. So we keep
+ * the contract's body VERBATIM — 60 tokens per turn for zero effect wasn't an
+ * acceptable trade.
  *
- * Assemble le prompt système du caller — format d'entraînement exact :
- * corps sp-chat + "\n\nList of tools: " + JSON + "\n\nFiles available: " + JSON.
- * Les outils sont émis dans l'ordre du contrat, quel que soit l'ordre d'activation ;
- * un nom inconnu du contrat est ignoré. Aucun outil actif → pas de bloc tools
- * (comportement du rendu d'entraînement).
+ * Assembles the caller's system prompt — exact training format:
+ * sp-chat body + "\n\nList of tools: " + JSON + "\n\nFiles available: " + JSON.
+ * Tools are emitted in the contract's order, regardless of activation order;
+ * a name unknown to the contract is ignored. No active tool → no tools block
+ * (behavior of the training rendering).
  */
 export function buildSystemPrompt(
   enabledToolNames: readonly string[],

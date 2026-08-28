@@ -1,6 +1,6 @@
 /**
- * set_reminder — l'appel EST la sortie structurée (contrat) : l'app persiste
- * le rappel localement et programme une Notification si l'échéance est proche.
+ * set_reminder — the call IS the structured output (contract): the app persists
+ * the reminder locally and schedules a Notification if the deadline is near.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 
@@ -61,10 +61,10 @@ export const setReminderHandler: AparteToolHandler = async (call) => {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify([...readReminders(), reminder]));
   } catch {
-    /* stockage indisponible : rappel de session seulement */
+    /* storage unavailable: session-only reminder */
   }
 
-  // Notification locale si l'échéance tombe pendant que l'app est ouverte.
+  // Local notification if the deadline falls while the app is open.
   const delay = date.getTime() - Date.now();
   if (delay > 0 && delay < MAX_TIMEOUT_MS && 'Notification' in window) {
     void Notification.requestPermission().then((perm) => {

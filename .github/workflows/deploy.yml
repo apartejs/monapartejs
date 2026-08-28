@@ -1,8 +1,8 @@
-name: Vérifier, construire l'image, déployer
+name: Verify, build the image, deploy
 
-# Le build tourne ICI, pas sur le serveur Coolify : un build Angular en
-# production dépasse volontiers 2 Go de RAM, ce qui est de trop pour une petite
-# instance. Coolify ne fait plus que tirer l'image depuis GHCR.
+# The build runs HERE, not on the Coolify server: an Angular production
+# build readily exceeds 2 GB of RAM, too much for a small instance. Coolify
+# now only pulls the image from GHCR.
 on:
   push:
     branches: [main]
@@ -10,8 +10,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Un push qui suit de près annule le précédent : inutile de déployer un
-  # commit déjà dépassé.
+  # A push that follows closely cancels the previous one: no point deploying
+  # an already-superseded commit.
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
@@ -21,7 +21,7 @@ env:
 
 jobs:
   verify:
-    name: Types et tests
+    name: Types and tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,11 +40,11 @@ jobs:
       - name: Types (application)
         run: pnpm typecheck
 
-      # Passe SÉPARÉE, et ce n'est pas une redondance : tsc ne résout pas
-      # `new Worker(new URL('./souffleurs.worker', import.meta.url))`, donc le
-      # worker n'appartient à AUCUN programme et n'est jamais typé par la passe
-      # applicative. Sans ceci, la CI laisserait passer un worker cassé.
-      - name: Types (worker d'inférence)
+      # SEPARATE pass, and this isn't redundant: tsc doesn't resolve
+      # `new Worker(new URL('./souffleurs.worker', import.meta.url))`, so the
+      # worker belongs to NO program and is never typed by the application
+      # pass. Without this, CI would let a broken worker through.
+      - name: Types (inference worker)
         run: pnpm typecheck:worker
 
       - run: pnpm test
@@ -52,7 +52,7 @@ jobs:
   image:
     name: Image
     needs: verify
-    # Jamais depuis une PR : on ne publie que ce qui est sur main.
+    # Never from a PR: we only publish what's on main.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -75,8 +75,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE }}
-          # `main` est le tag que Coolify suit ; le tag court par sha permet de
-          # revenir en arrière sur un commit précis.
+          # `main` is the tag Coolify follows; the short sha tag makes it
+          # possible to roll back to a specific commit.
           tags: |
             type=ref,event=branch
             type=sha,format=short
@@ -94,17 +94,17 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Déploiement Coolify
+    name: Coolify deployment
     needs: image
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      # Tant que les deux secrets ne sont pas posés, on ne fait pas échouer le
-      # workflow : l'image est publiée et le déploiement reste manuel.
-      # Les secrets passent par `env`, jamais par interpolation `${{ }}` dans le
-      # shell : ça colle la valeur dans le script, ce qui en fait une surface
-      # d'injection et brouille le masquage.
-      - name: Vérifier la configuration
+      # As long as the two secrets aren't set, we don't fail the workflow:
+      # the image is published and the deployment stays manual.
+      # Secrets go through `env`, never through `${{ }}` interpolation in
+      # the shell: that pastes the value into the script, which turns it
+      # into an injection surface and confuses masking.
+      - name: Check configuration
         id: cfg
         env:
           WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
@@ -114,10 +114,10 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::COOLIFY_WEBHOOK_URL / COOLIFY_TOKEN absents — image publiée, déploiement à déclencher à la main."
+            echo "::notice::COOLIFY_WEBHOOK_URL / COOLIFY_TOKEN missing — image published, deployment must be triggered manually."
           fi
 
-      - name: Déclencher le déploiement
+      - name: Trigger deployment
         if: steps.cfg.outputs.ready == 'true'
         env:
           WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
@@ -128,6 +128,6 @@ jobs:
             --header "Authorization: Bearer $TOKEN")
           echo "HTTP $code"
           cat /tmp/out.txt
-          # Un webhook qui répond 4xx/5xx doit faire ÉCHOUER le job : sinon un
-          # déploiement silencieusement non déclenché passe pour un succès.
+          # A webhook that answers 4xx/5xx must FAIL the job: otherwise a
+          # deployment that silently didn't trigger passes for a success.
           [ "$code" -ge 200 ] && [ "$code" -lt 300 ]

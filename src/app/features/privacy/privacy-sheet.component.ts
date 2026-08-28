@@ -3,9 +3,9 @@ import { MascotteComponent } from '../../mascotte';
 import { TranslateService } from '../../core/i18n/translate.service';
 
 /**
- * Panneau confidentialité — s'ouvre depuis le badge « 100 % local ».
- * Trois cartes, chacune portée par un glyphe de ponctuation (l'identité :
- * les parenthèses = l'aparté, les apostrophes = la voix, le point = le local).
+ * Privacy sheet — opens from the "100% local" badge.
+ * Three cards, each carried by a punctuation glyph (the identity:
+ * parentheses = the aparté, apostrophes = the voice, the period = local).
  */
 @Component({
   selector: 'bp-privacy-sheet',

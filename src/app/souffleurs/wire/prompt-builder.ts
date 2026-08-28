@@ -2,10 +2,10 @@ import { contentToText } from '@aparte/core';
 import type { AparteChatMessage, AparteToolCall } from '@aparte/core';
 
 /**
- * Construction du prompt « wire » LFM2.5 — port TS du template d'entraînement
- * lfm25-chat-1.0.0.jinja. Le chat_template embarqué dans le repo HF ignore
- * message.tool_calls (KO multi-tour) : on n'utilise JAMAIS apply_chat_template,
- * on assemble le texte exact vu à l'entraînement.
+ * Building the LFM2.5 "wire" prompt — TS port of the lfm25-chat-1.0.0.jinja
+ * training template. The chat_template embedded in the HF repo ignores
+ * message.tool_calls (broken multi-turn): we NEVER use apply_chat_template,
+ * we assemble the exact text seen at training time.
  */
 
 const IM_START = '<|im_start|>';
@@ -16,8 +16,8 @@ function wireTurn(role: string, content: string): string {
 }
 
 /**
- * Rend un bloc d'appels pythonic : valeurs de kwargs sérialisées en JSON
- * ({{ v | tojson }} du template), appels multiples séparés par ", ".
+ * Renders a block of pythonic calls: kwarg values serialized as JSON
+ * ({{ v | tojson }} from the template), multiple calls separated by ", ".
  */
 export function renderToolCallBlock(calls: readonly AparteToolCall[]): string {
   const rendered = calls
@@ -32,10 +32,10 @@ export function renderToolCallBlock(calls: readonly AparteToolCall[]): string {
 }
 
 /**
- * messages = l'historique AparteChatMessage tel que fourni par AparteClient
- * (rôles user/assistant/tool_call/tool_result). Le prompt système est fourni
- * séparément — un éventuel role 'system' dans l'historique est ignoré.
- * Se termine par le generation prompt `<|im_start|>assistant\n`.
+ * messages = the AparteChatMessage history as provided by AparteClient
+ * (user/assistant/tool_call/tool_result roles). The system prompt is provided
+ * separately — any 'system' role in the history is ignored.
+ * Ends with the generation prompt `<|im_start|>assistant\n`.
  */
 export function buildWirePrompt(
   systemPrompt: string,

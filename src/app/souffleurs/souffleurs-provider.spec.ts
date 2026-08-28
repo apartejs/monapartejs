@@ -1,9 +1,9 @@
 /**
- * Annulation en cours de génération : le worker répond `done` APRÈS la
- * fermeture du stream (`stopping.interrupt()` n'est vu qu'au token suivant).
- * Régression couverte ici : cet enqueue tardif jetait dans `onmessage`, donc
- * `resolve()` n'était jamais atteint et la file `_chain` restait bloquée à
- * vie — plus AUCUNE génération après un cancel.
+ * Cancellation during generation: the worker replies `done` AFTER the stream
+ * closes (`stopping.interrupt()` is only seen on the next token).
+ * Regression covered here: this late enqueue threw inside `onmessage`, so
+ * `resolve()` was never reached and the `_chain` queue stayed stuck
+ * forever — no MORE generation after a cancel.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AparteChatRequest } from '@aparte/core';
@@ -37,7 +37,7 @@ class FakeWorker {
     this.posted.push(msg);
   }
 
-  /** Réponse du worker vers le main thread. */
+  /** Reply from the worker to the main thread. */
   reply(data: unknown): void {
     this.onmessage?.({ data });
   }
@@ -51,7 +51,7 @@ const REQUEST = {
   messages: [{ role: 'user', content: 'bonjour' }],
 } as unknown as AparteChatRequest;
 
-/** Laisse tourner les microtâches de la file (`_chain.then(op)`). */
+/** Lets the queue's microtasks run (`_chain.then(op)`). */
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 let lsStore = new Map<string, string>();
@@ -76,8 +76,8 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('SouffleursProvider.chat — annulation', () => {
-  it('le `done` tardif après cancel ne jette pas et libère la file', async () => {
+describe('SouffleursProvider.chat — cancellation', () => {
+  it('the late `done` after cancel does not throw and releases the queue', async () => {
     const { SouffleursProvider } = await import('./souffleurs-provider');
 
     const stream = (await SouffleursProvider.chat(REQUEST)) as ReadableStream;
@@ -92,8 +92,8 @@ describe('SouffleursProvider.chat — annulation', () => {
     await reader.cancel();
     expect(worker!.posted.some((m) => m.type === 'abort')).toBe(true);
 
-    // Le worker avait déjà produit du texte + un tour complet : arrive APRÈS
-    // la fermeture. Aucune exception ne doit sortir de onmessage.
+    // The worker had already produced text + a complete turn: it arrives
+    // AFTER the closure. No exception should escape onmessage.
     expect(() => {
       worker!.reply({ type: 'chunk', id: firstId, delta: 'du texte' });
       worker!.reply({
@@ -103,14 +103,14 @@ describe('SouffleursProvider.chat — annulation', () => {
       });
     }).not.toThrow();
 
-    // La file n'est pas bloquée : la génération suivante part bien.
+    // The queue isn't stuck: the next generation does go through.
     const second = (await SouffleursProvider.chat(REQUEST)) as ReadableStream;
     void second.getReader();
     await tick();
     expect(worker!.sentIds('generate').length).toBe(2);
   });
 
-  it('sans annulation, le flux émet le texte puis done', async () => {
+  it('without cancellation, the stream emits text then done', async () => {
     const { SouffleursProvider } = await import('./souffleurs-provider');
 
     const stream = (await SouffleursProvider.chat(REQUEST)) as ReadableStream;
@@ -137,11 +137,11 @@ describe('SouffleursProvider.chat — annulation', () => {
 });
 
 /**
- * Les exécuteurs ont été entraînés sur un tour utilisateur `intent: <task>`
- * (100 % des exemples, audit lab du 26/07). La task nue était hors distribution.
+ * The executors were trained on a user turn `intent: <task>`
+ * (100% of examples, lab audit of 07/26). The bare task was out of distribution.
  */
-describe('runExecutor — format du tour utilisateur', () => {
-  it('préfixe la task par `intent: ` comme à l’entraînement', async () => {
+describe('runExecutor — user turn format', () => {
+  it('prefixes the task with `intent: ` as at training time', async () => {
     const { runExecutor } = await import('./souffleurs-provider');
     const pending = runExecutor('souffleur-sandbox', 'SYSTEM', 'somme de 1 à 10');
     await tick();
@@ -162,10 +162,10 @@ describe('runExecutor — format du tour utilisateur', () => {
 });
 
 /**
- * En dev on veut les traces du fil SANS avoir à activer quoi que ce soit —
- * demande explicite. `bp.debug` reste un override dans les deux sens.
+ * In dev we want the wire traces WITHOUT having to enable anything —
+ * explicit request. `bp.debug` remains an override in both directions.
  */
-describe('verbosité du provider', () => {
+describe('provider verbosity', () => {
   const wireLogged = (spy: ReturnType<typeof vi.fn>) =>
     spy.mock.calls.some((c) => String(c[0]).includes('PROMPT WIRE'));
 
@@ -189,23 +189,23 @@ describe('verbosité du provider', () => {
     return log;
   }
 
-  it('mode dev : traces actives sans flag', async () => {
+  it('dev mode: traces active without a flag', async () => {
     const log = await runTurn((m) => m.setSouffleurDebug(true));
     expect(wireLogged(log)).toBe(true);
   });
 
-  it('mode prod : silencieux sans flag', async () => {
+  it('prod mode: silent without a flag', async () => {
     const log = await runTurn((m) => m.setSouffleurDebug(false));
     expect(wireLogged(log)).toBe(false);
   });
 
-  it("bp.debug='0' fait taire même en dev", async () => {
+  it("bp.debug='0' silences even in dev", async () => {
     lsStore.set('bp.debug', '0');
     const log = await runTurn((m) => m.setSouffleurDebug(true));
     expect(wireLogged(log)).toBe(false);
   });
 
-  it("bp.debug='1' force même en prod", async () => {
+  it("bp.debug='1' forces even in prod", async () => {
     lsStore.set('bp.debug', '1');
     const log = await runTurn((m) => m.setSouffleurDebug(false));
     expect(wireLogged(log)).toBe(true);

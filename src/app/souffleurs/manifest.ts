@@ -1,19 +1,19 @@
 /**
- * Manifest des souffleurs — port TS de souffleur-manifest.js du lab
- * (HANDOFF-versioning-souffleurs.md). Deux pièces :
- *  1. `.data` à noms VERSIONNÉS = immuables → jamais de stale, le cache gère ;
- *  2. `manifest.json` (no-store) = point de vérité : versions + chemins courants.
- * Détection de mise à jour = comparaison de `version` avec la dernière vue.
+ * souffleurs manifest — TS port of souffleur-manifest.js from the lab
+ * (HANDOFF-versioning-souffleurs.md). Two pieces:
+ *  1. `.data` with VERSIONED names = immutable → never stale, the cache handles it;
+ *  2. `manifest.json` (no-store) = source of truth: versions + current paths.
+ * Update detection = comparing `version` against the last one seen.
  *
- * Ajouts app : fallback hors-ligne (dernier manifest bon connu en localStorage),
- * fallback legacy (noms non versionnés) tant que le manifest n'est pas sur HF,
- * et purge du base quand `base.rev` change (le base garde les mêmes noms).
+ * App additions: offline fallback (last known-good manifest in localStorage),
+ * legacy fallback (unversioned names) until the manifest is on HF,
+ * and base purge when `base.rev` changes (the base keeps the same names).
  */
 import { SOUFFLEURS_HF_REPO, type AdapterName } from './model-catalog';
 
 const SEEN_KEY = 'bp.souffleurs.seen';
 const CACHED_MANIFEST_KEY = 'bp.souffleurs.manifest';
-/** Clé « vue » de la tour vision (hors de l'espace des rôles souffleurs). */
+/** "Seen" key for the vision tower (outside the souffleur roles namespace). */
 const VISION_SEEN_KEY = '__vision';
 
 export type SouffleurRole = 'chat' | 'pdf' | 'xlsx-docx' | 'sandbox';
@@ -29,17 +29,17 @@ interface ManifestSouffleur {
 }
 
 /**
- * Bloc `vision` — la tour détachable (ADR-001) et le graphe greffé qui l'accepte.
- * Absent du manifest = vision non publiée : l'app doit dégrader proprement.
+ * `vision` block — the detachable tower (ADR-001) and the grafted graph that accepts it.
+ * Absent from the manifest = vision not published: the app must degrade gracefully.
  */
 export interface ManifestVision {
   version: string;
-  /** Graphe avec les entrées image_features/image_indices. MÊMES poids que base.weights. */
+  /** Graph with the image_features/image_indices inputs. SAME weights as base.weights. */
   graph: string;
-  /** Tour vision, nom versionné immuable. */
+  /** Vision tower, immutable versioned name. */
   tower: string;
   tower_data: string;
-  /** Nom d'external data inscrit DANS le graphe de la tour (à mapper). */
+  /** External data name registered INSIDE the tower graph (to be mapped). */
   tower_internal_data: string;
   size: number;
 }
@@ -51,7 +51,7 @@ export interface SouffleursManifest {
   vision?: ManifestVision;
 }
 
-/** Manifest legacy (avant le premier push versionné sur HF) : noms historiques. */
+/** Legacy manifest (before the first versioned push to HF): historical names. */
 const LEGACY_MANIFEST: SouffleursManifest = {
   schema: 'aparte-souffleurs/legacy',
   base: { rev: 'legacy', graph: 'onnx/model_q4.onnx', weights: 'onnx/model_q4.onnx_data' },
@@ -75,7 +75,7 @@ function lsSet(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* stockage indisponible */
+    /* storage unavailable */
   }
 }
 
@@ -94,8 +94,8 @@ export class SouffleurManifestClient {
   }
 
   /**
-   * Réseau d'abord (no-store), sinon dernier manifest bon connu, sinon legacy.
-   * Ne throw jamais : l'app 100 % locale doit démarrer hors-ligne.
+   * Network first (no-store), otherwise last known-good manifest, otherwise legacy.
+   * Never throws: the 100% local app must be able to start offline.
    */
   async load(): Promise<SouffleursManifest> {
     try {
@@ -134,7 +134,7 @@ export class SouffleurManifestClient {
     return this.manifest?.souffleurs?.[role]?.sha256 ?? null;
   }
 
-  /** Chemin relatif du `.data` courant (à passer au worker via externalData). */
+  /** Relative path of the current `.data` (to pass to the worker via externalData). */
   file(role: string): string {
     const entry = this.manifest?.souffleurs?.[role];
     if (!entry) throw new Error(`souffleur inconnu: ${role}`);
@@ -149,17 +149,17 @@ export class SouffleurManifestClient {
     return this.manifest?.base?.rev ?? 'legacy';
   }
 
-  /** Bloc vision, ou null si la tour n'est pas publiée. */
+  /** vision block, or null if the tower isn't published. */
   vision(): ManifestVision | null {
     return this.manifest?.vision ?? null;
   }
 
-  /** Poids de la tour annoncé par le manifest (0 si pas de vision). */
+  /** Tower weight announced by the manifest (0 if no vision). */
   visionSize(): number {
     return this.manifest?.vision?.size ?? 0;
   }
 
-  /** URLs absolues des deux fichiers de la tour, ou null. */
+  /** Absolute URLs of the tower's two files, or null. */
   visionUrls(): { graphUrl: string; dataUrl: string } | null {
     const v = this.manifest?.vision;
     if (!v) return null;
@@ -167,10 +167,10 @@ export class SouffleurManifestClient {
   }
 
   /**
-   * true si une tour est publiée dans une version jamais vue. La vision fait
-   * partie du téléchargement du modèle (pas une option), donc ce signal doit
-   * déclencher le MÊME flux de mise à jour que les souffleurs — sans lui, une
-   * install existante n'aurait jamais rien proposé.
+   * true if a tower is published in a version never seen before. Vision is
+   * part of the model download (not an option), so this signal must trigger
+   * the SAME update flow as the souffleurs — without it, an existing install
+   * would never have been offered anything.
    */
   visionHasUpdate(): boolean {
     const version = this.manifest?.vision?.version;
@@ -185,21 +185,21 @@ export class SouffleurManifestClient {
   }
 
   /**
-   * `model_file_name` à passer à transformers.js. Le graphe greffé est
-   * bit-identique au graphe texte (écart de logits mesuré : 0), donc on
-   * l'utilise pour TOUT dès qu'il est publié : texte et vision ne diffèrent
-   * plus que par `adapter.data`, exactement comme un swap de souffleur.
-   * Sans bloc vision, on retombe sur le graphe texte historique.
+   * `model_file_name` to pass to transformers.js. The grafted graph is
+   * bit-identical to the text graph (measured logits gap: 0), so it's used
+   * for EVERYTHING once published: text and vision then only differ by
+   * `adapter.data`, exactly like a souffleur swap.
+   * Without a vision block, falls back to the historical text graph.
    */
   modelFileName(): string {
     const graph = this.manifest?.vision?.graph;
     if (!graph) return 'model';
-    // 'onnx/model_vision_q4.onnx' -> 'model_vision' (tjs recolle le suffixe dtype)
+    // 'onnx/model_vision_q4.onnx' -> 'model_vision' (tjs re-appends the dtype suffix)
     const base = graph.split('/').pop() ?? '';
     return base.replace(/_q4\.onnx$/, '') || 'model';
   }
 
-  /** true si la version courante diffère de la dernière vue (= MAJ dispo). */
+  /** true if the current version differs from the last one seen (= update available). */
   hasUpdate(role: string): boolean {
     return this.version(role) !== (this.seen[role] ?? null);
   }
@@ -212,7 +212,7 @@ export class SouffleurManifestClient {
     return this.roles().filter((role) => this.hasUpdate(role));
   }
 
-  /** Après un chargement réussi : mémorise la version courante comme « vue ». */
+  /** After a successful load: remembers the current version as "seen". */
   markSeen(role?: string): void {
     if (role) this.seen[role] = this.version(role) ?? '';
     else for (const r of this.roles()) this.seen[r] = this.version(r) ?? '';
@@ -222,7 +222,7 @@ export class SouffleurManifestClient {
     lsSet(SEEN_KEY, JSON.stringify(this.seen));
   }
 
-  /** Intégrité (optionnel) — sha256 du buffer vs manifest. */
+  /** Integrity (optional) — sha256 of the buffer vs manifest. */
   async verify(role: string, buffer: ArrayBuffer): Promise<boolean> {
     const want = this.sha256(role);
     if (!want) return true;
@@ -232,7 +232,7 @@ export class SouffleurManifestClient {
   }
 }
 
-/* ── Singleton app ─────────────────────────────────────────────────────────── */
+/* ── App singleton ─────────────────────────────────────────────────────────── */
 
 let _instance: Promise<SouffleurManifestClient> | null = null;
 
@@ -243,9 +243,9 @@ export function getSouffleurManifest(): Promise<SouffleurManifestClient> {
         `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`,
       );
       await client.load();
-      // base.rev a changé (rare) : les fichiers base gardent le MÊME nom → il
-      // faut purger le cache pour re-télécharger. Les .data versionnés, eux,
-      // n'en ont jamais besoin.
+      // base.rev changed (rare): the base files keep the SAME name → the
+      // cache must be purged to re-download. The versioned .data files
+      // never need this.
       if (client.baseHasUpdate()) {
         try {
           const cache = await caches.open('transformers-cache');
@@ -254,7 +254,7 @@ export function getSouffleurManifest(): Promise<SouffleurManifestClient> {
             keys.filter((req) => req.url.includes('model_q4.onnx')).map((req) => cache.delete(req)),
           );
         } catch {
-          /* cache indisponible */
+          /* cache unavailable */
         }
       }
       return client;
@@ -263,7 +263,7 @@ export function getSouffleurManifest(): Promise<SouffleurManifestClient> {
   return _instance;
 }
 
-/** Tests uniquement. */
+/** Tests only. */
 export function resetSouffleurManifestSingleton(): void {
   _instance = null;
 }

@@ -4,13 +4,13 @@ import { parsePythonicOutput, UNPARSEABLE } from './pythonic-parser';
 const wrap = (inner: string) => `<|tool_call_start|>${inner}<|tool_call_end|>`;
 
 describe('parsePythonicOutput', () => {
-  it('parse un appel simple avec string', () => {
+  it('parses a simple call with a string', () => {
     const out = parsePythonicOutput(wrap('[read_file(file_id="file_abc_1")]'));
     expect(out.calls).toEqual([{ name: 'read_file', args: { file_id: 'file_abc_1' } }]);
     expect(out.text).toBe('');
   });
 
-  it('préserve le texte autour du bloc', () => {
+  it('preserves the text around the block', () => {
     const out = parsePythonicOutput(
       'Je consulte votre fichier.\n' + wrap('[read_file(file_id="f1")]'),
     );
@@ -18,18 +18,18 @@ describe('parsePythonicOutput', () => {
     expect(out.calls).toHaveLength(1);
   });
 
-  it('coupe à <|im_end|> et ignore ce qui suit', () => {
+  it('cuts at <|im_end|> and ignores what follows', () => {
     const out = parsePythonicOutput('Bonjour.\n<|im_end|>\n<|im_start|>user\npollution');
     expect(out.text).toBe('Bonjour.');
     expect(out.calls).toEqual([]);
   });
 
-  it('retire les blocs <think>', () => {
+  it('strips <think> blocks', () => {
     const out = parsePythonicOutput('<think>réflexion interne</think>Réponse.');
     expect(out.text).toBe('Réponse.');
   });
 
-  it('parse plusieurs appels dans un même bloc', () => {
+  it('parses several calls in the same block', () => {
     const out = parsePythonicOutput(wrap('[remember(fact="aime le thé"), compute(task="2+2")]'));
     expect(out.calls).toEqual([
       { name: 'remember', args: { fact: 'aime le thé' } },
@@ -37,7 +37,7 @@ describe('parsePythonicOutput', () => {
     ]);
   });
 
-  it('parse listes, nombres, booléens Python et None', () => {
+  it('parses lists, numbers, Python booleans and None', () => {
     const out = parsePythonicOutput(
       wrap(
         '[write_file(kind="xlsx", task="t", file_ids=["a", "b"], count=3, ratio=1.5, force=True, extra=None)]',
@@ -54,26 +54,26 @@ describe('parsePythonicOutput', () => {
     });
   });
 
-  it('tolère les minuscules JS true/false/null', () => {
+  it('tolerates lowercase JS true/false/null', () => {
     const out = parsePythonicOutput(wrap('[f(a=true, b=false, c=null)]'));
     expect(out.calls[0].args).toEqual({ a: true, b: false, c: null });
   });
 
-  it('parse un dict imbriqué valide', () => {
+  it('parses a valid nested dict', () => {
     const out = parsePythonicOutput(
       wrap('[transform_file(file_id="f1", target="png", options={"width": 800, "keep": True})]'),
     );
     expect(out.calls[0].args['options']).toEqual({ width: 800, keep: true });
   });
 
-  it('tolère le pseudo-python {cle="val"} dans un dict', () => {
+  it('tolerates pseudo-python {key="val"} inside a dict', () => {
     const out = parsePythonicOutput(
       wrap('[transform_file(file_id="f1", target="png", options={width=800})]'),
     );
     expect(out.calls[0].args['options']).toEqual({ width: 800 });
   });
 
-  it('parse les questions ask_question (liste de dicts)', () => {
+  it('parses ask_question questions (list of dicts)', () => {
     const out = parsePythonicOutput(
       wrap(
         '[ask_question(questions=[{"question": "Quel format ?", "options": ["pdf", "xlsx"], "multi_select": False}])]',
@@ -84,24 +84,24 @@ describe('parsePythonicOutput', () => {
     ]);
   });
 
-  it('gère les échappements dans les strings', () => {
+  it('handles escapes inside strings', () => {
     const out = parsePythonicOutput(wrap('[compute(task="ligne1\\nligne2 \\"citée\\"")]'));
     expect(out.calls[0].args['task']).toBe('ligne1\nligne2 "citée"');
   });
 
-  it('accepte un appel nu sans crochets', () => {
+  it('accepts a bare call without brackets', () => {
     const out = parsePythonicOutput(wrap('compute(task="2+2")'));
     expect(out.calls).toEqual([{ name: 'compute', args: { task: '2+2' } }]);
   });
 
-  it('bloc imparsable → __unparseable__ avec le brut, sans crash', () => {
+  it('unparseable block → __unparseable__ with the raw text, no crash', () => {
     const out = parsePythonicOutput(wrap('[write_file(kind=***garbage'));
     expect(out.calls).toEqual([
       { name: UNPARSEABLE, args: { raw: '[write_file(kind=***garbage' } },
     ]);
   });
 
-  it('sans bloc : texte seul', () => {
+  it('no block: text only', () => {
     const out = parsePythonicOutput('Avec plaisir ! Autre chose ?');
     expect(out).toEqual({ text: 'Avec plaisir ! Autre chose ?', calls: [] });
   });

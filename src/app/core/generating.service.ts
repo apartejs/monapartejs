@@ -1,6 +1,6 @@
 /**
- * État « en train de générer » — pilote la classe body.bp-generating (gel des
- * animations décoratives pendant le décodage GPU), la mascotte coin et le favicon.
+ * "Currently generating" state — drives the body.bp-generating class
+ * (freezes decorative animations during GPU decoding), the corner mascot and the favicon.
  */
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { FaviconService } from '../mascotte';

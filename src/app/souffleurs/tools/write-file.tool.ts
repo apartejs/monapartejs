@@ -1,8 +1,8 @@
 /**
- * write_file — l'appel du caller déclenche l'exécuteur hot-swappé
- * (souffleur-pdf ou souffleur-xlsx-docx), la matérialisation, l'enregistrement
- * de l'artefact et le téléchargement. Résumé tool = CONFIRMATION SEULE
- * (leçon anti-hallucination du lab : pas de preview/notes dans le résultat).
+ * write_file — the caller's call triggers the hot-swapped executor
+ * (souffleur-pdf or souffleur-xlsx-docx), materialization, registration
+ * of the artifact, and the download. Tool summary = CONFIRMATION ONLY
+ * (anti-hallucination lesson from the lab: no preview/notes in the result).
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { PDF_SYSTEM, XLSX_DOCX_SYSTEM } from '../executors/executor-prompts';
@@ -48,7 +48,7 @@ export const writeFileHandler: AparteToolHandler = async (call) => {
   if (!task) return fail('task manquante');
 
   try {
-    // Édition : l'exécuteur reçoit l'intention + le schéma du fichier source.
+    // Edit: the executor receives the intent + the source file's schema.
     let executorTask = task;
     let originalXlsx: ArrayBuffer | null = null;
     const source = fileIds[0] ? fileRegistry.get(fileIds[0]) : undefined;
@@ -62,7 +62,7 @@ export const writeFileHandler: AparteToolHandler = async (call) => {
     const adapter = kind === 'pdf' ? 'souffleur-pdf' : 'souffleur-xlsx-docx';
     const system = kind === 'pdf' ? PDF_SYSTEM : XLSX_DOCX_SYSTEM;
 
-    // Aperçu LIVE (iso aimi) : le document se construit pendant le stream.
+    // LIVE preview (iso aimi): the document builds up while streaming.
     let lastLiveAt = 0;
     let lastOpsCount = 0;
     let previewBusy = false;
@@ -93,11 +93,11 @@ export const writeFileHandler: AparteToolHandler = async (call) => {
 
     const artifact = await materializeWriteFile(kind, raw, {
       originalXlsx,
-      // Priorité : name du tool-call > nom du fichier source (édition) > slug de la task.
+      // Priority: tool-call name > source file name (edit) > task slug.
       name: name ?? source?.name ?? filenameFromTask(kind, task),
     });
 
-    // Pas de téléchargement auto (retour aimi) : la carte a le bouton.
+    // No auto-download (aimi feedback): the card has the button.
     const registered = fileRegistry.registerBlob(artifact.blob, artifact.filename, artifact.mime);
     notifyArtifact(call.id, artifact, registered.id);
 

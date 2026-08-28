@@ -1,12 +1,12 @@
 /**
- * docx-ops-runtime.ts — executes le souffleur-xlsx-docx's declarative docx ops.
+ * docx-ops-runtime.ts — executes the souffleur-xlsx-docx's declarative docx ops.
  *
- * Faithful port of executor.js du lab (v6, exécuteurs réutilisés tels quels en v7) (applyDocxOps),
+ * Faithful port of executor.js from the lab (v6, executors reused as-is in v7) (applyDocxOps),
  * backed by the `docx` lib (dep monaparte). The aimini emits a JSON ops
  * array ({op:"addParagraph"}, {op:"setHeading"}, {op:"addTable"}, …) → this
  * builds a docx Document → Blob.
  */
-// La lib docx est chargée dynamiquement (chunk différé — jamais dans le bundle initial).
+// The docx lib is loaded dynamically (deferred chunk — never in the initial bundle).
 
 export type DocxOp = Record<string, unknown>;
 
@@ -131,7 +131,7 @@ export async function applyDocxOps(ops: DocxOp[]): Promise<ArrayBuffer> {
           );
           break;
         default:
-          console.warn(`[docx_ops] op non gérée: ${op['op']}`);
+          console.warn(`[docx_ops] unhandled op: ${op['op']}`);
       }
     } catch (err) {
       throw new Error(`op ${op['op']} failed: ${err instanceof Error ? err.message : String(err)}`);

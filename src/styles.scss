@@ -1,16 +1,16 @@
-/* monaparte — thème global.
- * Les couleurs viennent des variables --aparte-* de @aparte/core (chargé via
- * angular.json), dont les défauts light/dark SONT l'identité aparté (brass/plum).
- * Ici : typo de l'identité, chrome applicatif, et règles transverses.
+/* monaparte — global theme.
+ * The colors come from @aparte/core's --aparte-* variables (loaded via
+ * angular.json), whose light/dark defaults ARE the aparté identity (brass/plum).
+ * Here: identity typography, application chrome, and cross-cutting rules.
  */
 
 :root {
-  /* Typo identité — stacks système uniquement (aucune fonte réseau). */
+  /* Identity typography — system stacks only (no network font). */
   --bp-serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
   --bp-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --bp-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
 
-  /* Chrome applicatif (hors composants aparte). */
+  /* Application chrome (outside aparte components). */
   --bp-sidebar-width: 268px;
   --bp-topbar-height: 54px;
   --bp-content-max-width: 760px;
@@ -25,8 +25,8 @@
 html,
 body {
   height: 100%;
-  /* App-like : la PAGE ne défile jamais — le seul scroll est celui du viewport
-   * de conversation (sinon le composer descend avec la conversation). */
+  /* App-like: the PAGE never scrolls — the only scroll is the conversation
+   * viewport's (otherwise the composer would scroll down with the conversation). */
   overflow: hidden;
 }
 
@@ -47,14 +47,14 @@ h3,
   letter-spacing: -0.01em;
 }
 
-/* Pendant le décodage GPU, on gèle les animations décoratives pour ne pas
- * concurrencer WebGPU (leçon aimi). La classe est posée sur <body> par l'app. */
+/* During GPU decoding, we freeze decorative animations to avoid competing
+ * with WebGPU (lesson learned from aimi). The class is set on <body> by the app. */
 body.bp-generating .bp-decorative,
 body.bp-generating .bp-decorative * {
   animation-play-state: paused !important;
 }
 
-/* Scrollbars fines, discrètes, thémées. */
+/* Thin, discreet, themed scrollbars. */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--aparte-border) transparent;

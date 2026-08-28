@@ -1,80 +1,83 @@
-# Déploiement Coolify — TIRE une image, ne construit rien.
+# Coolify deployment — PULLS an image, builds nothing.
 #
-# Pourquoi un compose plutôt qu'un Dockerfile : le build tourne sur les runners
-# GitHub (un build Angular en production dépasse volontiers 2 Go de RAM, de trop
-# pour une petite instance). Coolify ne doit donc que récupérer l'image publiée.
+# Why a compose file rather than a Dockerfile: the build runs on GitHub
+# runners (an Angular production build readily exceeds 2 GB of RAM, too much
+# for a small instance). Coolify must therefore only fetch the published
+# image.
 #
-# Et pourquoi CE fichier plutôt qu'un Dockerfile `FROM ghcr.io/...:main` : parce
-# que ce montage est structurellement cassé, mesuré le 21/08. Docker ne
-# re-télécharge PAS un `FROM` sur un tag mutable s'il l'a en cache (il faut
-# `--pull`, que Coolify ne passe pas), et même après un `docker pull` manuel le
-# cache de BuildKit réutilise la couche `FROM` déjà résolue puisque le
-# Dockerfile n'a pas changé. Résultat : Coolify reconstruisait fidèlement le bon
-# commit par-dessus une image vieille de 42 minutes, en boucle.
+# And why THIS file rather than a Dockerfile `FROM ghcr.io/...:main`: because
+# that setup is structurally broken, measured on 21/08. Docker does NOT
+# re-pull a `FROM` on a mutable tag if it's already cached (that needs
+# `--pull`, which Coolify doesn't pass), and even after a manual `docker
+# pull` the BuildKit cache reuses the already-resolved `FROM` layer since the
+# Dockerfile hasn't changed. Result: Coolify was faithfully rebuilding the
+# right commit on top of an image 42 minutes stale, in a loop.
 #
-# Un compose sans clé `build:` ne construit rien : Coolify fait un vrai
-# `docker compose pull`, donc l'image servie est toujours la dernière publiée.
+# A compose file with no `build:` key builds nothing: Coolify does a real
+# `docker compose pull`, so the served image is always the latest published
+# one.
 #
-# Coolify :
+# Coolify:
 #   Build Pack             = Docker Compose
 #   Docker Compose Location = /docker-compose.yml
-#   le domaine reste réglé dans Domains (mon.apartejs.dev), Coolify pose les labels
-#   Traefik et le certificat lui-même.
+#   the domain stays set in Domains (mon.apartejs.dev), Coolify sets the
+#   Traefik labels and the certificate itself.
 #
-# ⚠️ Le paquet GHCR est PRIVÉ par défaut : soit le passer en public, soit
-# ajouter les identifiants du registre dans Coolify (Keys & Tokens → Docker
-# Registries). Sinon le `pull` échoue en « unauthorized ».
+# WARNING: the GHCR package is PRIVATE by default: either make it public, or
+# add the registry credentials in Coolify (Keys & Tokens -> Docker
+# Registries). Otherwise the `pull` fails with "unauthorized".
 #
-# Retour arrière : remplacer `:main` par un tag `:sha-abc1234` publié par la CI.
+# Rollback: replace `:main` with a `:sha-abc1234` tag published by CI.
 
 services:
   web:
     image: ghcr.io/apartejs/monapartejs:main
-    # SANS CETTE LIGNE, le deploiement ne rapporte rien. Mesure le 21/08 sur le
-    # log Coolify du commit 54f6c1e :
+    # WITHOUT THIS LINE, the deployment reports nothing new. Measured on
+    # 21/08 on the Coolify log for commit 54f6c1e:
     #
-    #   18:22:51  Pulling & building required images.      <- 0,2 s
+    #   18:22:51  Pulling & building required images.      <- 0.2 s
     #   18:22:52  Removing old containers.
     #   18:22:53  Starting new application.
     #
-    # L'etape « Pulling & building » lance `docker compose build`, qui n'a rien
-    # a faire pour un service sans cle `build:` — d'ou les 0,2 s. Coolify ne
-    # lance PAS `docker compose pull`. Reste `docker compose up`, dont la
-    # politique par defaut est `missing` : l'image du deploiement precedent est
-    # encore la, donc il la reutilise. Le conteneur est bien recree, le
-    # deploiement est bien « finished », et le site sert l'ancien code.
+    # The "Pulling & building" step runs `docker compose build`, which has
+    # nothing to do for a service without a `build:` key — hence the 0.2 s.
+    # Coolify does NOT run `docker compose pull`. What's left is
+    # `docker compose up`, whose default policy is `missing`: the image from
+    # the previous deployment is still there, so it reuses it. The container
+    # does get recreated, the deployment does show "finished", and the site
+    # serves the old code.
     #
-    # C'est la meme classe de piege que le `FROM :main` remplace en 14:50 : un
-    # tag mutable n'est jamais reverifie tant qu'on ne le demande pas.
-    # `always` le demande a chaque `up`.
+    # This is the same class of trap that the `FROM :main` replaced at
+    # 14:50: a mutable tag is never re-checked unless you ask for it.
+    # `always` asks for it on every `up`.
     pull_policy: always
     restart: unless-stopped
-    # Variable MAGIQUE Coolify : c'est elle qui rattache le domaine AU SERVICE
-    # et génère les labels Traefik vers le port 80.
+    # Coolify's MAGIC variable: this is what attaches the domain TO THE
+    # SERVICE and generates the Traefik labels pointing at port 80.
     #
-    # En Build Pack « Dockerfile », le champ « Domains » de l'application
-    # suffisait. En « Docker Compose », Coolify raisonne PAR SERVICE : sans
-    # cette déclaration, le router existe mais n'a aucun backend, et Traefik
-    # répond 503 avec son certificat par défaut (Let's Encrypt n'émet pas non
-    # plus, l'émission attendant un routage fonctionnel). Symptômes vus
-    # ensemble le 21/08 alors que le conteneur tournait.
+    # In Build Pack "Dockerfile", the application's "Domains" field was
+    # enough. In "Docker Compose", Coolify reasons PER SERVICE: without this
+    # declaration, the router exists but has no backend, and Traefik answers
+    # 503 with its default certificate (Let's Encrypt doesn't issue one
+    # either, issuance waiting on working routing). Symptoms seen together
+    # on 21/08 while the container was running.
     #
-    # Sans valeur : Coolify y injecte le FQDN réglé dans l'interface.
+    # No value: Coolify injects the FQDN set in the UI here.
     environment:
       - SERVICE_FQDN_WEB_80
 
-    # nginx écoute 80 dans l'image. Pas de publication de port : Coolify route
-    # via Traefik sur le réseau interne.
+    # nginx listens on 80 in the image. No port published: Coolify routes
+    # via Traefik on the internal network.
     expose:
       - '80'
     healthcheck:
-      # L'image en déclare déjà un ; on le répète ici pour que Coolify le voie
-      # sans avoir à inspecter l'image.
+      # The image already declares one; repeated here so Coolify sees it
+      # without having to inspect the image.
       test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1/index.html']
       interval: 30s
       timeout: 3s
       start_period: 5s
       retries: 3
-    # Aucun volume, aucune variable : le conteneur est sans état. Tout le modèle
-    # (base 834 Mo, adapters, tour vision 269 Mo) vit dans le Cache API du
-    # navigateur du visiteur, téléchargé depuis Hugging Face.
+    # No volume, no variable: the container is stateless. The whole model
+    # (834 MB base, adapters, 269 MB vision tower) lives in the visitor's
+    # browser Cache API, downloaded from Hugging Face.
