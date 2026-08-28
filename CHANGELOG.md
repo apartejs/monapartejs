@@ -24,9 +24,8 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   artifact row types are ours (`storage/db.ts`), `ask_question` is created through the
   plugin's `name`/`description` options, and code blocks follow the theme (shiki
   light/dark pair). With 0.15: `ask_question` registers with `systemPrompt: false`
-  instead of stripping the field, the declined sentence is the plugin's exported
-  `ASK_USER_DECLINED`, and the provider types its metadata with the exported
-  `AparteAIProviderMetadata`.
+  instead of stripping the field, and the declined sentence is the plugin's exported
+  `ASK_USER_DECLINED`.
 - `package.json` filled in (name, licence, repository); Node 24.
 - Repository documentation switched to English.
 
