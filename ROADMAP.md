@@ -2,7 +2,7 @@
 
 ## What 1.0 is
 
-**monaparte 1.0 is the public, stable showcase of aparté.** A visitor on Chrome or Edge
+**Monaparté 1.0 is the public, stable showcase of aparté.** A visitor on Chrome or Edge
 with WebGPU arrives, understands within ten seconds that nothing leaves their device,
 downloads the model, chats, attaches a file, gets a document or a chart back, reloads the
 page and finds everything still there. On a browser without WebGPU or without cross-origin

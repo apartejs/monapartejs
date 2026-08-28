@@ -1,4 +1,4 @@
-# monaparte
+# Monaparté
 
 [![CI](https://github.com/apartejs/monapartejs/actions/workflows/deploy.yml/badge.svg)](https://github.com/apartejs/monapartejs/actions/workflows/deploy.yml)
 [![MIT licence](https://img.shields.io/badge/licence-MIT-b07d33.svg)](LICENSE)

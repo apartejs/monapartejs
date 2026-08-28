@@ -1,6 +1,6 @@
-# Contributing to monaparte
+# Contributing to Monaparté
 
-monaparte is the reference product for [aparté](https://apartejs.dev): an assistant whose
+Monaparté is the reference product for [aparté](https://apartejs.dev): an assistant whose
 language model runs entirely in the browser. The repository is small and moves fast; this
 guide says how a change lands on `main`.
 
