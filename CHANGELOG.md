@@ -26,6 +26,9 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   pair).
 - `package.json` filled in (name, licence, repository); Node 24.
 - Repository documentation switched to English.
+- The product name is spelled **Monaparté** (capital, accent) wherever it names the
+  product — page title, metadata, manifest, social card, docs. Identifiers stay ASCII
+  (`monaparte` package and database, `dist/monaparte`, `mon.apartejs.dev`).
 
 ## History before this changelog
 
