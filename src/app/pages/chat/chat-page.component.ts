@@ -1,6 +1,5 @@
 import { Location } from '@angular/common';
 import {
-  CUSTOM_ELEMENTS_SCHEMA,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -12,7 +11,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
-import { AparteChatComponent } from '@aparte/angular';
+import { AparteChatComponent, AparteElicitationDirective } from '@aparte/angular';
 import type { AparteMessageInfoEventDetail, AparteUsage } from '@aparte/core';
 import { ConversationManagerService } from '@aparte/angular';
 import { estimateTokens } from '@aparte/engine';
@@ -31,8 +30,16 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
 @Component({
   selector: 'bp-chat-page',
   standalone: true,
-  imports: [AparteChatComponent, MascotteComponent, ConversationMinimapComponent],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  // `AparteElicitationDirective` plutôt que CUSTOM_ELEMENTS_SCHEMA : depuis
+  // aparté 0.11 chaque élément de core a sa directive Angular. Le schéma
+  // éteignait la vérification de template pour TOUTES les balises inconnues du
+  // fichier — une faute de frappe sur un binding d'<aparte-chat> passait.
+  imports: [
+    AparteChatComponent,
+    AparteElicitationDirective,
+    MascotteComponent,
+    ConversationMinimapComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="chat-wrap">

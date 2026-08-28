@@ -6,7 +6,7 @@
  *    d'injection directe de contenu généré), chart via Chart.js lazy, code échappé ;
  *  - compute : invisible (l'utilisateur ne voit pas le calcul, règle contrat).
  */
-import { AparteConfig } from '@aparte/core';
+import { aparteGlobalConfig } from '@aparte/core';
 import type { AparteToolCallSegment, AparteToolRenderer } from '@aparte/core';
 import {
   loadArtifact,
@@ -67,7 +67,7 @@ export const artifactCardRenderer: AparteToolRenderer = {
   render(segment) {
     const result = parseResult(segment);
     if (segment.status === 'pending') {
-      return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
+      return `<div class="aparte-segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
   <div class="bp-artifact-head">
     <span class="bp-artifact-icon">('.')…</span>
     <span class="bp-artifact-meta">génération du document…</span>
@@ -76,12 +76,12 @@ export const artifactCardRenderer: AparteToolRenderer = {
 </div>`;
     }
     if (result && !result['ok']) {
-      return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}"><span class="bp-artifact-error">(x.x) ${esc(result['error'] ?? 'échec')}</span></div>`;
+      return `<div class="aparte-segment bp-artifact-card" data-segment-id="${esc(segment.id)}"><span class="bp-artifact-error">(x.x) ${esc(result['error'] ?? 'échec')}</span></div>`;
     }
     // Carte finale — TOLÉRANTE : si `result` n'a pas survécu à la sérialisation
     // de l'arbre (reload), setup() remplit la tête depuis l'artefact persisté.
     const glyph = KIND_GLYPHS[String(result?.['type'] ?? '')] ?? KIND_GLYPHS['default'];
-    return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
+    return `<div class="aparte-segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
   <div class="bp-artifact-head">
     <span class="bp-artifact-icon">${glyph}</span>
     <span class="bp-artifact-name">${esc(result?.['filename'] ?? '…')}</span>
@@ -146,21 +146,21 @@ export const artifactCardRenderer: AparteToolRenderer = {
 };
 
 /**
- * Coloration syntaxique du code live (Shiki via AparteConfig, déjà branché) —
+ * Coloration syntaxique du code live (Shiki via aparteGlobalConfig, déjà branché) —
  * throttlée à ~600 ms. Après la première passe réussie, SEULES les passes Shiki
  * touchent le DOM (jamais de textContent brut par-dessus → pas de clignotement).
  */
 const liveCode = new WeakMap<HTMLElement, string>();
 const highlightTimers = new WeakMap<HTMLElement, number>();
 function scheduleLiveHighlight(host: HTMLElement): void {
-  if (!AparteConfig.hasHighlightProvider() || highlightTimers.has(host)) return;
+  if (!aparteGlobalConfig.hasHighlightProvider() || highlightTimers.has(host)) return;
   highlightTimers.set(
     host,
     window.setTimeout(async () => {
       highlightTimers.delete(host);
       const code = liveCode.get(host) ?? '';
       try {
-        const html = await AparteConfig.highlightCode(code, 'javascript');
+        const html = await aparteGlobalConfig.highlightCode(code, 'javascript');
         if (host.isConnected && host.classList.contains('bp-artifact-code')) {
           host.dataset['highlighted'] = '1';
           host.innerHTML = html; // Shiki échappe le code — html sûr
@@ -279,12 +279,12 @@ export const widgetRenderer: AparteToolRenderer = {
 export const readFileRenderer: AparteToolRenderer = {
   render(segment) {
     if (segment.status === 'pending') {
-      return `<div class="segment bp-tool-line" data-segment-id="${esc(segment.id)}"><span class="bp-tool-note">('.')… lecture du fichier</span></div>`;
+      return `<div class="aparte-segment bp-tool-line" data-segment-id="${esc(segment.id)}"><span class="bp-tool-note">('.')… lecture du fichier</span></div>`;
     }
     const result = parseResult(segment);
     if (result && result['ok'] === false) {
       const detail = result['error'] ?? 'lecture impossible';
-      return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}"><span class="bp-artifact-error">(x.x) ${esc(detail)}</span></div>`;
+      return `<div class="aparte-segment bp-artifact-card" data-segment-id="${esc(segment.id)}"><span class="bp-artifact-error">(x.x) ${esc(detail)}</span></div>`;
     }
     const name = result?.['name'] ?? result?.['file_id'] ?? '';
     // Voie IMAGE : la description produite par l'encodeur est le seul retour
@@ -301,7 +301,7 @@ export const readFileRenderer: AparteToolRenderer = {
       // savoir ce que le modèle a réellement demandé.
       const q = result?.['query'];
       const mode = typeof q === 'string' && q ? `« ${esc(q)} »` : 'survol';
-      return `<div class="segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
+      return `<div class="aparte-segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
   <div class="bp-artifact-head">
     <span class="bp-artifact-icon">(o.o)</span>
     <span class="bp-artifact-name">${esc(name)}</span>
@@ -310,7 +310,7 @@ export const readFileRenderer: AparteToolRenderer = {
   <div class="bp-artifact-preview">${esc(description)}</div>
 </div>`;
     }
-    return `<div class="segment bp-tool-line" data-segment-id="${esc(segment.id)}"><span class="bp-tool-note">(▤) fichier lu${name ? ` — ${esc(name)}` : ''}</span></div>`;
+    return `<div class="aparte-segment bp-tool-line" data-segment-id="${esc(segment.id)}"><span class="bp-tool-note">(▤) fichier lu${name ? ` — ${esc(name)}` : ''}</span></div>`;
   },
   getStyles: () => CARD_STYLES,
 };

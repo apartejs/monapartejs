@@ -2,7 +2,7 @@
  * Renderers lib (DOM pur, sans Angular) — la mascotte remplace l'indicateur
  * de frappe et le rendu d'erreur d'aparté. Candidat @aparte/plugin-mascot.
  */
-import { AparteConfig } from '@aparte/core';
+import { aparteGlobalConfig } from '@aparte/core';
 
 function faceEl(face: string, suffixClass?: string): HTMLElement {
   const wrap = document.createElement('span');
@@ -57,6 +57,6 @@ export function registerMascotteRenderers(): void {
   const style = document.createElement('style');
   style.textContent = STYLES;
   document.head.appendChild(style);
-  AparteConfig.setStatusRenderer(statusRenderer);
-  AparteConfig.setErrorRenderer(errorRenderer);
+  aparteGlobalConfig.setStatusRenderer(statusRenderer);
+  aparteGlobalConfig.setErrorRenderer(errorRenderer);
 }

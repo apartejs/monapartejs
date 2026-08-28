@@ -110,10 +110,18 @@ export class DebugArtefactsComponent implements AfterViewInit {
   }
 
   private mount(host: HTMLElement, segment: AparteToolCallSegment): void {
-    const html = artifactCardRenderer.render(segment);
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = html;
-    const el = wrapper.firstElementChild as HTMLElement | null;
+    // Depuis aparté 0.13 un renderer peut rendre un HTMLElement déjà monté
+    // plutôt qu'une chaîne — le bras sûr, sans surface innerHTML. Le nôtre
+    // rend encore une chaîne, mais le contrat porte l'union : on traite les deux.
+    const rendered = artifactCardRenderer.render(segment);
+    let el: HTMLElement | null;
+    if (typeof rendered === 'string') {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = rendered;
+      el = wrapper.firstElementChild as HTMLElement | null;
+    } else {
+      el = rendered;
+    }
     if (!el) {
       host.textContent = '[render() → élément null]';
       return;

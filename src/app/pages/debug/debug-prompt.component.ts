@@ -53,7 +53,7 @@ import { SOUFFLEUR_TOOL_NAMES, getLastWire } from '../../souffleurs';
     </main>
   `,
   styles: `
-    :host { display: block; height: 100%; overflow: auto; background: var(--aparte-surface-0); }
+    :host { display: block; height: 100%; overflow: auto; background: var(--aparte-bg); }
     main { max-width: 960px; margin: 0 auto; padding: 24px 20px 64px; color: var(--aparte-text); }
     h1 { font-size: 20px; margin: 0 0 4px; }
     h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em;

@@ -213,7 +213,7 @@ export const SouffleursProvider: AparteAIProvider = {
     };
   },
 
-  // SYNCHRONE obligatoirement : AparteConfig.getCurrentModel() ignore les Promise,
+  // SYNCHRONE obligatoirement : aparteGlobalConfig.getCurrentModel() ignore les Promise,
   // et sans modèle courant le gate function_calling coupe les tools.
   getModels(): AparteAIModel[] {
     return MODELS;

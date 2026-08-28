@@ -1,7 +1,13 @@
 /**
- * SEUL point de contact avec la lib apartéJS : tout le câblage AparteConfig /
- * plugins / client / conversation manager vit ici. Les autres modules ne
- * touchent jamais AparteConfig directement.
+ * Le câblage de la lib apartéJS : transport, plugins, outils, client et
+ * conversation manager. Depuis aparté 0.8 la config n'est plus une classe à
+ * statiques — `AparteConfig` est le TYPE, `aparteGlobalConfig` l'instance de la
+ * page, celle où écrit aussi `provideAparte`.
+ *
+ * L'enregistrement passe par ici, mais trois modules touchent l'instance de leur
+ * côté parce qu'ils POSENT un rendu et non une configuration : `mascotte/`
+ * (status + erreur), `souffleurs/tools/tool-renderers` (coloration live) et
+ * `core/i18n/translate.service` (bascule de locale).
  */
 import {
   inject,
@@ -11,13 +17,12 @@ import {
 } from '@angular/core';
 import { provideServiceWorker } from '@angular/service-worker';
 import { ConversationManagerService, provideAparte } from '@aparte/angular';
-import { AparteConfig, DirectTransport } from '@aparte/core';
+import { AparteDirectTransport, aparteGlobalConfig, registerSegmentRenderer } from '@aparte/core';
 import { fr } from '@aparte/locale-fr';
-import { setupAskQuestion } from '@aparte/plugin-ask-question';
+import { buildReceipt, questionReceiptRenderer } from '@aparte/plugin-ask-user';
 import { setupMarkedProvider } from '@aparte/plugin-marked';
 import { setupShikiProvider } from '@aparte/plugin-shiki';
 import { setupStreamingMarkdownProvider } from '@aparte/plugin-streaming-markdown';
-import '@aparte/plugin-model-selector';
 import { registerMascotteRenderers } from '../mascotte';
 import {
   CALLER_MODEL_ID,
@@ -41,6 +46,7 @@ import {
   setSouffleurDebug,
   setReminderHandler,
   setReminderTool,
+  SOUFFLEUR_ASK_QUESTION_TOOL_NAME,
   souffleurAskQuestionHandler,
   souffleurAskQuestionTool,
   transformFileHandler,
@@ -88,7 +94,7 @@ export function provideMonaparte(): EnvironmentProviders[] {
       // avoir à penser à un flag. `bp.debug` reste un override explicite.
       setSouffleurDebug(isDevMode());
 
-      AparteConfig.setTransport(new DirectTransport({ byok: true }));
+      aparteGlobalConfig.setTransport(new AparteDirectTransport({ byok: true }));
       // Depuis aparté 0.5, TOUTES les actions sauf `copy` sont désactivées par
       // défaut : la lib ne rend que ce que quelqu'un honore (« a button nobody
       // answers is a lie told to the user »). On active donc ce qu'on traite :
@@ -98,34 +104,44 @@ export function provideMonaparte(): EnvironmentProviders[] {
       //    écouteur existaient déjà — seule l'activation manquait, donc le
       //    bouton avait disparu au passage en 0.5.
       // Rappel lib : `info` ne s'affiche que si le message porte un `usage`.
-      AparteConfig.setBubbleActions({ retry: true, edit: true, info: true });
+      aparteGlobalConfig.setBubbleActions({ retry: true, edit: true, info: true });
 
       setupMarkedProvider();
       setupStreamingMarkdownProvider();
       // Shiki charge ses langues à la demande — ne bloque pas le boot.
       void setupShikiProvider();
 
-      setupAskQuestion();
-      // Par-dessus le handler du plugin : shim contrat souffleurs
-      // (multi_select→multiple, options string[]→{title}[]).
-      AparteConfig.registerTool(souffleurAskQuestionTool, souffleurAskQuestionHandler);
+      // Pas de `setupAskUser()` : il enregistrerait l'outil sous le nom du
+      // plugin (`ask_user`), que le modèle n'émet jamais, et le renderer de
+      // reçu sous cette même clé. On repose donc ses trois gestes à la main,
+      // sur le nom du contrat. Le shim (multi_select→multiple, options
+      // string[]→{title}[]) est dans l'adaptateur.
+      aparteGlobalConfig.registerTool(souffleurAskQuestionTool, souffleurAskQuestionHandler);
+      // Depuis 0.13 la question posée et la réponse reçue laissent une trace
+      // dans le fil (segment `question-receipt`) : avant, le panneau répondu
+      // ne laissait rien et l'échange disparaissait du défilement.
+      registerSegmentRenderer(questionReceiptRenderer);
+      aparteGlobalConfig.registerToolRenderer(SOUFFLEUR_ASK_QUESTION_TOOL_NAME, {
+        render: (segment) =>
+          buildReceipt({ input: segment.toolCall.input, result: segment.result }),
+      });
 
       // Les 9 outils du contrat (search_knowledge/remember = leurres RAG, non
       // enregistrés : ils restent hors de la liste d'activation).
-      AparteConfig.registerTool(readFileTool, readFileHandler);
-      AparteConfig.registerTool(writeFileTool, writeFileHandler);
-      AparteConfig.registerTool(computeTool, computeHandler);
-      AparteConfig.registerTool(createWidgetTool, createWidgetHandler);
-      AparteConfig.registerTool(transformFileTool, transformFileHandler);
-      AparteConfig.registerTool(setReminderTool, setReminderHandler);
+      aparteGlobalConfig.registerTool(readFileTool, readFileHandler);
+      aparteGlobalConfig.registerTool(writeFileTool, writeFileHandler);
+      aparteGlobalConfig.registerTool(computeTool, computeHandler);
+      aparteGlobalConfig.registerTool(createWidgetTool, createWidgetHandler);
+      aparteGlobalConfig.registerTool(transformFileTool, transformFileHandler);
+      aparteGlobalConfig.registerTool(setReminderTool, setReminderHandler);
 
       // Sans renderer dédié, la lib n'affiche que le nom de l'outil : l'erreur
       // du survol (file_id inconnu, image, lecture impossible) restait muette.
-      AparteConfig.registerToolRenderer('read_file', readFileRenderer);
-      AparteConfig.registerToolRenderer('write_file', artifactCardRenderer);
-      AparteConfig.registerToolRenderer('transform_file', artifactCardRenderer);
-      AparteConfig.registerToolRenderer('create_widget', widgetRenderer);
-      AparteConfig.registerToolRenderer('compute', invisibleRenderer);
+      aparteGlobalConfig.registerToolRenderer('read_file', readFileRenderer);
+      aparteGlobalConfig.registerToolRenderer('write_file', artifactCardRenderer);
+      aparteGlobalConfig.registerToolRenderer('transform_file', artifactCardRenderer);
+      aparteGlobalConfig.registerToolRenderer('create_widget', widgetRenderer);
+      aparteGlobalConfig.registerToolRenderer('compute', invisibleRenderer);
       // La lib n'injecte les styles des tool renderers qu'au tool-start (live) —
       // au reload il n'y en a pas : injection à l'enregistrement.
       installToolRendererStyles();
