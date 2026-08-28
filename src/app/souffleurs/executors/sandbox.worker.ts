@@ -46,14 +46,23 @@ async function loadLib(lib: SandboxLib): Promise<LibBinding> {
   switch (lib) {
     case 'jspdf': {
       const { jsPDF } = await import('jspdf');
+      // Deux formes doivent marcher, parce que le prompt runtime (verbatim du
+      // contrat, on n'y touche pas) annonce « Globals : jsPDF, autoTable » alors
+      // que le dataset qui a entraîné souffleur-pdf n'utilise que
+      // `doc.autoTable({...})` (477/477, audit lab du 26/07 §3). Sans
+      // `applyPlugin`, la forme méthode crashe ; sans le global, la forme
+      // fonction `autoTable(doc, {...})` que le prompt invite crashe. On expose
+      // les deux : le modèle ne peut plus se tromper de porte.
+      const globals: Record<string, unknown> = { jsPDF };
       try {
-        const { applyPlugin } = await import('jspdf-autotable');
+        const { applyPlugin, autoTable } = await import('jspdf-autotable');
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         applyPlugin(jsPDF as any);
+        globals['autoTable'] = autoTable;
       } catch {
         /* plugin optionnel — le code sans tableau marche quand même */
       }
-      binding = { globals: { jsPDF }, mime: 'application/pdf' };
+      binding = { globals, mime: 'application/pdf' };
       break;
     }
     case 'compute': {
