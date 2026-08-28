@@ -170,11 +170,12 @@ function findClosestAspectRatio(
 export function gridLayout(
   width: number,
   height: number,
+  maxTiles: number = CONFIG.maxTiles,
 ): { cols: number; rows: number; targetWidth: number; targetHeight: number } {
-  const { minTiles, maxTiles, tileSize } = CONFIG;
+  const { minTiles, tileSize } = CONFIG;
   const [cols, rows] = findClosestAspectRatio(
     width / height,
-    targetRatios(minTiles, maxTiles),
+    targetRatios(minTiles, Math.min(Math.max(maxTiles, minTiles), CONFIG.maxTiles)),
     width,
     height,
     tileSize,
@@ -213,12 +214,32 @@ export function expectedTotalTokens(image: PreprocessedImage): number {
   return tiles > 1 ? tiles * TOKENS_PER_TILE + thumbnail : thumbnail;
 }
 
-export async function preprocessImage(blob: Blob): Promise<PreprocessedImage> {
+export interface PreprocessOptions {
+  /**
+   * Upper bound on grid tiles (thumbnail excluded). `1` = never split: the
+   * reference's mono-tile path, 256 tokens at most.
+   *
+   * The reference's default (10) is faithful but was MEASURED unusable in
+   * the browser on 2026-08-28: a screenshot became 3x3 tiles + thumbnail,
+   * 10 encoder passes and ~2 560 image tokens — the machine crawled, the
+   * card never filled, and 2 560 of a 4 096-token context would have been
+   * spent on one image anyway. The app defaults to 1 and exposes the switch
+   * (`localStorage bp.vision.tiles`) so fine-text quality can be measured
+   * against cost instead of assumed.
+   */
+  maxTiles?: number;
+}
+
+export async function preprocessImage(
+  blob: Blob,
+  opts: PreprocessOptions = {},
+): Promise<PreprocessedImage> {
+  const maxTiles = opts.maxTiles ?? CONFIG.maxTiles;
   const bitmap = await createImageBitmap(blob);
   try {
     const thumb = smartResize(bitmap.width, bitmap.height);
-    const split = isImageTooLarge(bitmap.width, bitmap.height);
-    const grid = split ? gridLayout(bitmap.width, bitmap.height) : null;
+    const split = maxTiles >= CONFIG.minTiles && isImageTooLarge(bitmap.width, bitmap.height);
+    const grid = split ? gridLayout(bitmap.width, bitmap.height, maxTiles) : null;
 
     // One tile per grid cell, plus the overall thumbnail. The reference only
     // adds the thumbnail if the grid isn't 1×1; our bounds (minTiles = 2)

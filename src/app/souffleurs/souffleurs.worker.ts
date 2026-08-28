@@ -354,12 +354,13 @@ async function describeImage(msg: {
   question: string;
   maxNewTokens: number;
   tower: TowerFiles;
+  maxTiles?: number;
   baseWeightsFile: string;
   adapterFile: string;
   modelFileName?: string;
   debug?: boolean;
 }): Promise<void> {
-  const { id, device, blob, question, maxNewTokens, tower, debug } = msg;
+  const { id, device, blob, question, maxNewTokens, tower, maxTiles, debug } = msg;
   const modelFileName = msg.modelFileName ?? 'model';
   if (modelFileName === 'model') {
     throw new Error(
@@ -390,7 +391,7 @@ async function describeImage(msg: {
 
   // 3. Image -> patches -> embeds.
   const t0 = performance.now();
-  const processed = await preprocessImage(blob);
+  const processed = await preprocessImage(blob, { maxTiles });
   const { features, numTokens, hiddenSize } = await encodeImage(processed);
   if (debug) {
     const want = expectedTotalTokens(processed);

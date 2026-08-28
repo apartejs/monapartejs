@@ -57,6 +57,8 @@ export type MainToWorker =
       question: string;
       maxNewTokens: number;
       tower: TowerFiles;
+      /** Tile cap for the preprocessing (see PreprocessOptions.maxTiles). */
+      maxTiles?: number;
       debug?: boolean;
     } & AdapterFiles)
   | { type: 'abort' }

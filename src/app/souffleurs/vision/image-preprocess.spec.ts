@@ -25,6 +25,28 @@ function processed(part: Partial<PreprocessedImage>): PreprocessedImage {
   };
 }
 
+describe('gridLayout — tile cap', () => {
+  it('never exceeds the requested maximum', () => {
+    for (const [w, h] of [
+      [4000, 3000],
+      [3000, 4000],
+      [6000, 1000],
+      [2000, 2000],
+    ]) {
+      const g = gridLayout(w, h, 4);
+      expect(g.cols * g.rows).toBeLessThanOrEqual(4);
+      expect(g.cols * g.rows).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('is clamped to the reference bounds (2..10)', () => {
+    const g = gridLayout(4000, 3000, 50);
+    expect(g.cols * g.rows).toBeLessThanOrEqual(10);
+    const g1 = gridLayout(4000, 3000, 1);
+    expect(g1.cols * g1.rows).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('smartResize', () => {
   it('returns dimensions divisible by 32', () => {
     for (const [w, h] of [
