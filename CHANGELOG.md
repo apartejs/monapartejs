@@ -20,12 +20,13 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   (`{ok, type, answers}`); the displayed receipt is rebuilt from that JSON.
 
 ### Changed
-- `@aparte/*` 0.13.0 → 0.13.1 → 0.14.0 → 0.15.0. With 0.14: the memory-fact and
+- `@aparte/*` 0.13.0 → 0.13.1 → 0.14.0 → 0.15.1. With 0.14: the memory-fact and
   artifact row types are ours (`storage/db.ts`), `ask_question` is created through the
   plugin's `name`/`description` options, and code blocks follow the theme (shiki
-  light/dark pair). With 0.15: `ask_question` registers with `systemPrompt: false`
-  instead of stripping the field, and the declined sentence is the plugin's exported
-  `ASK_USER_DECLINED`.
+  light/dark pair). With 0.15.1: `ask_question` registers with `systemPrompt: false`
+  instead of stripping the field, the declined sentence is the plugin's exported
+  `ASK_USER_DECLINED`, and the provider's metadata is typed with core's exported
+  `AparteAIProviderMetadata`.
 - `package.json` filled in (name, licence, repository); Node 24.
 - Repository documentation switched to English.
 
