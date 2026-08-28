@@ -33,7 +33,7 @@ export const writeFileTool: AparteTool = {
   },
 };
 
-export const writeFileHandler: AparteToolHandler = async (call) => {
+export const writeFileHandler: AparteToolHandler = async (call, signal) => {
   const kind = String(call.input['kind'] ?? '') as WriteFileKind;
   const task = String(call.input['task'] ?? '');
   const fileIds = (call.input['file_ids'] as string[] | undefined) ?? [];
@@ -88,7 +88,7 @@ export const writeFileHandler: AparteToolHandler = async (call) => {
       }
     };
 
-    const { raw } = await runExecutor(adapter, system, executorTask, { onChunk });
+    const { raw } = await runExecutor(adapter, system, executorTask, { onChunk, signal });
     clearLiveArtifact(call.id);
 
     const artifact = await materializeWriteFile(kind, raw, {

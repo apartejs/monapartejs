@@ -570,8 +570,14 @@ export async function runExecutor(
   adapter: ExecutorAdapter,
   systemPrompt: string,
   task: string,
-  opts: { maxNewTokens?: number; onChunk?: (raw: string) => void } = {},
+  opts: { maxNewTokens?: number; onChunk?: (raw: string) => void; signal?: AbortSignal } = {},
 ): Promise<ExecutorResult> {
+  const abortError = () => {
+    const err = new Error('executor aborted');
+    err.name = 'AbortError';
+    return err;
+  };
+  if (opts.signal?.aborted) throw abortError();
   const device = await detectComputeDevice();
   const resolved = await resolveAdapterFiles(adapter);
   // `intent: ` prefix — TRAINING FORMAT of the three executors (100% of
@@ -586,8 +592,26 @@ export async function runExecutor(
   return enqueue(
     () =>
       new Promise<ExecutorResult>((resolve, reject) => {
+        // Stop pressed while queued: do not even start the generation.
+        if (opts.signal?.aborted) {
+          reject(abortError());
+          return;
+        }
         const id = _nextId++;
         let raw = '';
+        // The conversation's Stop button aborts the chat stream, and the
+        // engine forwards that abort to the running tool handler's signal.
+        // Until now nothing listened here: the executor kept generating in
+        // the worker (seen 2026-08-28 on a souffleur-pdf loop — minutes of
+        // GPU after Stop). One pipeline, one `abort`: interrupting the worker
+        // interrupts whatever is generating, which is this executor.
+        const onAbort = () => {
+          getWorker().postMessage({ type: 'abort' } satisfies MainToWorker);
+          setSouffleurStatus({ status: 'ready', device });
+          reject(abortError());
+        };
+        opts.signal?.addEventListener('abort', onAbort, { once: true });
+        const settle = () => opts.signal?.removeEventListener('abort', onAbort);
         _pending.set(id, {
           onProgress: (p) => {
             if (!p.done) setSouffleurStatus({ status: 'downloading', device });
@@ -601,10 +625,12 @@ export async function runExecutor(
             opts.onChunk?.(raw);
           },
           onDone: (usage) => {
+            settle();
             setSouffleurStatus({ status: 'ready', device });
             resolve({ raw: raw.split('<|im_end|>')[0], usage });
           },
           onError: (message) => {
+            settle();
             setSouffleurStatus({ status: 'error', message, device });
             reject(new Error(message));
           },

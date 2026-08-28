@@ -18,11 +18,12 @@ export const computeTool: AparteTool = {
   },
 };
 
-export const computeHandler: AparteToolHandler = async (call) => {
+export const computeHandler: AparteToolHandler = async (call, signal) => {
   const task = String(call.input['task'] ?? '');
   try {
     const { raw } = await runExecutor('souffleur-sandbox', SANDBOX_JS_SYSTEM, task, {
       maxNewTokens: 2000,
+      signal,
     });
     const code = extractCode(raw);
     const result = await runInSandbox('compute', code, { timeoutMs: 15_000 });

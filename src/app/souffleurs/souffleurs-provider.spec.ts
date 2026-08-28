@@ -162,6 +162,48 @@ describe('runExecutor — user turn format', () => {
 });
 
 /**
+ * The conversation's Stop aborts the tool handler's signal; the executor must
+ * stop the worker and reject as an AbortError (what the engine expects).
+ */
+describe('runExecutor — abort', () => {
+  it('posts `abort` to the worker and rejects with AbortError', async () => {
+    const { runExecutor } = await import('./souffleurs-provider');
+    const controller = new AbortController();
+    const pending = runExecutor('souffleur-pdf', 'SYSTEM', 'facture', {
+      signal: controller.signal,
+    });
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    expect(worker.sentIds('generate').length).toBe(1);
+
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(worker.posted.some((m) => m.type === 'abort')).toBe(true);
+
+    // The worker still answers `done` after the interrupt: must not throw.
+    const [id] = worker.sentIds('generate');
+    expect(() =>
+      worker.reply({
+        type: 'done',
+        id,
+        usage: { inputTokens: 1, outputTokens: 1, ttftMs: 1, durationMs: 1 },
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects immediately when the signal is already aborted', async () => {
+    const { runExecutor } = await import('./souffleurs-provider');
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      runExecutor('souffleur-pdf', 'SYSTEM', 'facture', { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(FakeWorker.last?.sentIds('generate') ?? []).toEqual([]);
+  });
+});
+
+/**
  * In dev we want the wire traces WITHOUT having to enable anything —
  * explicit request. `bp.debug` remains an override in both directions.
  */

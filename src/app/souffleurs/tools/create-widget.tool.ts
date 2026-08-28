@@ -22,12 +22,13 @@ export const createWidgetTool: AparteTool = {
   },
 };
 
-export const createWidgetHandler: AparteToolHandler = async (call) => {
+export const createWidgetHandler: AparteToolHandler = async (call, signal) => {
   const kind = String(call.input['kind'] ?? 'code') as ProducedWidget['kind'];
   const task = String(call.input['task'] ?? '');
   try {
     const { raw } = await runExecutor('souffleur-sandbox', SANDBOX_JS_SYSTEM, task, {
       maxNewTokens: 4000,
+      signal,
     });
     const code = extractCode(raw);
 

@@ -22,6 +22,7 @@ import {
   type PreprocessedImage,
 } from './vision/image-preprocess';
 import { attachTower, detachTower, encodeImage } from './vision/vision-tower';
+import { RepetitionGuard } from './wire/repetition-guard';
 import { SOUFFLEURS_HF_REPO, type AdapterName } from './model-catalog';
 import type {
   AdapterFiles,
@@ -238,12 +239,20 @@ async function generate(
   const t0 = performance.now();
   let tFirst = 0;
   let outputTokens = 0;
+  // Greedy decoding can lock into repeating one line forever (see the guard).
+  // Cut it short and fail the turn: a looping output is never usable.
+  const guard = new RepetitionGuard();
   const streamer = new TextStreamer(tokenizer, {
     skip_prompt: true,
     skip_special_tokens: false,
     callback_function: (delta: string) => {
       if (!tFirst) tFirst = performance.now();
       outputTokens++;
+      guard.push(delta);
+      if (guard.tripped) {
+        stopping.interrupt();
+        return;
+      }
       post({ type: 'chunk', id, delta });
     },
   });
@@ -255,6 +264,15 @@ async function generate(
     streamer,
     stopping_criteria: stopping,
   });
+
+  if (guard.tripped) {
+    post({
+      type: 'error',
+      id,
+      message: `generation looped (${adapter} repeated the same line ${4} times) — stopped after ${outputTokens} tokens`,
+    });
+    return;
+  }
 
   const now = performance.now();
   post({
