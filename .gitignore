@@ -22,3 +22,6 @@ docs/superpowers/
 # brouillons de brief pour la prochaine passe SFT. Vit à côté du code parce
 # que c'est en développant qu'on constate, mais ce n'est pas de la doc.
 *.local.md
+
+# Retours d'audit et notes de cadrage Claude — local, jamais publiés
+.claude/

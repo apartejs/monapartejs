@@ -1,0 +1,25 @@
+# The @aparte/* packages ship in lockstep: one PR per library version, validated in
+# the browser before merge (the library breaks freely between two 0.x). Angular stays
+# on 19 as long as @aparte/angular's peers do not require more.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      aparte:
+        patterns: ['@aparte/*']
+      angular:
+        patterns: ['@angular/*', '@angular-devkit/*']
+    ignore:
+      - dependency-name: '@angular/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@angular-devkit/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
