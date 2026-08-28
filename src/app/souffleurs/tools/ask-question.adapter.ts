@@ -39,8 +39,120 @@ export const souffleurAskQuestionTool: AparteTool = {
   description: "Pose une question à l'utilisateur avec des options structurées.",
 };
 
-export const souffleurAskQuestionHandler: AparteToolHandler = (call, signal) =>
-  askUserHandler({ ...call, input: normalizeAskQuestionInput(call.input) }, signal);
+/**
+ * Chaîne que le plugin renvoie quand l'utilisateur ferme le panneau sans
+ * répondre. Le plugin ne l'exporte pas depuis son index (`ASK_USER_DECLINED`,
+ * interne à `ask-user-*.js`) ; on la recopie. À CONTRÔLER à chaque montée du
+ * plugin : si elle change, un refus serait pris pour une réponse « value ».
+ */
+export const PLUGIN_DECLINED_TEXT = 'The user declined to answer.';
+
+/** Une réponse par question, forme du dataset : `{value}` ou `{values}` en multi. */
+export type AskQuestionAnswer = { value: string } | { values: string[] };
+
+export interface AskQuestionResult {
+  ok: boolean;
+  type: 'ask_question';
+  answers?: AskQuestionAnswer[];
+  error?: string;
+}
+
+/**
+ * 3. L'OBSERVATION. À l'entraînement, le tour `tool` qui suit `ask_question` est
+ *    le JSON `{ok:true, type:'ask_question', answers:[{value}|{values}]}` — c'est
+ *    ce que pousse `browser/app/app.js` du lab (`onAskQuestionSubmit`), et ce que
+ *    le modèle a appris à lire (HANDOFF-fixes-bonaparte §4). Le plugin, lui,
+ *    répond en prose (« a, b » ou « question → réponse » par ligne). On garde le
+ *    plugin pour le panneau et on ne convertit que le tour d'outil, dans les
+ *    deux sens : vers le JSON pour le modèle ici, vers la prose pour le reçu
+ *    affiché dans `askQuestionReceiptText`.
+ */
+export const souffleurAskQuestionHandler: AparteToolHandler = async (call, signal) => {
+  const input = normalizeAskQuestionInput(call.input);
+  const plain = await askUserHandler({ ...call, input }, signal);
+  const result = toTrainingResult(String(plain.content ?? ''), input);
+  return { ...plain, content: JSON.stringify(result) };
+};
+
+interface QuestionShape {
+  question: string;
+  multiple: boolean;
+}
+
+function questionsOf(input: Record<string, unknown>): QuestionShape[] {
+  const raw = input['questions'];
+  const list = Array.isArray(raw) && raw.length > 0 ? raw : [input];
+  return list.map((q) => {
+    const item = (q ?? {}) as Record<string, unknown>;
+    return {
+      question: String(item['question'] ?? ''),
+      multiple: Boolean(item['multiple'] ?? item['multi_select'] ?? false),
+    };
+  });
+}
+
+/** Sépare une liste jointe par le plugin (`formatAnswer` : `values.join(', ')`). */
+const splitValues = (s: string): string[] =>
+  s
+    .split(', ')
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+/**
+ * Prose du plugin → JSON du dataset. Le plugin joint les valeurs d'une
+ * multi-sélection par « , » : une valeur qui contiendrait elle-même « , »
+ * serait coupée — assumé, les options viennent du modèle et sont courtes.
+ */
+export function toTrainingResult(
+  plain: string,
+  input: Record<string, unknown>,
+): AskQuestionResult {
+  const text = plain.trim();
+  if (text === PLUGIN_DECLINED_TEXT) {
+    return { ok: false, type: 'ask_question', error: 'declined' };
+  }
+  const questions = questionsOf(input);
+  const one = (q: QuestionShape, s: string): AskQuestionAnswer =>
+    q.multiple ? { values: splitValues(s) } : { value: s.trim() };
+
+  if (questions.length <= 1) {
+    const q = questions[0] ?? { question: '', multiple: false };
+    return { ok: true, type: 'ask_question', answers: [one(q, text)] };
+  }
+  const lines = text.split('\n').filter((l) => l.trim() !== '');
+  const answers = questions.map((q, i) => {
+    const line = lines[i] ?? '';
+    const sep = line.indexOf(' → ');
+    return one(q, sep === -1 ? line : line.slice(sep + 3));
+  });
+  return { ok: true, type: 'ask_question', answers };
+}
+
+/**
+ * JSON du dataset → prose du plugin, pour `buildReceipt` (qui relit
+ * `segment.result` au format de son propre handler). Un résultat qui n'est pas
+ * notre JSON (historique d'avant ce changement) est rendu tel quel.
+ */
+export function askQuestionReceiptText(
+  result: string | undefined,
+  input: Record<string, unknown>,
+): string | undefined {
+  if (!result) return result;
+  let parsed: AskQuestionResult;
+  try {
+    parsed = JSON.parse(result) as AskQuestionResult;
+  } catch {
+    return result;
+  }
+  if (!parsed || parsed.type !== 'ask_question') return result;
+  if (!parsed.ok || !parsed.answers) return PLUGIN_DECLINED_TEXT;
+  const questions = questionsOf(input);
+  const text = (a: AskQuestionAnswer) => ('values' in a ? a.values.join(', ') : a.value);
+  if (questions.length <= 1) return text(parsed.answers[0] ?? { value: '' });
+  return questions
+    .map((q, i) => `${q.question} → ${text(parsed.answers![i] ?? { value: '' })}`)
+    .join('\n');
+}
 
 export function normalizeAskQuestionInput(
   input: Record<string, unknown>,

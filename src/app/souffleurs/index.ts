@@ -46,6 +46,7 @@ export {
 export { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
 export { SOUFFLEUR_TOOL_NAMES } from './wire/tool-defs';
 export {
+  askQuestionReceiptText,
   normalizeAskQuestionInput,
   SOUFFLEUR_ASK_QUESTION_TOOL_NAME,
   souffleurAskQuestionHandler,

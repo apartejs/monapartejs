@@ -47,6 +47,7 @@ import {
   setReminderHandler,
   setReminderTool,
   SOUFFLEUR_ASK_QUESTION_TOOL_NAME,
+  askQuestionReceiptText,
   souffleurAskQuestionHandler,
   souffleurAskQuestionTool,
   transformFileHandler,
@@ -121,9 +122,14 @@ export function provideMonaparte(): EnvironmentProviders[] {
       // dans le fil (segment `question-receipt`) : avant, le panneau répondu
       // ne laissait rien et l'échange disparaissait du défilement.
       registerSegmentRenderer(questionReceiptRenderer);
+      // Le résultat stocké est le JSON du contrat (ce que lit le modèle) ; le
+      // reçu du plugin attend sa prose — conversion inverse dans l'adaptateur.
       aparteGlobalConfig.registerToolRenderer(SOUFFLEUR_ASK_QUESTION_TOOL_NAME, {
         render: (segment) =>
-          buildReceipt({ input: segment.toolCall.input, result: segment.result }),
+          buildReceipt({
+            input: segment.toolCall.input,
+            result: askQuestionReceiptText(segment.result, segment.toolCall.input),
+          }),
       });
 
       // Les 9 outils du contrat (search_knowledge/remember = leurres RAG, non
