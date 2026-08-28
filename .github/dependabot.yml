@@ -23,3 +23,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # One PR for all action bumps: five separate PRs on day one, each a
+    # deployment once merged, was noise (2026-08-28).
+    groups:
+      actions:
+        patterns: ['*']
