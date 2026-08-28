@@ -13,6 +13,7 @@
 import type {
   AparteAIModel,
   AparteAIProvider,
+  AparteAIProviderMetadata,
   AparteChatRequest,
   AparteChatResponse,
   AparteStreamEvent,
@@ -20,7 +21,6 @@ import type {
   ModelStatus,
 } from '@aparte/core';
 
-type ProviderMetadata = ReturnType<AparteAIProvider['getMetadata']>;
 import {
   CALLER_ADAPTER,
   CALLER_DOWNLOAD_BYTES,
@@ -205,7 +205,7 @@ const MODELS: AparteAIModel[] = [
 export const SouffleursProvider: AparteAIProvider = {
   id: PROVIDER_ID,
 
-  getMetadata(): ProviderMetadata {
+  getMetadata(): AparteAIProviderMetadata {
     return {
       id: PROVIDER_ID,
       name: 'aparté',

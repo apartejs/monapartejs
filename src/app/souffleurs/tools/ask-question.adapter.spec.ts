@@ -8,11 +8,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@aparte/plugin-ask-user', () => ({
   askUserHandler: vi.fn(),
-  createAskUserTool: (o: { name?: string; description?: string } = {}) => ({
+  ASK_USER_DECLINED: 'The user declined to answer.',
+  createAskUserTool: (
+    o: { name?: string; description?: string; systemPrompt?: string | false } = {},
+  ) => ({
     name: o.name ?? 'ask_user',
     description: o.description ?? 'x',
     inputSchema: { type: 'object' },
-    systemPrompt: 'You have access to the ask_user tool',
+    ...(o.systemPrompt === false ? {} : { systemPrompt: 'You have access to the ask_user tool' }),
   }),
 }));
 
@@ -98,7 +101,7 @@ describe('souffleurAskQuestionHandler', () => {
     });
   });
 
-  it('keeps the contract name and strips the plugin systemPrompt', () => {
+  it('keeps the contract name and registers no plugin systemPrompt', () => {
     expect(souffleurAskQuestionTool.name).toBe('ask_question');
     expect('systemPrompt' in souffleurAskQuestionTool).toBe(false);
   });

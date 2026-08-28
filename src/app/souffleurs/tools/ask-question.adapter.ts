@@ -25,29 +25,28 @@
  * that doesn't exist.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
-import { askUserHandler, createAskUserTool } from '@aparte/plugin-ask-user';
+import { ASK_USER_DECLINED, askUserHandler, createAskUserTool } from '@aparte/plugin-ask-user';
 
 /** Name from the souffleurs contract, not the plugin's. */
 export const SOUFFLEUR_ASK_QUESTION_TOOL_NAME = 'ask_question';
 
-// Since aparté 0.14 the plugin takes the name and description itself. The
-// `systemPrompt` is still stripped: an empty string would be sent as an empty
-// system message, and the plugin's default is English prose about `ask_user`.
-const { systemPrompt: _pluginSystemPrompt, ...askUserToolShape } = createAskUserTool({
+// Since aparté 0.14 the plugin takes the name and description; since 0.15
+// `systemPrompt: false` registers the tool with no system message at all —
+// the plugin's default is English prose about `ask_user`, outside the
+// training contract, and since 0.13 that field is really sent.
+export const souffleurAskQuestionTool: AparteTool = createAskUserTool({
   name: SOUFFLEUR_ASK_QUESTION_TOOL_NAME,
   // The contract's vocabulary, not the plugin's.
   description: "Pose une question à l'utilisateur avec des options structurées.",
+  systemPrompt: false,
 });
 
-export const souffleurAskQuestionTool: AparteTool = askUserToolShape;
-
 /**
- * String the plugin returns when the user closes the panel without
- * answering. The plugin doesn't export it from its index (`ASK_USER_DECLINED`,
- * internal to `ask-user-*.js`); we copy it here. To CHECK on every plugin
- * upgrade: if it changes, a decline would be mistaken for a "value" answer.
+ * The sentence the plugin returns as the tool result when the user closes the
+ * panel without answering — exported by the plugin since 0.15 (it was copied
+ * by hand before, and a rewording would have turned a decline into an answer).
  */
-export const PLUGIN_DECLINED_TEXT = 'The user declined to answer.';
+export const PLUGIN_DECLINED_TEXT: string = ASK_USER_DECLINED;
 
 /** One answer per question, dataset shape: `{value}` or `{values}` for multi. */
 export type AskQuestionAnswer = { value: string } | { values: string[] };
