@@ -60,7 +60,46 @@ async function loadLib(lib: SandboxLib): Promise<LibBinding> {
       // `applyPlugin`, the method form crashes; without the global, the function
       // form `autoTable(doc, {...})` that the prompt invites crashes. We expose
       // both: the model can no longer pick the wrong door.
-      const globals: Record<string, unknown> = { jsPDF };
+      // `doc.text()` throws "Invalid arguments passed to jsPDF.text" when the
+      // text is undefined/null or x/y is NaN — typically a variable the
+      // generated code never defined, or a total it never computed. Seen
+      // 2026-08-28: one such call failed the whole invoice. A document with one
+      // missing line beats no document: coerce numbers to strings, skip the
+      // call when it cannot draw anything, and say so in the console.
+      // `text` is defined per INSTANCE inside jsPDF's constructor (not on the
+      // prototype), hence the construct trap rather than a prototype patch.
+      const forgivingText = (doc: { text: (...a: unknown[]) => unknown }) => {
+        const original = doc.text.bind(doc);
+        doc.text = (...args: unknown[]) => {
+          let [text, x, y] = args;
+          // Legacy order text(x, y, text): jsPDF swaps it itself, but only when
+          // the text is a string — normalise numbers first so it can.
+          if (typeof text === 'number' && typeof x === 'number' && typeof y === 'number') {
+            [x, y, text] = [text, x, String(y)];
+          }
+          if (typeof text === 'number') text = String(text);
+          if (Array.isArray(text)) text = text.map((t) => (t == null ? '' : String(t)));
+          if (text == null || Number.isNaN(Number(x)) || Number.isNaN(Number(y))) {
+            console.warn('[sandbox] jsPDF.text skipped: invalid arguments', args);
+            return doc;
+          }
+          return original(text, x, y, ...args.slice(3));
+        };
+      };
+      const ForgivingJsPDF = new Proxy(jsPDF, {
+        construct(target, args, newTarget) {
+          const doc = Reflect.construct(target, args, newTarget);
+          forgivingText(doc);
+          return doc;
+        },
+        apply(target, _thisArg, args) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const doc = new (target as any)(...args);
+          forgivingText(doc);
+          return doc;
+        },
+      });
+      const globals: Record<string, unknown> = { jsPDF: ForgivingJsPDF };
       try {
         const { applyPlugin, autoTable } = await import('jspdf-autotable');
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

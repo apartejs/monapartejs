@@ -438,6 +438,21 @@ export interface ExecutorResult {
  * Throws if the `vision` block isn't in the manifest: the read_file handler
  * turns this into `ok:false` with the message, now shown to the user.
  */
+/**
+ * Tile cap for image preprocessing — default 1 (mono-tile, ≤ 256 tokens).
+ * Multi-tile is the reference's path for fine text but was measured
+ * unusable in the browser (see PreprocessOptions.maxTiles). Switch to
+ * measure it: `localStorage.setItem('bp.vision.tiles', '4')` then reload.
+ */
+function visionMaxTiles(): number {
+  try {
+    const raw = Number(localStorage.getItem('bp.vision.tiles'));
+    return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+  } catch {
+    return 1;
+  }
+}
+
 export async function describeImage(blob: Blob, question: string): Promise<string> {
   const device = await detectComputeDevice();
   const manifest = await getSouffleurManifest();
@@ -487,6 +502,7 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
           blob,
           question,
           maxNewTokens: VISION_MAX_NEW_TOKENS,
+          maxTiles: visionMaxTiles(),
           tower: {
             graphUrl: `${base}/${vision.tower}`,
             dataUrl: `${base}/${vision.tower_data}`,
@@ -627,6 +643,12 @@ export async function runExecutor(
           onDone: (usage) => {
             settle();
             setSouffleurStatus({ status: 'ready', device });
+            if (isDebug()) {
+              // Same traces as the caller: without them a "code crashed"
+              // tool error is undiagnosable (seen 2026-08-28, jsPDF.text).
+              console.log('[souffleurs] EXECUTOR %s PROMPT >>>\n%s', adapter, prompt);
+              console.log('[souffleurs] EXECUTOR %s RAW >>>\n%s', adapter, raw);
+            }
             resolve({ raw: raw.split('<|im_end|>')[0], usage });
           },
           onError: (message) => {
