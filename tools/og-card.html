@@ -33,15 +33,24 @@
     position: absolute;
     inset: -40% -10% auto auto;
     width: 780px; height: 780px;
-    background: radial-gradient(circle, rgba(217,162,75,.16) 0%, rgba(217,162,75,0) 62%);
+    background: radial-gradient(circle, rgba(233,0,102,.20) 0%, rgba(233,0,102,0) 62%);
   }
+  /* The mark: the mascot at home. The house is sized off the glyph, so the two
+     stay locked together whatever the font metrics do. */
+  .mark {
+    position: relative;
+    width: 150px; height: 150px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 0 10px -12px;
+  }
+  .mark svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .glyph {
-    font-size: 92px;
-    color: #d9a24b;
+    position: relative;
+    font-size: 50px;
+    color: #d946ef;
     letter-spacing: -2px;
-    margin-bottom: 26px;
   }
-  .glyph em { color: #e7c588; font-style: normal; }
+  .glyph em { color: #f2eee7; font-style: normal; }
   h1 {
     font-size: 96px;
     font-weight: 400;
@@ -61,13 +70,23 @@
     display: flex; align-items: center; gap: 18px;
     font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
     font-size: 25px;
-    color: #d9a24b;
+    color: #d946ef;
   }
   .foot span { color: #6d6479; }
 </style>
 </head>
 <body>
-  <div class="glyph">(<em>'.'</em>)</div>
+  <div class="mark">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <defs><linearGradient id="g" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" stop-color="#e90066"/><stop offset="1" stop-color="#d946ef"/>
+      </linearGradient></defs>
+      <path d="M14 78 L14 22 L50 2 L86 22 L86 78 Z" fill="url(#g)" opacity=".14"/>
+      <path d="M14 78 L14 22 L50 2 L86 22 L86 78 Z" fill="none" stroke="url(#g)"
+            stroke-width="3.4" stroke-linejoin="round"/>
+    </svg>
+    <span class="glyph">(<em>'.'</em>)</span>
+  </div>
   <h1>Monaparté</h1>
   <p>An assistant that runs entirely in your browser.</p>
   <div class="foot">mon.apartejs.dev <span>·</span> 100 % local</div>

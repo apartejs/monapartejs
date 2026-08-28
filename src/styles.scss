@@ -1,8 +1,40 @@
-/* monaparte — global theme.
- * The colors come from @aparte/core's --aparte-* variables (loaded via
- * angular.json), whose light/dark defaults ARE the aparté identity (brass/plum).
- * Here: identity typography, application chrome, and cross-cutting rules.
+/* Monaparté — global theme.
+ * Colors come from @aparte/core's --aparte-* variables (loaded via
+ * angular.json). The library's brass/plum defaults are the LIBRARY's identity;
+ * the product carries its own accent (see the palette block below and ADR-012).
+ * Here: that accent, identity typography, chrome, and cross-cutting rules.
  */
+
+/* ── Product accent ─────────────────────────────────────────────────────────
+ * Monaparté runs on Angular and wears its magenta-violet — one product, one
+ * framework, one colour (ADR-012).
+ *
+ * Overriding the two primary masters is enough: aparté re-anchors its derived
+ * layer on `[data-aparte-theme]`, so the 66 values computed from
+ * `--aparte-primary` (ink, hover, surface, border) follow on their own.
+ *
+ * The dark block needs the higher specificity. `:root` alone, declared after
+ * the library's sheet, has the same specificity as its
+ * `[data-aparte-theme="dark"]` and comes later — it would win there too and
+ * paint the dark theme with the light accent.
+ */
+:root {
+  --aparte-primary: #a21caf;
+  --aparte-primary-hover: #86198f;
+
+  /* Brand gradient — icons and social card ONLY. It cannot be the interface
+   * accent: `--aparte-primary` is read by `oklch(from …)` and `color-mix(…)`,
+   * which take a colour, and a gradient is an image. Every derived value would
+   * fail to substitute, silently. */
+  --bp-brand-from: #e90066;
+  --bp-brand-to: #a21caf;
+}
+
+:root[data-aparte-theme='dark'] {
+  --aparte-primary: #d946ef;
+  --aparte-primary-hover: #e879f9;
+  --bp-brand-to: #d946ef;
+}
 
 :root {
   /* Identity typography — system stacks only (no network font). */

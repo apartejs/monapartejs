@@ -1,7 +1,7 @@
 # Monaparté
 
 [![CI](https://github.com/apartejs/monapartejs/actions/workflows/deploy.yml/badge.svg)](https://github.com/apartejs/monapartejs/actions/workflows/deploy.yml)
-[![MIT licence](https://img.shields.io/badge/licence-MIT-b07d33.svg)](LICENSE)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-a21caf.svg)](LICENSE)
 
 A conversational assistant whose language model runs **entirely in the browser**. There
 is no inference server: the conversation, attached files and produced documents never

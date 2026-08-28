@@ -53,7 +53,7 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
         (typingChange)="onTypingChange($event)"
       >
         <div slot="empty-state" class="welcome">
-          <bp-mascotte [state]="'idle'" [size]="110" />
+          <bp-mascotte [state]="'idle'" [size]="110" housed />
           <h1 class="bp-serif">{{ greeting() }}</h1>
           <p class="tagline bp-serif">{{ t().welcome.tagline }}</p>
           <p class="sub">{{ t().welcome.sub }}</p>
