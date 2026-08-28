@@ -20,10 +20,13 @@
     `--aparte-primary` is read by `oklch(from …)` and `color-mix(…)`, which take a
     colour. A gradient is an image; every derived value would fail to substitute,
     silently.
-  - The house lives where it is an image — the icons, the favicon, the social card —
-    and around the two large mascots (home screen, corner). The small mounts stay
-    bare: a house is illegible at 22 px, and the library's status and error
-    renderers are plain text, where a drawing cannot follow.
+  - The house lives where it is an image: the PWA icons, the social card, and three
+    mounts — the home screen (110), the corner mascot (64) and the sidebar wordmark
+    (14, so the mark is 42 px wide beside an 18 px word). It is NOT in the favicon:
+    at 16-32 px the walls and the face fight for the same pixels and neither wins
+    (tried, unreadable in the tab), so the favicon keeps the bare face, big, and
+    says the state through its colour. Nor is it in the library's status and error
+    renderers, which are plain text where a drawing cannot follow.
   - Inside the house the state is told by the light, which changes by **transition**,
     never by a looping animation: `body.bp-generating .bp-decorative` freezes
     decorative animations during GPU decoding — exactly while the mascot thinks or

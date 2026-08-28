@@ -15,11 +15,10 @@ export class FaviconService {
     const bg = dark ? '#17141c' : '#f6f2ea';
     const face = mascotteText(state);
 
-    // At 32 px the face is barely a smudge, so the HOUSE carries the state:
-    // its stroke says what is happening (accent / red / grey) and the light
-    // inside says how hard it is working. The face still changes, for whoever
-    // looks at the tab at full size.
-    const stroke =
+    // NO house here. At 16-32 px the walls and the face fight for the same few
+    // pixels and neither wins — tried, and unreadable in the tab. The favicon
+    // keeps the bare face, big, and says the state through its colour.
+    const ink =
       state === 'error'
         ? '#ef4444'
         : state === 'sleeping'
@@ -27,16 +26,10 @@ export class FaviconService {
             ? '#4a4356'
             : '#b3aabc'
           : accent;
-    const glow = state === 'talking' ? 0.26 : state === 'thinking' ? 0.15 : 0;
-    // Same silhouette as the component and the icons, scaled to 64 and centred.
-    const house = 'M9 50 L9 26 L32 14 L55 26 L55 50 Z';
-
     const svg =
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">` +
       `<rect width="64" height="64" rx="14" fill="${bg}"/>` +
-      (glow ? `<path d="${house}" fill="${accent}" opacity="${glow}"/>` : '') +
-      `<path d="${house}" fill="none" stroke="${stroke}" stroke-width="2.6" stroke-linejoin="round"/>` +
-      `<text x="32" y="43" font-family="Georgia, serif" font-size="16" text-anchor="middle" fill="${stroke}">${face}</text>` +
+      `<text x="32" y="41" font-family="Georgia, serif" font-size="24" text-anchor="middle" fill="${ink}">${face}</text>` +
       `</svg>`;
     const href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
 

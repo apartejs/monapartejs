@@ -8,8 +8,10 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
 ### Added
 - Monaparté has its own colour and its own mark (ADR-012): Angular's
   magenta-violet as the interface accent, and the mascot drawn at home — a closed
-  house, no door, no window, the light only ever inside. The house wraps the two
-  large mascots (home screen, corner) and every icon; the small mounts stay bare.
+  house, no door, no window, the light only ever inside. The house wraps the home
+  screen mascot, the corner one and the sidebar wordmark, and it is the PWA icon and
+  the social card. The favicon keeps the bare face — at 16 px the walls and the face
+  fight for the same pixels — and says the state through its colour.
 - MIT licence, contributing guide, code of conduct, security policy, roadmap, decision
   records (`docs/decisions/`), issue and PR templates, Dependabot.
 - ESLint (angular-eslint) and Prettier; `pnpm verify` now runs lint and format checks
