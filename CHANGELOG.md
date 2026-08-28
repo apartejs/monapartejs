@@ -20,8 +20,11 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   (`{ok, type, answers}`); the displayed receipt is rebuilt from that JSON.
 
 ### Changed
-- `@aparte/*` 0.13.0 → 0.13.1; `package.json` filled in (name, licence, repository);
-  Node 24.
+- `@aparte/*` 0.13.0 → 0.13.1 → 0.14.0. With 0.14: the memory-fact and artifact row
+  types are ours (`storage/db.ts`), `ask_question` is created through the plugin's
+  `name`/`description` options, and code blocks follow the theme (shiki light/dark
+  pair).
+- `package.json` filled in (name, licence, repository); Node 24.
 - Repository documentation switched to English.
 
 ## History before this changelog

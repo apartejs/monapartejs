@@ -105,7 +105,9 @@ export function provideMonaparte(): EnvironmentProviders[] {
       setupMarkedProvider();
       setupStreamingMarkdownProvider();
       // Shiki loads its languages on demand — doesn't block boot.
-      void setupShikiProvider();
+      // A theme pair: one theme paints one scheme, and the default github-dark
+      // sat as a dark slab inside the light chat (aparté 0.14 changelog).
+      void setupShikiProvider({ theme: { light: 'github-light', dark: 'github-dark' } });
 
       // No `setupAskUser()`: it would register the tool under the plugin's
       // name (`ask_user`), which the model never emits, and the receipt

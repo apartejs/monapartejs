@@ -4,11 +4,9 @@
  * Split storage: meta + tree in `conversations`, messages apart.
  */
 import type {
-  AparteArtifactRow,
   AparteAttachmentRow,
   AparteConversation,
   AparteConversationMeta,
-  AparteMemoryFact,
   AparteMessage,
   AparteStorageAdapter,
 } from '@aparte/core';
@@ -16,7 +14,7 @@ import { APARTE_CONVERSATION_SCHEMA_VERSION } from '@aparte/core';
 // Leaf module of the registry, not the `../souffleurs` barrel: that one
 // would drag the tools and the worker into the storage code chunk.
 import { fileRegistry } from '../souffleurs/files/file-registry';
-import { monaparteDb, type ConversationRow } from './db';
+import { monaparteDb, type ArtifactRow, type ConversationRow, type MemoryFactRow } from './db';
 
 export class DexieConversationAdapter implements AparteStorageAdapter {
   constructor(readonly db: monaparteDb = new monaparteDb()) {}
@@ -131,15 +129,15 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
 
   /* ── Memory ── */
 
-  async getMemory(): Promise<AparteMemoryFact[]> {
+  async getMemory(): Promise<MemoryFactRow[]> {
     return this.db.memory.orderBy('addedAt').reverse().toArray();
   }
 
-  async addMemoryFact(fact: AparteMemoryFact): Promise<void> {
+  async addMemoryFact(fact: MemoryFactRow): Promise<void> {
     await this.db.memory.put(fact);
   }
 
-  async updateMemoryFact(id: string, patch: Partial<AparteMemoryFact>): Promise<void> {
+  async updateMemoryFact(id: string, patch: Partial<MemoryFactRow>): Promise<void> {
     await this.db.memory.update(id, patch);
   }
 
@@ -173,7 +171,7 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
 
   /* ── Artifacts / attachments (consumed starting from D3) ── */
 
-  async loadArtifacts(filter?: { convId?: string }): Promise<AparteArtifactRow[]> {
+  async loadArtifacts(filter?: { convId?: string }): Promise<ArtifactRow[]> {
     if (filter?.convId) {
       return this.db.artifacts.where('convId').equals(filter.convId).reverse().sortBy('updatedAt');
     }

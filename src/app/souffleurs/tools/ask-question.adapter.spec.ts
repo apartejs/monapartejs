@@ -8,9 +8,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@aparte/plugin-ask-user', () => ({
   askUserHandler: vi.fn(),
-  createAskUserTool: () => ({
-    name: 'ask_user',
-    description: 'x',
+  createAskUserTool: (o: { name?: string; description?: string } = {}) => ({
+    name: o.name ?? 'ask_user',
+    description: o.description ?? 'x',
     inputSchema: { type: 'object' },
     systemPrompt: 'You have access to the ask_user tool',
   }),
