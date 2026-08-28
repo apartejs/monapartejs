@@ -53,7 +53,7 @@ export class AppComponent {
 
   protected readonly t = this.i18n.t;
 
-  /** Routes /debug/* : jamais d'onboarding ni de modal — harnais de test UI. */
+  /** /debug/* routes: never onboarding nor a modal — UI test harness. */
   private readonly debugMode = location.pathname.startsWith('/debug');
 
   protected readonly onboardingOpen = signal(
@@ -65,13 +65,11 @@ export class AppComponent {
   protected readonly privacyOpen = signal(false);
   protected readonly searchOpen = signal(false);
 
-  protected readonly topbarTitle = computed(
-    () => this.manager.activeConversation()?.title ?? '',
-  );
+  protected readonly topbarTitle = computed(() => this.manager.activeConversation()?.title ?? '');
 
-  /** Mascotte coin branchée sur le cycle RÉEL du modèle (provider souffleurs) :
-   *  téléchargement/chargement (dont swap d'exécuteur ~3,8 s) → thinking ;
-   *  génération (caller ou exécuteur) → talking ; erreur → (x.x). */
+  /** Corner mascot wired to the model's REAL cycle (souffleurs provider):
+   *  downloading/loading (including executor swap ~3.8 s) → thinking;
+   *  generating (caller or executor) → talking; error → (x.x). */
   protected readonly cornerMascotteState = computed(() => {
     switch (this.modelStatus.state().status) {
       case 'error':
@@ -95,19 +93,20 @@ export class AppComponent {
 
   constructor() {
     this.favicon.set('idle');
-    // Détection de version : le manifest HF (no-store) est comparé aux versions
-    // « vues ». Les .data versionnés étant immuables, une MAJ = simple cache-miss.
+    // Version detection: the HF manifest (no-store) is compared against
+    // "seen" versions. Since versioned .data files are immutable, an update
+    // is just a cache-miss.
     this.refreshCallerUpdate();
-    // RE-vérifier après chaque préchargement réussi (markSeen vient d'être
-    // écrit) — sinon le signal figé du boot rouvre le modal en boucle.
+    // RE-check after every successful preload (markSeen was just
+    // written) — otherwise boot's frozen signal reopens the modal in a loop.
     effect(() => {
       if (this.preload.state() === 'done') this.refreshCallerUpdate();
     });
-    // Au boot (une fois le statut réel connu) :
-    //  - poids absents (cache purgé, autre navigateur, version bumpée jamais
-    //    téléchargée) → onboarding, même si « vu » ;
-    //  - poids présents mais manifest annonce une nouvelle version du caller
-    //    → modal de mise à jour (consentement).
+    // At boot (once the real status is known):
+    //  - weights absent (cache purged, other browser, bumped version never
+    //    downloaded) → onboarding, even if "seen";
+    //  - weights present but the manifest announces a new caller version
+    //    → update modal (consent).
     effect(() => {
       const status = this.modelStatus.state().status;
       if (this.debugMode || this.onboardingOpen() || this.modelUpdateOpen()) return;
@@ -121,16 +120,16 @@ export class AppComponent {
 
   private refreshCallerUpdate(): void {
     void getSouffleurManifest().then((manifest) =>
-      // La tour vision fait partie du modèle, pas d'une option : une tour
-      // publiée jamais vue doit ouvrir le MÊME modal de mise à jour. Sans ce
-      // terme, une install existante ne se voyait jamais rien proposer.
+      // The vision tower is part of the model, not an option: a published
+      // tower never seen must open the SAME update modal. Without this
+      // term, an existing install would never be offered anything.
       this.callerUpdate.set(manifest.hasUpdate('chat') || manifest.visionHasUpdate()),
     );
   }
 
   protected onModelUpdated(): void {
-    // Fermeture SYNCHRONE du cycle : sans ça, l'effet revoit ready+update=true
-    // avant le refresh async et rouvre le modal.
+    // SYNCHRONOUS closing of the cycle: without this, the effect sees
+    // ready+update=true again before the async refresh and reopens the modal.
     this.callerUpdate.set(false);
     this.modelUpdateOpen.set(false);
   }

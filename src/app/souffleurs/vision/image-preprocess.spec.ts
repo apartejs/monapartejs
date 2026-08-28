@@ -9,7 +9,7 @@ import {
   type PreprocessedImage,
 } from './image-preprocess';
 
-/** Fabrique le strict nécessaire pour expectedTotalTokens. */
+/** Builds the strict minimum needed for expectedTotalTokens. */
 function processed(part: Partial<PreprocessedImage>): PreprocessedImage {
   return {
     pixelValues: new Float32Array(0),
@@ -25,8 +25,30 @@ function processed(part: Partial<PreprocessedImage>): PreprocessedImage {
   };
 }
 
+describe('gridLayout — tile cap', () => {
+  it('never exceeds the requested maximum', () => {
+    for (const [w, h] of [
+      [4000, 3000],
+      [3000, 4000],
+      [6000, 1000],
+      [2000, 2000],
+    ]) {
+      const g = gridLayout(w, h, 4);
+      expect(g.cols * g.rows).toBeLessThanOrEqual(4);
+      expect(g.cols * g.rows).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('is clamped to the reference bounds (2..10)', () => {
+    const g = gridLayout(4000, 3000, 50);
+    expect(g.cols * g.rows).toBeLessThanOrEqual(10);
+    const g1 = gridLayout(4000, 3000, 1);
+    expect(g1.cols * g1.rows).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('smartResize', () => {
-  it('rend des dimensions divisibles par 32', () => {
+  it('returns dimensions divisible by 32', () => {
     for (const [w, h] of [
       [1920, 1080],
       [128, 128],
@@ -39,29 +61,29 @@ describe('smartResize', () => {
     }
   });
 
-  it('borne à 256 tokens et remonte à 64 minimum', () => {
+  it('bounds at 256 tokens and floors up to 64 minimum', () => {
     expect(expectedImageTokens(...dims(smartResize(4000, 3000)))).toBeLessThanOrEqual(256);
     expect(expectedImageTokens(...dims(smartResize(16, 16)))).toBeGreaterThanOrEqual(64);
   });
 });
 
-describe('isImageTooLarge — le seuil de découpage', () => {
-  // 256 tokens x 1024 px par token x 2 de tolérance = 524 288 px.
-  it('laisse passer une image raisonnable en une seule tuile', () => {
+describe('isImageTooLarge — the split threshold', () => {
+  // 256 tokens x 1024 px per token x 2 tolerance = 524,288 px.
+  it('lets a reasonable image through as a single tile', () => {
     expect(isImageTooLarge(512, 512)).toBe(false);
     expect(isImageTooLarge(640, 640)).toBe(false);
     expect(isImageTooLarge(128, 128)).toBe(false);
   });
 
-  it('découpe ce qui dépasse le seuil', () => {
+  it('splits what exceeds the threshold', () => {
     expect(isImageTooLarge(1920, 1080)).toBe(true);
     expect(isImageTooLarge(2000, 2000)).toBe(true);
   });
 
-  it("décide sur les dimensions D'ORIGINE, pas sur une image déjà réduite", () => {
-    // Le portage transformers.js redimensionne à 512x512 avant de décider, ce
-    // qui rend la condition toujours fausse. Le Python — et nous — décidons
-    // avant toute réduction. Ce test verrouille la différence.
+  it('decides on the ORIGINAL dimensions, not on an already-reduced image', () => {
+    // The transformers.js port resizes to 512x512 before deciding, which
+    // makes the condition always false. Python — and us — decide before any
+    // reduction. This test locks in the difference.
     expect(isImageTooLarge(1920, 1080)).toBe(true);
     const reduced = smartResize(1920, 1080);
     expect(isImageTooLarge(reduced.width, reduced.height)).toBe(false);
@@ -69,7 +91,7 @@ describe('isImageTooLarge — le seuil de découpage', () => {
 });
 
 describe('gridLayout', () => {
-  it('choisit une grille au rapport proche et bornée à 10 tuiles', () => {
+  it('picks a grid with a close ratio, bounded to 10 tiles', () => {
     const wide = gridLayout(1920, 1080);
     expect(wide.cols * wide.rows).toBeLessThanOrEqual(10);
     expect(wide.cols).toBeGreaterThanOrEqual(wide.rows);
@@ -77,30 +99,30 @@ describe('gridLayout', () => {
     expect(wide.targetHeight).toBe(512 * wide.rows);
   });
 
-  it('préfère la grille la plus grande à rapport égal quand l’image la remplit', () => {
-    // Carré : 2x2 et 3x3 ont le même rapport ; la référence garde 3x3 dès que
-    // l'aire dépasse la moitié de la surface de la grille.
+  it('prefers the larger grid on a ratio tie when the image fills it', () => {
+    // Square: 2x2 and 3x3 have the same ratio; the reference keeps 3x3 as
+    // soon as the area exceeds half the grid's surface.
     expect(gridLayout(2000, 2000)).toMatchObject({ cols: 3, rows: 3 });
   });
 
-  it('ne descend jamais sous 2 tuiles — 1x1 est exclu des rapports', () => {
+  it('never goes below 2 tiles — 1x1 is excluded from the ratios', () => {
     const g = gridLayout(2000, 2000);
     expect(g.cols * g.rows).toBeGreaterThanOrEqual(2);
   });
 });
 
-describe('comptage des tokens', () => {
-  it('une tuile pleine vaut 256 tokens', () => {
+describe('token counting', () => {
+  it('a full tile is worth 256 tokens', () => {
     expect(TOKENS_PER_TILE).toBe(256);
   });
 
-  it('mono-tuile : le total est celui de la seule image', () => {
+  it('mono-tile: the total is that of the single image', () => {
     const img = processed({ numTiles: 1, rows: 1, cols: 1, width: 256, height: 256 });
     expect(expectedTotalTokens(img)).toBe(expectedImageTokens(256, 256));
     expect(expectedTotalTokens(img)).toBe(64);
   });
 
-  it('multi-tuiles : les tuiles PLUS la vignette', () => {
+  it('multi-tile: the tiles PLUS the thumbnail', () => {
     const thumb = smartResize(1920, 1080);
     const img = processed({
       numTiles: 3,
@@ -114,10 +136,10 @@ describe('comptage des tokens', () => {
     );
   });
 
-  it('le découpage apporte bien plus de tokens que la réduction seule', () => {
-    // C'est TOUT l'intérêt du chemin haute résolution : sans lui, une capture
-    // d'écran 1920x1080 était écrasée à ~250 tokens et le texte fin
-    // disparaissait avant d'atteindre le modèle.
+  it('splitting brings far more tokens than reduction alone', () => {
+    // This is the WHOLE point of the high-resolution path: without it, a
+    // 1920x1080 screenshot was crushed to ~250 tokens and fine text
+    // disappeared before reaching the model.
     const thumb = smartResize(1920, 1080);
     const seul = expectedImageTokens(thumb.width, thumb.height);
     const grid = gridLayout(1920, 1080);

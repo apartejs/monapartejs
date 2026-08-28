@@ -1,7 +1,7 @@
 /**
- * Mise à jour de l'app (Service Worker) — iso aimi : poll toutes les 10 min,
- * toast discret ; un simple F5 ne bascule PAS (cohérence d'assets), il faut
- * activer puis recharger.
+ * App update (Service Worker) — mirrors aimi: poll every 10 min, discreet
+ * toast; a plain F5 does NOT switch over (asset consistency), you must
+ * activate then reload.
  */
 import { ApplicationRef, Injectable, inject, signal } from '@angular/core';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
@@ -24,7 +24,7 @@ export class AppUpdateService {
       .pipe(filter((e): e is VersionReadyEvent => e.type === 'VERSION_READY'))
       .subscribe(() => this.updateAvailable.set(true));
 
-    // Poll une fois l'app stable (ne concurrence jamais le téléchargement du modèle).
+    // Poll once the app is stable (never competes with the model download).
     this.appRef.isStable.pipe(first((stable) => stable)).subscribe(() => {
       setInterval(() => void this.swUpdate.checkForUpdate(), POLL_MS);
     });

@@ -1,17 +1,17 @@
 /**
- * Façade signals au-dessus des settings persistés (table Dexie `settings`)
- * + clés localStorage synchrones (lues avant peinture par index.html).
+ * Signals facade over the persisted settings (Dexie `settings` table)
+ * + synchronous localStorage keys (read before paint by index.html).
  */
 import { Injectable, computed, signal } from '@angular/core';
 import { DexieConversationAdapter } from './conversation-adapter';
 
-/** Clés IndexedDB (préférences durables). */
+/** IndexedDB keys (durable preferences). */
 export const SETTINGS_KEYS = {
   NICKNAME: 'nickname',
   SEND_ON_ENTER: 'send-on-enter',
 } as const;
 
-/** Clés localStorage (lecture synchrone au boot — thème/langue/onboarding). */
+/** localStorage keys (synchronous read at boot — theme/language/onboarding). */
 export const LOCAL_KEYS = {
   THEME: 'bp.theme',
   LOCALE: 'bp.locale',
@@ -30,7 +30,7 @@ export function localSet(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* stockage indisponible */
+    /* storage unavailable */
   }
 }
 
@@ -38,7 +38,7 @@ export function localRemove(key: string): void {
   try {
     localStorage.removeItem(key);
   } catch {
-    /* stockage indisponible */
+    /* storage unavailable */
   }
 }
 
@@ -54,7 +54,7 @@ export class SettingsService {
     this._settings.set(await adapter.getAllSettings());
   }
 
-  /** Lecture réactive (utilisable dans un computed()). */
+  /** Reactive read (usable inside a computed()). */
   get<T>(key: string, fallback: T): T {
     const value = this._settings()[key];
     return value === undefined ? fallback : (value as T);

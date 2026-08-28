@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/apartejs/monapartejs/security/advisories/new
+    about: Never as a public issue — private reporting.
+  - name: Defect in the aparté library
+    url: https://github.com/apartejs/aparte/issues
+    about: A component, plugin or provider under @aparte/* is reported in the library repository.

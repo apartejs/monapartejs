@@ -1,8 +1,8 @@
 /**
- * Rendus riches lazy (iso aimi) : KaTeX ($…$ / $$…$$) et Mermaid (blocs de
- * code mermaid) sur les bulles TERMINÉES. Les libs (~250 Ko / ~1,5 Mo) ne sont
- * importées qu'à la première occurrence. Best-effort : un échec de rendu
- * laisse le texte/code d'origine.
+ * Lazy rich rendering (mirrors aimi): KaTeX ($…$ / $$…$$) and Mermaid
+ * (mermaid code blocks) on FINISHED bubbles. The libs (~250 KB / ~1.5 MB) are
+ * only imported on first occurrence. Best-effort: a render failure leaves
+ * the original text/code.
  */
 import { Injectable } from '@angular/core';
 
@@ -25,7 +25,7 @@ export class RichRenderService {
   private async processAll(): Promise<void> {
     const root = document.querySelector('aparte-chat, [data-aparte-chat]');
     if (!root) return;
-    // Jamais pendant le stream : on attend les bulles stabilisées.
+    // Never during the stream: we wait for stabilized bubbles.
     if (root.querySelector('[data-streaming="true"]')) return;
     await this.renderMermaid(root);
     await this.renderKatex(root);
@@ -42,23 +42,29 @@ export class RichRenderService {
       const { default: mermaid } = await import('mermaid');
       mermaid.initialize({
         startOnLoad: false,
-        theme: document.documentElement.getAttribute('data-aparte-theme') === 'dark' ? 'dark' : 'neutral',
+        theme:
+          document.documentElement.getAttribute('data-aparte-theme') === 'dark'
+            ? 'dark'
+            : 'neutral',
       });
       for (const [i, code] of blocks.entries()) {
         const host = code.closest('pre') ?? code;
         host.setAttribute('data-bp-mermaid', '1');
         try {
-          const { svg } = await mermaid.render(`bp-mermaid-${Date.now()}-${i}`, code.textContent ?? '');
+          const { svg } = await mermaid.render(
+            `bp-mermaid-${Date.now()}-${i}`,
+            code.textContent ?? '',
+          );
           const wrap = document.createElement('div');
           wrap.className = 'bp-mermaid';
-          wrap.innerHTML = svg; // sortie mermaid (générée localement), pas du contenu utilisateur brut
+          wrap.innerHTML = svg; // mermaid output (generated locally), not raw user content
           host.replaceWith(wrap);
         } catch {
-          /* diagramme invalide : on garde le code source affiché */
+          /* invalid diagram: keep the displayed source code */
         }
       }
     } catch {
-      /* import mermaid indisponible */
+      /* mermaid import unavailable */
     }
   }
 
@@ -69,14 +75,14 @@ export class RichRenderService {
     KATEX_RE.lastIndex = 0;
     if (!candidates.length) return;
     try {
-      // Le CSS KaTeX est chargé globalement via angular.json (fontes incluses).
+      // KaTeX's CSS is loaded globally via angular.json (fonts included).
       const katex = (await import('katex')).default;
       for (const el of candidates) {
         el.dataset['bpKatex'] = '1';
         this.renderKatexInTextNodes(el, katex);
       }
     } catch {
-      /* import katex indisponible */
+      /* katex import unavailable */
     }
   }
 

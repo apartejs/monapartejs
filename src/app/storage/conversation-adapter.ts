@@ -1,7 +1,7 @@
 /**
- * AparteStorageAdapter sur Dexie/IndexedDB — la lib ne fournit AUCUNE
- * implémentation (le ConversationManager ne touche jamais le stockage).
- * Split storage : méta + tree dans `conversations`, messages à part.
+ * AparteStorageAdapter over Dexie/IndexedDB — the lib provides NO
+ * implementation (the ConversationManager never touches storage).
+ * Split storage: meta + tree in `conversations`, messages apart.
  */
 import type {
   AparteArtifactRow,
@@ -13,8 +13,8 @@ import type {
   AparteStorageAdapter,
 } from '@aparte/core';
 import { APARTE_CONVERSATION_SCHEMA_VERSION } from '@aparte/core';
-// Module feuille du registre, pas le baril `../souffleurs` : celui-ci
-// entrainerait les outils et le worker dans le morceau de code du stockage.
+// Leaf module of the registry, not the `../souffleurs` barrel: that one
+// would drag the tools and the worker into the storage code chunk.
 import { fileRegistry } from '../souffleurs/files/file-registry';
 import { monaparteDb, type ConversationRow } from './db';
 
@@ -42,9 +42,9 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
       schemaVersion: conv.schemaVersion ?? APARTE_CONVERSATION_SCHEMA_VERSION,
       tree: conv.tree ?? null,
     };
-    // Les pièces jointes sortent du message : leur `url` est une `blob:`
-    // révoquée au reload (ERR_FILE_NOT_FOUND), seul le `blob` a du sens en
-    // base. On stocke le binaire à part et on refabrique l'URL à l'hydratation.
+    // Attachments come out of the message: their `url` is a `blob:`
+    // revoked on reload (ERR_FILE_NOT_FOUND), only the `blob` makes sense in
+    // the DB. We store the binary apart and rebuild the URL at hydration.
     const attachmentRows = extractAttachments(conv.id, messages);
 
     await this.db.transaction(
@@ -59,7 +59,7 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
               id: m.id || `${conv.id}:${i}`,
               convId: conv.id,
               timestamp: m.timestamp || conv.updatedAt + i,
-              // `attachments` retiré : le binaire va dans sa table.
+              // `attachments` removed: the binary goes into its own table.
               data: stripAttachments(m),
             })),
           );
@@ -85,18 +85,17 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
         await this.db.messages.where('convId').equals(id).delete();
         await this.db.attachments.where('convId').equals(id).delete();
         await this.db.artifacts.where('convId').equals(id).delete();
-        // Les fichiers du registre souffleurs partent aussi : ce sont des
-        // binaires (une image, un tableur), et rien ne les rattache plus a
-        // quoi que ce soit une fois le fil supprime. Les laisser, c'etait
-        // garder indefiniment dans le navigateur des fichiers que
-        // l'utilisateur croit avoir effaces — et, dans une application dont
-        // toute la promesse est que rien ne quitte l'appareil, ce qui reste
-        // SUR l'appareil doit obeir a la suppression.
+        // The souffleurs registry files go too: they are binaries (an
+        // image, a spreadsheet), and nothing attaches them to anything
+        // anymore once the thread is deleted. Leaving them would mean
+        // keeping indefinitely in the browser files that the user believes
+        // they erased — and, in an app whose whole promise is that nothing
+        // leaves the device, what stays ON the device must obey deletion.
         await this.db.souffleurFiles.where('convId').equals(id).delete();
       },
     );
-    // La base est nettoyee ; la Map du registre, elle, vit en memoire et
-    // survivrait jusqu'au prochain rechargement.
+    // The DB is cleaned; the registry's Map, though, lives in memory and
+    // would survive until the next reload.
     fileRegistry.dropConversation(id);
   }
 
@@ -130,7 +129,7 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
     await this.db.conversations.update(id, { title });
   }
 
-  /* ── Mémoire ── */
+  /* ── Memory ── */
 
   async getMemory(): Promise<AparteMemoryFact[]> {
     return this.db.memory.orderBy('addedAt').reverse().toArray();
@@ -172,7 +171,7 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
     return Object.fromEntries(rows.map((r) => [r.key, r.value]));
   }
 
-  /* ── Artefacts / pièces jointes (consommés à partir du J3) ── */
+  /* ── Artifacts / attachments (consumed starting from D3) ── */
 
   async loadArtifacts(filter?: { convId?: string }): Promise<AparteArtifactRow[]> {
     if (filter?.convId) {
@@ -185,45 +184,48 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
     return this.db.attachments.where('msgId').equals(msgId).toArray();
   }
 
-  /* ── interne ── */
+  /* ── internal ── */
 
   private async hydrate(row: ConversationRow): Promise<AparteConversation> {
-    const messages = await this.db.messages
-      .where('convId')
-      .equals(row.id)
-      .sortBy('timestamp');
+    const messages = await this.db.messages.where('convId').equals(row.id).sortBy('timestamp');
     const attachmentRows = await this.db.attachments.where('convId').equals(row.id).toArray();
     const fresh = freshAttachmentsByMsg(attachmentRows);
     const { tree, lastMessagePreview: _p, messageCount: _c, ...meta } = row;
     return {
       ...meta,
       messages: messages.map((m) => withAttachments(m.data, fresh)),
-      // ⚠️ L'ARBRE AUSSI : c'est lui que `importTree()` rejoue au reload, donc
-      // des URLs mortes ici et la bulle casse même si `messages` est correct.
+      // ⚠️ THE TREE TOO: it's what `importTree()` replays on reload, so
+      // dead URLs here and the bubble breaks even if `messages` is correct.
       tree: rehydrateTree(tree, fresh) as AparteConversation['tree'],
     };
   }
 }
 
-/* ── Pièces jointes : blob persisté, `url` refabriquée à chaque session ───── */
+/* ── Attachments: blob persisted, `url` rebuilt on every session ───── */
 
 type AttachmentRow = AparteAttachmentRow & { convId: string };
 
-/** Retire `attachments` du message stocké (le binaire vit dans sa table). */
+/** Removes `attachments` from the stored message (the binary lives in its own table). */
 function stripAttachments(message: AparteMessage): AparteMessage {
   if (!('attachments' in message)) return message;
   const { attachments: _dropped, ...rest } = message as AparteMessage & { attachments?: unknown };
   return rest as AparteMessage;
 }
 
-/** Extrait les blobs des messages vers des lignes `attachments`. */
+/** Extracts blobs from the messages into `attachments` rows. */
 function extractAttachments(convId: string, messages: AparteMessage[]): AttachmentRow[] {
   const rows: AttachmentRow[] = [];
   for (const m of messages) {
     const atts = (m as AparteMessage & { attachments?: unknown }).attachments;
     if (!Array.isArray(atts)) continue;
-    for (const a of atts as { id: string; name: string; type?: string; size?: number; blob?: Blob }[]) {
-      if (!a?.blob) continue; // url seule (legacy) : rien à persister
+    for (const a of atts as {
+      id: string;
+      name: string;
+      type?: string;
+      size?: number;
+      blob?: Blob;
+    }[]) {
+      if (!a?.blob) continue; // url only (legacy): nothing to persist
       rows.push({
         id: a.id,
         convId,
@@ -239,10 +241,10 @@ function extractAttachments(convId: string, messages: AparteMessage[]): Attachme
 }
 
 /**
- * Regroupe par msgId avec une `url` NEUVE. Les object URLs sont
- * session-scoped : jamais sérialisées, refabriquées à chaque chargement.
- * (Non révoquées, comme dans l'implémentation de référence : leur durée de vie
- * est celle de l'onglet.)
+ * Groups by msgId with a NEW `url`. Object URLs are session-scoped: never
+ * serialized, rebuilt on every load.
+ * (Not revoked, as in the reference implementation: their lifetime is that
+ * of the tab.)
  */
 function freshAttachmentsByMsg(rows: AttachmentRow[]): Map<string, unknown[]> {
   const byMsg = new Map<string, unknown[]>();
@@ -267,7 +269,7 @@ function withAttachments(message: AparteMessage, fresh: Map<string, unknown[]>):
   return atts?.length ? ({ ...message, attachments: atts } as AparteMessage) : message;
 }
 
-/** Réécrit les messages de l'arbre avec les MÊMES pièces jointes fraîches. */
+/** Rewrites the tree's messages with the SAME fresh attachments. */
 function rehydrateTree(tree: unknown, fresh: Map<string, unknown[]>): unknown {
   if (!tree || typeof tree !== 'object' || fresh.size === 0) return tree ?? undefined;
   const t = tree as { headId?: string; messages?: { message: AparteMessage; parentId?: string }[] };

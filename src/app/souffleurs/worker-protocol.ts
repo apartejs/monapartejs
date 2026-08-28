@@ -1,32 +1,32 @@
 import type { AdapterName } from './model-catalog';
 
-/** Protocole main ↔ worker (un seul pipeline en mémoire, adapter hot-swappé). */
+/** main ↔ worker protocol (a single in-memory pipeline, hot-swapped adapter). */
 
 export type ComputeDevice = 'webgpu' | 'wasm';
 
-/** Fichiers résolus par le manifest (noms versionnés immuables). */
+/** Files resolved by the manifest (immutable versioned names). */
 export interface AdapterFiles {
-  /** ex. 'onnx/model_q4.onnx_data' — partagé par le graphe texte ET le graphe vision. */
+  /** e.g. 'onnx/model_q4.onnx_data' — shared by both the text graph AND the vision graph. */
   baseWeightsFile: string;
-  /** ex. 'adapters/souffleur-chat-0.3.0.data' */
+  /** e.g. 'adapters/souffleur-chat-0.3.0.data' */
   adapterFile: string;
   /**
-   * `model_file_name` pour transformers.js : 'model_vision' quand le graphe
-   * greffé est publié (il est bit-identique en texte, on l'utilise pour tout),
-   * 'model' sinon. Résolu par le manifest.
+   * `model_file_name` for transformers.js: 'model_vision' when the grafted
+   * graph is published (it's bit-identical in text, so it's used for
+   * everything), 'model' otherwise. Resolved by the manifest.
    */
   modelFileName?: string;
 }
 
-/** La tour vision, telle que le manifest la décrit. */
+/** The vision tower, as described by the manifest. */
 export interface TowerFiles {
-  /** URL absolue du graphe de la tour. */
+  /** Absolute URL of the tower's graph. */
   graphUrl: string;
-  /** URL absolue de son external data versionnée. */
+  /** Absolute URL of its versioned external data. */
   dataUrl: string;
-  /** Nom d'external data inscrit DANS le graphe (à mapper sur dataUrl). */
+  /** External data name registered INSIDE the graph (to be mapped onto dataUrl). */
   internalDataName: string;
-  /** Taille exacte d'un `.data` de souffleur — gabarit de l'adapter neutre. */
+  /** Exact size of a souffleur `.data` — template for the neutral adapter. */
   adapterByteLength: number;
 }
 
@@ -39,16 +39,16 @@ export type MainToWorker =
       device: ComputeDevice;
       prompt: string;
       maxNewTokens: number;
-      /** Trace console (ids des premiers tokens — contrôle double-BOS, etc.). */
+      /** Console trace (ids of the first tokens — double-BOS check, etc.). */
       debug?: boolean;
     } & AdapterFiles)
-  | {
+  | ({
       /**
-       * read_file(image) — swap vers le « rôle » vision : MÊME graphe, MÊMES
-       * poids, seul `adapter.data` change (neutre, alloué localement) et la
-       * tour se rattache en session à part. C'est donc, mécaniquement, un swap
-       * de souffleur — cf. CONTRACT-HANDOFF §1 : « hot-swap encodeur + appel
-       * describe, pas de LoRA à entraîner (architectural) ».
+       * read_file(image) — swap to the vision "role": SAME graph, SAME
+       * weights, only `adapter.data` changes (neutral, allocated locally) and
+       * the tower attaches in a separate session. So mechanically, this is a
+       * souffleur swap — cf. CONTRACT-HANDOFF §1: "hot-swap encoder + describe
+       * call, no LoRA to train (architectural)".
        */
       type: 'describe-image';
       id: number;
@@ -57,8 +57,10 @@ export type MainToWorker =
       question: string;
       maxNewTokens: number;
       tower: TowerFiles;
+      /** Tile cap for the preprocessing (see PreprocessOptions.maxTiles). */
+      maxTiles?: number;
       debug?: boolean;
-    } & AdapterFiles
+    } & AdapterFiles)
   | { type: 'abort' }
   | { type: 'dispose' };
 

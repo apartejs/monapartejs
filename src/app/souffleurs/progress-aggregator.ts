@@ -1,11 +1,11 @@
 /**
- * Agrégation de progression multi-fichiers (base + adapter + config/tokenizer).
- * Leçons du terrain :
- *  - transformers.js émet des events par fichier, et le `done` arrive souvent
- *    SANS loaded/total → un fichier terminé doit rester acquis, jamais retomber ;
- *  - le pourcentage global doit être MONOTONE (jamais décroissant) ;
- *  - dénominateur plancher = taille attendue totale, pour rester honnête avant
- *    que tous les fichiers n'aient annoncé leur taille.
+ * Multi-file progress aggregation (base + adapter + config/tokenizer).
+ * Lessons from the field:
+ *  - transformers.js emits events per file, and `done` often arrives WITHOUT
+ *    loaded/total → a completed file must stay acquired, never fall back;
+ *  - the overall percentage must be MONOTONIC (never decreasing);
+ *  - floor denominator = total expected size, to stay honest before all
+ *    files have announced their size.
  */
 
 export interface FileProgressEvent {
@@ -21,7 +21,7 @@ export class ProgressAggregator {
 
   constructor(private readonly expectedTotalBytes: number) {}
 
-  /** Intègre un événement et renvoie le pourcentage global (0-99, monotone). */
+  /** Integrates an event and returns the overall percentage (0-99, monotonic). */
   push(event: FileProgressEvent): number {
     const prev = this.files.get(event.file) ?? { loaded: 0, total: 0 };
     const total = Math.max(prev.total, event.total || 0);

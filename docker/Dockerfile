@@ -1,50 +1,50 @@
-# Image de service de monaparte — build multi-étages, autonome.
+# monaparte serving image — multi-stage, self-contained.
 #
-# Le `dist/` est construit DANS l'image : c'est indispensable pour Coolify (et
-# toute CI qui part du dépôt nu), qui n'a pas de build local à copier. L'ancienne
-# version copiait `dist/monaparte/browser` depuis le contexte et échouait donc
-# sur un clone frais.
+# `dist/` is built INSIDE the image: this is essential for Coolify (and any CI
+# starting from a bare clone), which has no local build to copy in. The old
+# version copied `dist/monaparte/browser` from the context and therefore
+# failed on a fresh clone.
 #
 #   docker build -f docker/Dockerfile -t monaparte .
 #   docker run --rm -p 8080:80 monaparte
 #
-# Coolify : Build Pack = Dockerfile, Dockerfile Location = docker/Dockerfile,
-# Port = 80. Voir docs/DEPLOY-COOLIFY.md.
+# Coolify: Build Pack = Dockerfile, Dockerfile Location = docker/Dockerfile,
+# Port = 80. See docs/DEPLOY-COOLIFY.md.
 
-# ── Étage build ───────────────────────────────────────────────────────────────
+# ── Build stage ─────────────────────────────────────────────────────────────
 FROM node:24-alpine AS build
 WORKDIR /app
 
-# pnpm via corepack, version épinglée sur celle du lockfile (v9 → pnpm 10).
+# pnpm via corepack, version pinned to the one in the lockfile (v9 -> pnpm 10).
 RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 
-# Dépendances d'abord : cette couche ne se reconstruit que si les manifestes
-# changent, pas à chaque modification de source.
+# Dependencies first: this layer only rebuilds when the manifests change,
+# not on every source change.
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm build
 
-# ── Étage service ─────────────────────────────────────────────────────────────
+# ── Serving stage ────────────────────────────────────────────────────────────
 FROM nginx:alpine
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-# La conf est validée A LA CONSTRUCTION. Sans ça, une faute de syntaxe ne se
-# voit qu'au démarrage du conteneur : il boucle, passe `unhealthy`, Coolify
-# refuse de router, et le symptôme visible est un 503 de Traefik qui ne dit
-# rien de sa cause. Vécu le 21/08 pour une raison voisine. Ici la construction
-# échoue, avec le numéro de ligne.
+# The conf is validated AT BUILD TIME. Without this, a syntax error only shows
+# up when the container starts: it loops, goes `unhealthy`, Coolify refuses to
+# route, and the visible symptom is a Traefik 503 that says nothing about its
+# cause. Lived on 21/08 for a similar reason. Here the build fails instead,
+# with the line number.
 RUN nginx -t
 COPY --from=build /app/dist/monaparte/browser /usr/share/nginx/html
 EXPOSE 80
 
-# Le conteneur ne sert que du statique : pas d'état, pas de volume. Tout le
-# modèle vit dans le Cache API du navigateur du visiteur.
-# 127.0.0.1 et NON localhost : `localhost` résout d’abord en ::1, et une
-# config nginx personnalisée n’écoute pas forcément en IPv6 (le script
-# d’entrée n’ajoute `listen [::]:80` que si la config est celle du paquet).
-# Le healthcheck échouait donc en « Connection refused », le conteneur
-# passait `unhealthy`, et Coolify refusait de router -> 503 côté Traefik.
-# Ceinture et bretelles : nginx.conf écoute maintenant aussi en IPv6.
+# The container only serves static files: no state, no volume. The whole
+# model lives in the visitor's browser Cache API.
+# 127.0.0.1 and NOT localhost: `localhost` resolves to ::1 first, and a
+# custom nginx config doesn't necessarily listen on IPv6 (the entrypoint
+# script only adds `listen [::]:80` when the config is the packaged one).
+# The healthcheck was therefore failing with "Connection refused", the
+# container went `unhealthy`, and Coolify refused to route -> 503 on the
+# Traefik side. Belt and braces: nginx.conf now also listens on IPv6.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD wget -q --spider http://127.0.0.1/index.html || exit 1

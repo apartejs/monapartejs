@@ -1,7 +1,6 @@
 /**
- * Thème clair/sombre — l'attribut data-aparte-theme est posé avant la première
- * peinture par le script inline d'index.html ; ce service gère la bascule et la
- * persistance ensuite.
+ * Light/dark theme — the data-aparte-theme attribute is set before the first
+ * paint by index.html's inline script; this service then handles the switch and persistence.
  */
 import { Injectable, signal } from '@angular/core';
 import { LOCAL_KEYS, localSet } from '../storage/settings.service';

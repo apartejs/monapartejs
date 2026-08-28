@@ -1,9 +1,9 @@
 /**
- * Registre des fichiers joints — source de vérité des `file_id`.
- * RÈGLE CONTRAT : le modèle ne voit les fichiers QUE via le bloc
- * « Files available » `[{id,name,type}]` du prompt système, et copie les id
- * EXACTS (fix majeur v5 : sans ce bloc il invente les file_id).
- * Format d'id iso training : `file_<base36>_<n>` (ex. file_mplct4ks_4).
+ * Registry of attached files — source of truth for `file_id`s.
+ * CONTRACT RULE: the model only sees files via the "Files available"
+ * `[{id,name,type}]` block of the system prompt, and copies the EXACT ids
+ * (major v5 fix: without this block it invents the file_ids).
+ * Training-identical id format: `file_<base36>_<n>` (e.g. file_mplct4ks_4).
  */
 import type { SouffleurFileRef } from '../wire/system-prompt';
 
@@ -12,14 +12,14 @@ export interface RegisteredFile extends SouffleurFileRef {
   blob: Blob;
   addedAt: number;
   /**
-   * Conversation proprietaire. `null` = joint avant que la conversation
-   * n'existe (adopte a sa creation) ; absent = ligne d'avant le rattachement,
-   * jamais listee. Voir SouffleurFileRow.
+   * Owning conversation. `null` = attached before the conversation exists
+   * (adopted when it's created); absent = row predating attachment,
+   * never listed. See SouffleurFileRow.
    */
   convId?: string | null;
 }
 
-/** Extension → type du bloc Files available (mapping `_ext_type` du training). */
+/** Extension → Files available block type (mapping of training's `_ext_type`). */
 export function extType(name: string, mime = ''): string {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   if (['xlsx', 'xls'].includes(ext)) return 'xlsx';
@@ -43,10 +43,11 @@ function genFileId(): string {
 const files = new Map<string, RegisteredFile>();
 
 /**
- * Persistance INJECTÉE (le module souffleurs ne connaît pas Dexie — même
- * patron que setArtifactSink/setArtifactLoader). Sans elle, un reload vidait la
- * Map : le bloc « Files available » repartait vide et TOUT `file_id` de
- * l'historique devenait « inconnu » côté read_file/write_file/transform_file.
+ * Persistence INJECTED (the souffleurs module doesn't know Dexie — same
+ * pattern as setArtifactSink/setArtifactLoader). Without it, a reload would
+ * empty the Map: the "Files available" block would come back empty and EVERY
+ * `file_id` in the history would become "unknown" on the
+ * read_file/write_file/transform_file side.
  */
 export interface FileStore {
   put(entry: RegisteredFile): void | PromiseLike<unknown>;
@@ -62,18 +63,18 @@ export function setFileStore(next: FileStore | null): void {
 }
 
 /**
- * Resolveur de la conversation courante, INJECTE (le module souffleurs ne
- * connait ni Angular ni le gestionnaire de conversations — meme patron que
- * setFileStore). Il rattache chaque fichier a son fil.
+ * Resolver for the current conversation, INJECTED (the souffleurs module
+ * knows neither Angular nor the conversation manager — same pattern as
+ * setFileStore). It attaches each file to its thread.
  *
- * Sans lui, le registre etait global : le bloc « Files available » annoncait au
- * modele tous les fichiers jamais joints, y compris dans un fil vierge. Le
- * modele faisait alors ce qu'on lui demande — un read_file sur une image que
- * l'utilisateur n'avait pas jointe, tour vision rattachee et dix secondes de
- * GPU pour un « bonjour ».
+ * Without it, the registry was global: the "Files available" block announced
+ * to the model every file ever attached, including in a fresh thread. The
+ * model would then do exactly what it's asked — a read_file on an image the
+ * user hadn't attached, vision tower attached and ten seconds of GPU for a
+ * "hello".
  *
- * Il retourne une chaine vide tant que la conversation n'est pas creee : c'est
- * l'etat « en attente », resolu par adoptPending().
+ * It returns an empty string as long as the conversation isn't created yet:
+ * that's the "pending" state, resolved by adoptPending().
  */
 let resolveConv: (() => string | null) | null = null;
 
@@ -87,7 +88,7 @@ function currentConv(): string | null {
 
 function persist(entry: RegisteredFile): void {
   void Promise.resolve(store?.put(entry)).catch((err) =>
-    console.warn('[souffleurs] persistance du fichier joint impossible', err),
+    console.warn('[souffleurs] could not persist the attached file', err),
   );
 }
 
@@ -123,9 +124,9 @@ export const fileRegistry = {
   },
 
   /**
-   * Recharge les fichiers persistés dans la Map. À appeler AU BOOT, avant que
-   * la première requête ne construise le bloc « Files available » et avant
-   * qu'un handler d'outil ne résolve un `file_id` (get() reste synchrone).
+   * Reloads the persisted files into the Map. Must be called AT BOOT, before
+   * the first request builds the "Files available" block and before a tool
+   * handler resolves a `file_id` (get() stays synchronous).
    */
   async hydrate(): Promise<number> {
     if (!store) return 0;
@@ -134,8 +135,8 @@ export const fileRegistry = {
       for (const row of rows) {
         if (!files.has(row.id)) files.set(row.id, row);
       }
-      // Les ids persistés portent déjà un compteur : repartir AU-DESSUS du max
-      // vu, sinon deux fichiers de la même milliseconde peuvent collisionner.
+      // Persisted ids already carry a counter: restart ABOVE the max seen,
+      // otherwise two files from the same millisecond could collide.
       const maxSeen = rows.reduce((max, row) => {
         const n = Number(row.id.split('_').pop());
         return Number.isFinite(n) && n > max ? n : max;
@@ -143,7 +144,7 @@ export const fileRegistry = {
       counter = Math.max(counter, maxSeen);
       return rows.length;
     } catch (err) {
-      console.warn('[souffleurs] réhydratation des fichiers joints impossible', err);
+      console.warn('[souffleurs] could not rehydrate attached files', err);
       return 0;
     }
   },
@@ -153,13 +154,13 @@ export const fileRegistry = {
   },
 
   /**
-   * Bloc « Files available » — cles id/name/type dans CET ordre (normatif).
+   * "Files available" block — id/name/type keys in THIS order (normative).
    *
-   * Restreint a la conversation courante. Dans un fil qui n'existe pas encore,
-   * seuls les fichiers en attente sont listes : ce sont ceux que l'utilisateur
-   * vient de joindre au message qui va creer ce fil. Une ligne d'avant le
-   * rattachement (convId absent) n'est listee nulle part — elle reste
-   * resoluble par get(), ce dont un file_id de l'historique a besoin.
+   * Restricted to the current conversation. In a thread that doesn't exist
+   * yet, only pending files are listed: those the user just attached to the
+   * message that's about to create this thread. A row predating attachment
+   * (convId absent) is listed nowhere — it stays resolvable via get(), which
+   * a `file_id` from the history needs.
    */
   listForWire(convId: string | null = currentConv()): SouffleurFileRef[] {
     const wanted = convId || null;
@@ -169,10 +170,10 @@ export const fileRegistry = {
   },
 
   /**
-   * Rattache les fichiers en attente a la conversation qui vient de naitre.
-   * Une piece jointe est enregistree a l'envoi, donc AVANT que la conversation
-   * n'ait un id : sans cette adoption elle resterait en attente et fuirait dans
-   * le prochain fil vierge. Retourne le nombre de fichiers adoptes.
+   * Attaches pending files to the conversation that just came into being.
+   * An attachment is registered on send, so BEFORE the conversation has an
+   * id: without this adoption it would stay pending and leak into the next
+   * fresh thread. Returns the number of files adopted.
    */
   adoptPending(convId: string): number {
     if (!convId) return 0;
@@ -188,12 +189,12 @@ export const fileRegistry = {
   },
 
   /**
-   * Oublie les fichiers d'une conversation supprimee.
+   * Forgets the files of a deleted conversation.
    *
-   * La Map SEULE : la ligne Dexie part deja avec la conversation, dans la meme
-   * transaction que ses messages et ses artefacts (conversationAdapter.delete).
-   * Sans ce complement, les blobs restaient en memoire jusqu'au prochain
-   * rechargement — et un file_id supprime continuait de se resoudre.
+   * The Map ONLY: the Dexie row already goes with the conversation, in the
+   * same transaction as its messages and artifacts (conversationAdapter.delete).
+   * Without this complement, the blobs stayed in memory until the next
+   * reload — and a deleted file_id kept resolving.
    */
   dropConversation(convId: string): number {
     if (!convId) return 0;

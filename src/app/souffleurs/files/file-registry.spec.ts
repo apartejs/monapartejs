@@ -5,20 +5,20 @@ import { readFileHandler } from '../tools/read-file.tool';
 describe('fileRegistry', () => {
   beforeEach(() => fileRegistry.clear());
 
-  it('génère des ids au format training file_<base36>_<n> et mappe les types', () => {
+  it('generates ids in the training file_<base36>_<n> format and maps types', () => {
     const entry = fileRegistry.registerBlob(new Blob(['x']), 'rapport.pdf', 'application/pdf');
     expect(entry.id).toMatch(/^file_[a-z0-9]+_\d+$/);
     expect(entry.type).toBe('pdf');
   });
 
-  it('listForWire : clés id/name/type dans cet ordre exact', () => {
+  it('listForWire: id/name/type keys in this exact order', () => {
     fileRegistry.registerBlob(new Blob(['a']), 'clients.xlsx', '');
     const wire = fileRegistry.listForWire();
     expect(Object.keys(wire[0])).toEqual(['id', 'name', 'type']);
     expect(wire[0].type).toBe('xlsx');
   });
 
-  it('extType couvre les familles du contrat', () => {
+  it('extType covers the contract families', () => {
     expect(extType('photo.JPG')).toBe('image');
     expect(extType('notes.md')).toBe('txt');
     expect(extType('data.csv')).toBe('csv');
@@ -29,7 +29,7 @@ describe('fileRegistry', () => {
 describe('readFileHandler', () => {
   beforeEach(() => fileRegistry.clear());
 
-  it('file_id inconnu → ok:false, jamais de crash', async () => {
+  it('unknown file_id → ok:false, never a crash', async () => {
     const res = await readFileHandler(
       { id: 'c1', name: 'read_file', input: { file_id: 'file_fantome_9' } },
       new AbortController().signal,
@@ -39,7 +39,7 @@ describe('readFileHandler', () => {
     expect(parsed.error).toContain('file_id inconnu');
   });
 
-  it('survol texte : lineCount + preview, JSON indenté', async () => {
+  it('text survey: lineCount + preview, indented JSON', async () => {
     const entry = fileRegistry.registerBlob(
       new Blob(['ligne 1\nligne 2\nligne 3']),
       'notes.txt',
@@ -57,7 +57,7 @@ describe('readFileHandler', () => {
   });
 });
 
-describe('fileRegistry — cloisonnement par conversation', () => {
+describe('fileRegistry — partitioning by conversation', () => {
   let active: string | null = null;
 
   beforeEach(() => {
@@ -66,7 +66,7 @@ describe('fileRegistry — cloisonnement par conversation', () => {
     setConversationResolver(() => active);
   });
 
-  it("un fichier joint dans un fil n'est pas annoncé dans un autre", () => {
+  it('a file attached in one thread is not announced in another', () => {
     active = 'conv-a';
     fileRegistry.registerBlob(new Blob(['x']), 'pr.jpg', 'image/jpeg');
 
@@ -77,11 +77,11 @@ describe('fileRegistry — cloisonnement par conversation', () => {
     expect(fileRegistry.listForWire().map((f) => f.name)).toEqual(['pr.jpg']);
   });
 
-  it('un fil vierge ne voit que ce qui vient de lui être joint', () => {
+  it('a fresh thread only sees what was just attached to it', () => {
     active = 'conv-a';
     fileRegistry.registerBlob(new Blob(['x']), 'ancien.pdf', 'application/pdf');
 
-    // Nouveau fil : pas encore d'id.
+    // New thread: no id yet.
     active = null;
     expect(fileRegistry.listForWire()).toEqual([]);
 
@@ -89,7 +89,7 @@ describe('fileRegistry — cloisonnement par conversation', () => {
     expect(fileRegistry.listForWire().map((f) => f.name)).toEqual(['nouveau.png']);
   });
 
-  it('adoptPending rattache les fichiers joints avant la création du fil', () => {
+  it('adoptPending attaches files joined before the thread was created', () => {
     active = null;
     fileRegistry.registerBlob(new Blob(['y']), 'nouveau.png', 'image/png');
 
@@ -98,12 +98,12 @@ describe('fileRegistry — cloisonnement par conversation', () => {
     active = 'conv-c';
     expect(fileRegistry.listForWire().map((f) => f.name)).toEqual(['nouveau.png']);
 
-    // Et surtout : le fil vierge SUIVANT repart vide.
+    // And most importantly: the NEXT fresh thread starts empty.
     active = null;
     expect(fileRegistry.listForWire()).toEqual([]);
   });
 
-  it("get() résout un file_id d'un autre fil — l'historique doit rester lisible", () => {
+  it('get() resolves a file_id from another thread — history must stay readable', () => {
     active = 'conv-a';
     const entry = fileRegistry.registerBlob(new Blob(['x']), 'pr.jpg', 'image/jpeg');
 
@@ -112,8 +112,8 @@ describe('fileRegistry — cloisonnement par conversation', () => {
     expect(fileRegistry.get(entry.id)?.name).toBe('pr.jpg');
   });
 
-  it("une ligne d'avant le rattachement n'est listée nulle part", () => {
-    // hydrate() repose des lignes telles quelles : convId absent.
+  it('a row predating attachment is listed nowhere', () => {
+    // hydrate() puts rows back as-is: convId absent.
     const legacy = fileRegistry.registerBlob(new Blob(['x']), 'legacy.pdf', 'application/pdf');
     delete (fileRegistry.get(legacy.id) as { convId?: string | null }).convId;
 

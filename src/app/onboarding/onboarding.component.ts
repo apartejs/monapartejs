@@ -1,7 +1,7 @@
 /**
- * Onboarding — 3 étapes iso aimi : intro local-first → consentement de
- * téléchargement (taille GÉNÉRÉE depuis le catalogue, jamais codée en dur) →
- * préparation/prêt. Pas de skip : le modèle est un prérequis.
+ * Onboarding — 3 steps mirroring aimi: local-first intro → download
+ * consent (size GENERATED from the catalog, never hardcoded) →
+ * preparing/ready. No skip: the model is a hard prerequisite.
  */
 import {
   ChangeDetectionStrategy,
@@ -218,9 +218,9 @@ export class OnboardingComponent {
   });
 
   /**
-   * Total annoncé : base + 4 souffleurs + overhead, PLUS la tour vision quand
-   * elle est publiée (elle fait partie du modèle, pas d'une option). Lu du
-   * manifest pour ne pas figer sa taille dans le code.
+   * Announced total: base + 4 souffleurs + overhead, PLUS the vision tower
+   * when it's published (it's part of the model, not an option). Read from
+   * the manifest so its size isn't hardcoded.
    */
   private readonly extraBytes = signal(0);
 
@@ -229,7 +229,7 @@ export class OnboardingComponent {
       const manifest = await getSouffleurManifest();
       this.extraBytes.set(manifest.visionSize());
     } catch {
-      /* hors-ligne : on annonce le total sans la tour */
+      /* offline: we announce the total without the tower */
     }
   }
 

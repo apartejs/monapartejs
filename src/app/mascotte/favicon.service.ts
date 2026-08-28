@@ -1,6 +1,6 @@
 /**
- * Favicon dynamique — la mascotte en SVG data-URI, générée depuis le texte.
- * Zéro asset : le favicon suit l'état (idle/talking/error) et le thème.
+ * Dynamic favicon — the mascot as an SVG data-URI, generated from text.
+ * Zero assets: the favicon follows the state (idle/talking/error) and the theme.
  */
 import { Injectable } from '@angular/core';
 import { mascotteText, type MascotteState } from './mascotte-states';

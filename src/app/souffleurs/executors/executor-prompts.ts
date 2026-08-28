@@ -1,7 +1,7 @@
 /**
- * Prompts système des souffleurs exécuteurs — RUNTIME_PROMPTS du lab, VERBATIM
- * (les LoRA ont appris les règles détaillées à l'entraînement ; le runtime
- * reste minimal). Source : aparte-repetitions/browser/app/system_prompts.js.
+ * System prompts for the executor souffleurs — RUNTIME_PROMPTS from the lab, VERBATIM
+ * (the LoRAs learned the detailed rules during training; the runtime
+ * stays minimal). Source: aparte-repetitions/browser/app/system_prompts.js.
  */
 
 export const XLSX_DOCX_SYSTEM = `Output JSON ops array for xlsx-kit (xlsx) or eigenpal/docx (docx) runtime.

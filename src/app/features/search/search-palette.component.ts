@@ -17,11 +17,11 @@ import { TranslateService } from '../../core/i18n/translate.service';
 interface SearchHit {
   convId: string;
   title: string;
-  /** [avant, correspondance, après] pour le surlignage sans innerHTML. */
+  /** [before, match, after] for highlighting without innerHTML. */
   snippet: [string, string, string] | null;
 }
 
-/** Palette ⌘K — recherche client-side sur titres + contenus (iso aimi). */
+/** ⌘K palette — client-side search over titles + content (iso aimi). */
 @Component({
   selector: 'bp-search-palette',
   standalone: true,
@@ -49,7 +49,10 @@ interface SearchHit {
           >
             <span class="title">{{ hit.title }}</span>
             @if (hit.snippet; as s) {
-              <span class="snippet">…{{ s[0] }}<mark>{{ s[1] }}</mark>{{ s[2] }}…</span>
+              <span class="snippet"
+                >…{{ s[0] }}<mark>{{ s[1] }}</mark
+                >{{ s[2] }}…</span
+              >
             }
           </button>
         } @empty {
@@ -62,8 +65,18 @@ interface SearchHit {
     </div>
   `,
   styles: `
-    .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 40%); z-index: 44; animation: bp-fade 0.15s ease; }
-    @keyframes bp-fade { from { opacity: 0; } }
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgb(0 0 0 / 40%);
+      z-index: 44;
+      animation: bp-fade 0.15s ease;
+    }
+    @keyframes bp-fade {
+      from {
+        opacity: 0;
+      }
+    }
     .palette {
       position: fixed;
       top: 14vh;
@@ -80,7 +93,12 @@ interface SearchHit {
       display: flex;
       flex-direction: column;
     }
-    @keyframes bp-pop { from { opacity: 0; transform: translate(-50%, -6px); } }
+    @keyframes bp-pop {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -6px);
+      }
+    }
     input {
       font: inherit;
       font-size: 15px;
@@ -91,7 +109,11 @@ interface SearchHit {
       padding: 15px 18px;
       border-bottom: 1px solid var(--aparte-border);
     }
-    .results { max-height: 45vh; overflow-y: auto; padding: 6px; }
+    .results {
+      max-height: 45vh;
+      overflow-y: auto;
+      padding: 6px;
+    }
     .hit {
       display: grid;
       gap: 2px;
@@ -105,11 +127,33 @@ interface SearchHit {
       border-radius: 9px;
       cursor: pointer;
     }
-    .hit.active { background: var(--aparte-surface-2); }
-    .title { font-weight: 500; font-size: 14px; }
-    .snippet { font-size: 12.5px; color: var(--aparte-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    mark { background: color-mix(in srgb, var(--aparte-primary) 30%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
-    .empty { color: var(--aparte-text-muted); font-size: 13px; text-align: center; padding: 16px; margin: 0; }
+    .hit.active {
+      background: var(--aparte-surface-2);
+    }
+    .title {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .snippet {
+      font-size: 12.5px;
+      color: var(--aparte-text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    mark {
+      background: color-mix(in srgb, var(--aparte-primary) 30%, transparent);
+      color: inherit;
+      border-radius: 3px;
+      padding: 0 1px;
+    }
+    .empty {
+      color: var(--aparte-text-muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 16px;
+      margin: 0;
+    }
     .hint {
       margin: 0;
       padding: 8px 14px;

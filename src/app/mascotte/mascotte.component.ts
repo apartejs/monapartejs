@@ -11,10 +11,10 @@ import {
 import { MASCOTTE_FACES, type MascotteFace, type MascotteState } from './mascotte-states';
 
 /**
- * Mascotte ('.') — typographique, hérite du thème (brass via --aparte-primary).
- * Interactive : clin d'œil aléatoire en idle (8-15 s), boop au clic.
- * Animations plafonnées en steps() ; décoratives → gelées par
- * `body.bp-generating .bp-decorative` pendant le décodage GPU.
+ * Mascot ('.') — typographic, inherits the theme (brass via --aparte-primary).
+ * Interactive: random wink while idle (8-15 s), boop on click.
+ * Animations capped with steps(); decorative ones → frozen by
+ * `body.bp-generating .bp-decorative` during GPU decoding.
  */
 @Component({
   selector: 'bp-mascotte',
@@ -36,9 +36,13 @@ import { MASCOTTE_FACES, type MascotteFace, type MascotteState } from './mascott
         ><span class="eye">{{ face().eyeLeft }}</span
         ><span class="nose">{{ face().nose }}</span
         ><span class="eye">{{ face().eyeRight }}</span></span
-      ><span class="paren">)</span
-      >@if (face().suffix === 'dots') {<span class="dots" aria-hidden="true"></span>}
-      @if (face().suffix === 'caret') {<span class="caret" aria-hidden="true"></span>}
+      ><span class="paren">)</span>
+      @if (face().suffix === 'dots') {
+        <span class="dots" aria-hidden="true"></span>
+      }
+      @if (face().suffix === 'caret') {
+        <span class="caret" aria-hidden="true"></span>
+      }
     </span>
   `,
   styles: `
@@ -54,7 +58,9 @@ import { MASCOTTE_FACES, type MascotteFace, type MascotteState } from './mascott
       white-space: nowrap;
       user-select: none;
     }
-    .face.is-interactive { cursor: pointer; }
+    .face.is-interactive {
+      cursor: pointer;
+    }
     .face.is-idle {
       animation: bp-mascotte-bob 3.2s steps(24) infinite;
     }
@@ -86,24 +92,48 @@ import { MASCOTTE_FACES, type MascotteFace, type MascotteState } from './mascott
       animation: bp-mascotte-blink 1.05s steps(1) infinite;
     }
     @keyframes bp-mascotte-bob {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-0.06em); }
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-0.06em);
+      }
     }
     @keyframes bp-mascotte-boop {
-      0% { transform: scale(1); }
-      40% { transform: scale(1.18) rotate(-3deg); }
-      100% { transform: scale(1); }
+      0% {
+        transform: scale(1);
+      }
+      40% {
+        transform: scale(1.18) rotate(-3deg);
+      }
+      100% {
+        transform: scale(1);
+      }
     }
     @keyframes bp-mascotte-dots {
-      0% { opacity: 0.2; }
-      50% { opacity: 1; }
-      100% { opacity: 0.2; }
+      0% {
+        opacity: 0.2;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0.2;
+      }
     }
     @keyframes bp-mascotte-blink {
-      50% { opacity: 0; }
+      50% {
+        opacity: 0;
+      }
     }
     @media (prefers-reduced-motion: reduce) {
-      .face.is-idle, .face.is-booped, .dots::after, .caret { animation: none; }
+      .face.is-idle,
+      .face.is-booped,
+      .dots::after,
+      .caret {
+        animation: none;
+      }
     }
   `,
 })
@@ -128,18 +158,21 @@ export class MascotteComponent {
   });
 
   constructor() {
-    // Micro-expression : clin d'œil aléatoire toutes les 8-15 s en idle.
+    // Micro-expression: random wink every 8-15 s while idle.
     effect((onCleanup) => {
       clearTimeout(this.winkTimer);
       if (this.state() !== 'idle' || !this.interactive()) return;
       const schedule = () => {
-        this.winkTimer = window.setTimeout(() => {
-          this.wink.set(true);
-          window.setTimeout(() => {
-            this.wink.set(false);
-            schedule();
-          }, 160);
-        }, 8000 + Math.random() * 7000);
+        this.winkTimer = window.setTimeout(
+          () => {
+            this.wink.set(true);
+            window.setTimeout(() => {
+              this.wink.set(false);
+              schedule();
+            }, 160);
+          },
+          8000 + Math.random() * 7000,
+        );
       };
       schedule();
       onCleanup(() => clearTimeout(this.winkTimer));

@@ -1,0 +1,8 @@
+# Every PR asks the maintainer for review; the training contract and the deployment
+# in particular — the two places where an innocent-looking line breaks something no
+# test can see.
+*                                   @PaulRichez
+/src/app/souffleurs/wire/           @PaulRichez
+/src/app/souffleurs/executors/      @PaulRichez
+/docker/                            @PaulRichez
+/.github/workflows/                 @PaulRichez

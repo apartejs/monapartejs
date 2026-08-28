@@ -18,7 +18,12 @@ function makeConv(overrides: Partial<AparteConversation> = {}): AparteConversati
     updatedAt: t,
     messages: [
       { id: `${id}-m1`, role: 'user', content: 'Bonjour !', timestamp: t },
-      { id: `${id}-m2`, role: 'assistant', content: 'Bonjour, comment puis-je aider ?', timestamp: t + 1 },
+      {
+        id: `${id}-m2`,
+        role: 'assistant',
+        content: 'Bonjour, comment puis-je aider ?',
+        timestamp: t + 1,
+      },
     ],
     ...overrides,
   };
@@ -31,7 +36,7 @@ describe('DexieConversationAdapter', () => {
     adapter = new DexieConversationAdapter(new monaparteDb(`test-${Date.now()}-${counter++}`));
   });
 
-  it('save + loadAll : round-trip complet, messages ordonnés', async () => {
+  it('save + loadAll: full round-trip, messages ordered', async () => {
     const conv = makeConv({ tree: { anything: true } as never });
     await adapter.save(conv);
     const all = await adapter.loadAll();
@@ -41,18 +46,21 @@ describe('DexieConversationAdapter', () => {
     expect(all[0].tree).toEqual({ anything: true });
   });
 
-  it('save = upsert : re-sauvegarde remplace les messages sans doublon', async () => {
+  it('save = upsert: re-saving replaces messages without duplicates', async () => {
     const conv = makeConv();
     await adapter.save(conv);
     await adapter.save({
       ...conv,
-      messages: [...conv.messages, { id: `${conv.id}-m3`, role: 'user', content: 'Suite', timestamp: Date.now() + 2 }],
+      messages: [
+        ...conv.messages,
+        { id: `${conv.id}-m3`, role: 'user', content: 'Suite', timestamp: Date.now() + 2 },
+      ],
     });
     const all = await adapter.loadAll();
     expect(all[0].messages).toHaveLength(3);
   });
 
-  it('loadMeta : méta sans messages, preview et count remplis', async () => {
+  it('loadMeta: meta without messages, preview and count filled', async () => {
     await adapter.save(makeConv());
     const meta = await adapter.loadMeta();
     expect(meta[0].messageCount).toBe(2);
@@ -60,7 +68,7 @@ describe('DexieConversationAdapter', () => {
     expect((meta[0] as Record<string, unknown>)['messages']).toBeUndefined();
   });
 
-  it('delete : cascade messages', async () => {
+  it('delete: cascades messages', async () => {
     const conv = makeConv();
     await adapter.save(conv);
     await adapter.delete(conv.id);
@@ -68,7 +76,7 @@ describe('DexieConversationAdapter', () => {
     expect(await adapter.db.messages.where('convId').equals(conv.id).count()).toBe(0);
   });
 
-  it('delete : cascade aussi les fichiers du registre souffleurs', async () => {
+  it('delete: also cascades the souffleurs registry files', async () => {
     const conv = makeConv();
     await adapter.save(conv);
 
@@ -87,7 +95,7 @@ describe('DexieConversationAdapter', () => {
     await adapter.delete(conv.id);
 
     expect(await adapter.db.souffleurFiles.count()).toBe(0);
-    // Et la Map memoire, sinon le file_id se resout encore jusqu'au reload.
+    // And the in-memory Map too, otherwise the file_id still resolves until reload.
     expect(fileRegistry.get(entry.id)).toBeUndefined();
     setConversationResolver(null);
   });
@@ -101,10 +109,15 @@ describe('DexieConversationAdapter', () => {
     expect((await adapter.loadMeta())[0].archivedAt).toBeUndefined();
   });
 
-  it('settings k/v + mémoire', async () => {
+  it('settings k/v + memory', async () => {
     await adapter.setSetting('send-on-enter', false);
     expect(await adapter.getSetting('send-on-enter')).toBe(false);
-    await adapter.addMemoryFact({ id: 'f1', type: 'preference', content: 'aime le thé', addedAt: Date.now() });
+    await adapter.addMemoryFact({
+      id: 'f1',
+      type: 'preference',
+      content: 'aime le thé',
+      addedAt: Date.now(),
+    });
     expect(await adapter.getMemory()).toHaveLength(1);
     await adapter.clearMemory();
     expect(await adapter.getMemory()).toHaveLength(0);
@@ -127,26 +140,26 @@ describe('DexieConversationAdapter', () => {
     expect(await target.getAllSettings()).toEqual({});
   });
 
-  it('import : rejette un JSON étranger', async () => {
+  it('import: rejects a foreign JSON', async () => {
     await expect(importAll(adapter, { kind: 'autre' })).rejects.toThrow(/invalide/);
   });
 });
 
 /**
- * Régression : `filesToAttachments()` de la lib pose sur le message un `url`
- * issu de `URL.createObjectURL(file)`. Cette URL est RÉVOQUÉE au rechargement
- * de page — persistée telle quelle, la bulle affichait
- * `GET blob:… net::ERR_FILE_NOT_FOUND`. Le blob est donc stocké à part et
- * l'`url` refabriquée à chaque hydratation, dans les messages ET DANS L'ARBRE
- * (c'est l'arbre que `importTree()` rejoue au reload).
+ * Regression: the lib's `filesToAttachments()` sets a message's `url` from
+ * `URL.createObjectURL(file)`. This URL is REVOKED on page reload —
+ * persisted as-is, the bubble showed
+ * `GET blob:… net::ERR_FILE_NOT_FOUND`. So the blob is stored separately and
+ * the `url` rebuilt on every hydration, in the messages AND IN THE TREE
+ * (it's the tree that `importTree()` replays on reload).
  */
-describe('DexieConversationAdapter — pièces jointes au reload', () => {
+describe('DexieConversationAdapter — attachments on reload', () => {
   let adapter: DexieConversationAdapter;
 
   beforeEach(() => {
     adapter = new DexieConversationAdapter(new monaparteDb(`att-${Date.now()}-${counter++}`));
-    // fake-indexeddb n'apporte pas URL.createObjectURL : on le simule et on
-    // compte les appels pour prouver que l'URL est bien refaite.
+    // fake-indexeddb doesn't provide URL.createObjectURL: we simulate it and
+    // count the calls to prove the URL is indeed rebuilt.
     let n = 0;
     URL.createObjectURL = () => `blob:fresh-${++n}`;
   });
@@ -159,7 +172,7 @@ describe('DexieConversationAdapter — pièces jointes au reload', () => {
         id: 'att-1',
         name: 'photo.png',
         type: 'image/png',
-        // URL de la session PRÉCÉDENTE : morte après reload.
+        // URL from the PREVIOUS session: dead after reload.
         url: 'blob:http://localhost:4200/dead-uuid',
         size: blob.size,
         blob,
@@ -172,13 +185,16 @@ describe('DexieConversationAdapter — pièces jointes au reload', () => {
     return conv;
   };
 
-  it("l'url morte est remplacée, le blob survit", async () => {
+  it('the dead url is replaced, the blob survives', async () => {
     const conv = withAttachment();
     await adapter.save(conv);
     const loaded = await adapter.loadFull(conv.id);
 
-    const atts = (loaded!.messages![0] as unknown as { attachments: { url: string; blob: Blob; name: string }[] })
-      .attachments;
+    const atts = (
+      loaded!.messages![0] as unknown as {
+        attachments: { url: string; blob: Blob; name: string }[];
+      }
+    ).attachments;
     expect(atts).toHaveLength(1);
     expect(atts[0].url).not.toBe('blob:http://localhost:4200/dead-uuid');
     expect(atts[0].url).toMatch(/^blob:fresh-/);
@@ -187,7 +203,7 @@ describe('DexieConversationAdapter — pièces jointes au reload', () => {
     expect(await atts[0].blob.text()).toContain('PNG fake');
   });
 
-  it("l'ARBRE aussi est réécrit — sinon importTree() rejoue les urls mortes", async () => {
+  it('the TREE is also rewritten — otherwise importTree() replays dead urls', async () => {
     const conv = withAttachment();
     await adapter.save(conv);
     const loaded = await adapter.loadFull(conv.id);
@@ -199,7 +215,7 @@ describe('DexieConversationAdapter — pièces jointes au reload', () => {
     expect(first?.message.attachments?.[0].url).toMatch(/^blob:fresh-/);
   });
 
-  it('le binaire ne vit QUE dans la table attachments, pas dans le message', async () => {
+  it('the binary lives ONLY in the attachments table, not in the message', async () => {
     const conv = withAttachment();
     await adapter.save(conv);
 
@@ -213,7 +229,7 @@ describe('DexieConversationAdapter — pièces jointes au reload', () => {
     expect('attachments' in (msgRow!.data as object)).toBe(false);
   });
 
-  it('purge de la conversation : les pièces jointes suivent', async () => {
+  it('purging the conversation: attachments follow', async () => {
     const conv = withAttachment();
     await adapter.save(conv);
     await adapter.delete(conv.id);
@@ -222,19 +238,19 @@ describe('DexieConversationAdapter — pièces jointes au reload', () => {
 });
 
 /**
- * Régression du renommage bonaparte -> monaparte : la valeur écrite dans
- * `kind` a changé, donc toute sauvegarde faite AVANT le renommage était
- * rejetée à l'import. Un export est l'archive de l'utilisateur : on écrit le
- * nouveau nom, on accepte les deux.
+ * Regression from the bonaparte -> monaparte rename: the value written to
+ * `kind` changed, so any save made BEFORE the rename was rejected on
+ * import. An export is the user's archive: we write the new name, we
+ * accept both.
  */
-describe('export/import — compatibilité du kind', () => {
+describe('export/import — kind compatibility', () => {
   let adapter: DexieConversationAdapter;
 
   beforeEach(() => {
     adapter = new DexieConversationAdapter(new monaparteDb(`kind-${Date.now()}-${counter++}`));
   });
 
-  it('un export produit par la version « bonaparte » est encore importable', async () => {
+  it('an export produced by the "bonaparte" version is still importable', async () => {
     await adapter.save(makeConv());
     const dump = await exportAll(adapter);
     const legacy = { ...dump, kind: 'bonaparte-full-export' } as unknown as typeof dump;
@@ -244,7 +260,7 @@ describe('export/import — compatibilité du kind', () => {
     expect((await adapter.loadMeta()).length).toBe(1);
   });
 
-  it('un kind étranger est toujours rejeté', async () => {
+  it('a foreign kind is always rejected', async () => {
     const dump = await exportAll(adapter);
     const alien = { ...dump, kind: 'autre-appli-export' } as unknown as typeof dump;
     await expect(importAll(adapter, alien)).rejects.toThrow(/invalide/);

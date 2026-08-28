@@ -1,12 +1,12 @@
-# /debug/ expose le dernier échange envoyé au modèle — un outil de mise au
-# point, sans intérêt pour un moteur, et qu'on ne veut pas voir apparaître dans
-# des résultats de recherche.
+# /debug/ exposes the last exchange sent to the model — a debugging tool,
+# of no interest to a search engine, and one we don't want showing up in
+# search results.
 #
-# /chat/ n'est PAS interdit ici, volontairement : la balise canonique de
-# index.html suffit à consolider ces adresses sur la racine, et une interdiction
-# empêcherait aussi les moissonneurs sociaux de lire la carte d'un lien partagé.
-# Les conversations n'existent que dans le navigateur du visiteur : ces adresses
-# ne portent aucune donnée.
+# /chat/ is deliberately NOT disallowed here: index.html's canonical tag is
+# enough to consolidate these addresses on the root, and a disallow would
+# also stop social crawlers from reading the card for a shared link. The
+# conversations only exist in the visitor's browser: these addresses carry
+# no data.
 User-agent: *
 Allow: /
 Disallow: /debug/

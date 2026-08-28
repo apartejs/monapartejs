@@ -131,7 +131,9 @@ interface ConvGroup {
       font: inherit;
       cursor: pointer;
     }
-    .new-chat:hover { background: var(--aparte-primary-hover); }
+    .new-chat:hover {
+      background: var(--aparte-primary-hover);
+    }
     .search {
       margin: 0 12px 10px;
       padding: 8px 12px;
@@ -147,7 +149,10 @@ interface ConvGroup {
       justify-content: space-between;
       gap: 8px;
     }
-    .search:hover { background: var(--aparte-surface-2); color: var(--aparte-text); }
+    .search:hover {
+      background: var(--aparte-surface-2);
+      color: var(--aparte-text);
+    }
     .search kbd {
       font-family: var(--bp-mono);
       font-size: 10px;
@@ -156,7 +161,11 @@ interface ConvGroup {
       padding: 1px 6px;
       color: var(--aparte-text-muted);
     }
-    .list { flex: 1; overflow-y: auto; padding: 0 8px; }
+    .list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 8px;
+    }
     .group-label {
       font-family: var(--bp-mono);
       font-size: 10px;
@@ -180,8 +189,12 @@ interface ConvGroup {
       border-radius: 8px;
       padding: 2px 4px;
     }
-    .item:hover { background: var(--aparte-surface-2); }
-    .item.active { background: var(--aparte-surface-2); }
+    .item:hover {
+      background: var(--aparte-surface-2);
+    }
+    .item.active {
+      background: var(--aparte-surface-2);
+    }
     .item .title {
       flex: 1;
       text-align: left;
@@ -196,8 +209,13 @@ interface ConvGroup {
       text-overflow: ellipsis;
       min-width: 0;
     }
-    .item .actions { visibility: hidden; display: inline-flex; }
-    .item:hover .actions { visibility: visible; }
+    .item .actions {
+      visibility: hidden;
+      display: inline-flex;
+    }
+    .item:hover .actions {
+      visibility: visible;
+    }
     .icon {
       background: none;
       border: none;
@@ -206,8 +224,14 @@ interface ConvGroup {
       padding: 4px;
       font-size: 13px;
     }
-    .icon:hover { color: var(--aparte-text); }
-    .empty { color: var(--aparte-text-muted); font-size: 13px; padding: 8px; }
+    .icon:hover {
+      color: var(--aparte-text);
+    }
+    .empty {
+      color: var(--aparte-text-muted);
+      font-size: 13px;
+      padding: 8px;
+    }
     .foot {
       border-top: 1px solid var(--aparte-border);
       padding: 10px 14px;
@@ -231,11 +255,24 @@ interface ConvGroup {
       font-size: 12px;
       color: var(--aparte-text-muted);
     }
-    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .dot.ok { background: var(--aparte-success); }
-    .dot.busy { background: var(--aparte-warning); }
-    .dot.error { background: var(--aparte-error); }
-    .dot.off { background: var(--aparte-text-muted); }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot.ok {
+      background: var(--aparte-success);
+    }
+    .dot.busy {
+      background: var(--aparte-warning);
+    }
+    .dot.error {
+      background: var(--aparte-error);
+    }
+    .dot.off {
+      background: var(--aparte-text-muted);
+    }
   `,
 })
 export class SidebarComponent {
@@ -271,22 +308,29 @@ export class SidebarComponent {
   protected readonly statusLabel = computed(() => {
     const labels = this.t().modelStatus;
     switch (this.modelStatus.state().status) {
-      case 'ready': return labels.ready;
-      case 'generating': return labels.generating;
-      case 'downloading': return labels.downloading;
-      case 'loading': return labels.loading;
-      case 'error': return labels.error;
-      case 'not-downloaded': return labels.notDownloaded;
-      default: return labels.unknown;
+      case 'ready':
+        return labels.ready;
+      case 'generating':
+        return labels.generating;
+      case 'downloading':
+        return labels.downloading;
+      case 'loading':
+        return labels.loading;
+      case 'error':
+        return labels.error;
+      case 'not-downloaded':
+        return labels.notDownloaded;
+      default:
+        return labels.unknown;
     }
   });
 
   protected newChat(): void {
-    // Après une création de conversation, l'URL est réécrite en /chat/:id SANS
-    // navigation (replaceState) : le routeur croit toujours être sur '/' et
-    // navigate('/') devient un no-op. L'événement de désélection (id: null)
-    // remet le fil à zéro dans tous les cas — le contrôleur de la lib l'écoute
-    // globalement.
+    // After a conversation is created, the URL is rewritten to /chat/:id WITHOUT
+    // navigation (replaceState): the router still thinks it's on '/' and
+    // navigate('/') becomes a no-op. The deselection event (id: null)
+    // resets the thread to zero in all cases — the lib's controller listens
+    // for it globally.
     void this.router.navigate(['/']);
     this.location.replaceState('/');
     window.dispatchEvent(new CustomEvent('aparte-select-conversation', { detail: { id: null } }));

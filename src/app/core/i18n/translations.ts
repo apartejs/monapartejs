@@ -1,4 +1,4 @@
-/** Traductions app (les chaînes des composants aparte viennent de la lib). */
+/** App translations (the aparte components' strings come from the lib). */
 
 export interface Translations {
   brand: string;
@@ -248,7 +248,8 @@ export const FR: Translations = {
   },
   context: {
     label: 'contexte',
-    tooltip: 'Estimation de la place occupée dans la fenêtre de contexte du modèle (≈ 4096 tokens).',
+    tooltip:
+      'Estimation de la place occupée dans la fenêtre de contexte du modèle (≈ 4096 tokens).',
   },
   common: { cancel: 'Annuler', confirm: 'Confirmer' },
 };

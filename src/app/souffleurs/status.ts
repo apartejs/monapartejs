@@ -1,17 +1,11 @@
-/** État observable du modèle souffleurs (pastille sidebar, onboarding) — framework-agnostic. */
+/** Observable state of the souffleurs model (sidebar badge, onboarding) — framework-agnostic. */
 
 export type SouffleurStatus =
-  | 'unknown'
-  | 'not-downloaded'
-  | 'downloading'
-  | 'loading'
-  | 'ready'
-  | 'generating'
-  | 'error';
+  'unknown' | 'not-downloaded' | 'downloading' | 'loading' | 'ready' | 'generating' | 'error';
 
 export interface SouffleurStatusState {
   status: SouffleurStatus;
-  /** 0-100 pendant un téléchargement. */
+  /** 0-100 during a download. */
   progress?: number;
   message?: string;
   device?: 'webgpu' | 'wasm';
@@ -32,7 +26,7 @@ export function subscribeSouffleurStatus(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Interne au module souffleurs. */
+/** Internal to the souffleurs module. */
 export function setSouffleurStatus(next: SouffleurStatusState): void {
   state = next;
   for (const l of listeners) l(next);

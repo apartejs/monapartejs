@@ -1,7 +1,7 @@
 /**
- * create_widget — artefact non-fichier affiché dans la conversation
- * (html / svg / chart / code), produit par le souffleur-sandbox.
- * Résultat tool = confirmation seule ; le contenu part au renderer.
+ * create_widget — non-file artifact shown in the conversation
+ * (html / svg / chart / code), produced by souffleur-sandbox.
+ * Tool result = confirmation only; the content goes to the renderer.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { SANDBOX_JS_SYSTEM } from '../executors/executor-prompts';
@@ -22,18 +22,19 @@ export const createWidgetTool: AparteTool = {
   },
 };
 
-export const createWidgetHandler: AparteToolHandler = async (call) => {
+export const createWidgetHandler: AparteToolHandler = async (call, signal) => {
   const kind = String(call.input['kind'] ?? 'code') as ProducedWidget['kind'];
   const task = String(call.input['task'] ?? '');
   try {
     const { raw } = await runExecutor('souffleur-sandbox', SANDBOX_JS_SYSTEM, task, {
       maxNewTokens: 4000,
+      signal,
     });
     const code = extractCode(raw);
 
     let content: string;
     if (kind === 'code') {
-      // L'artefact EST le code généré.
+      // The artifact IS the generated code.
       content = code;
     } else {
       const result = await runInSandbox('compute', code, { timeoutMs: 15_000 });
@@ -49,7 +50,12 @@ export const createWidgetHandler: AparteToolHandler = async (call) => {
     return {
       toolCallId: call.id,
       content: JSON.stringify(
-        { ok: false, type: 'create_widget', kind, error: err instanceof Error ? err.message : String(err) },
+        {
+          ok: false,
+          type: 'create_widget',
+          kind,
+          error: err instanceof Error ? err.message : String(err),
+        },
         null,
         2,
       ),

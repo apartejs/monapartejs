@@ -1,7 +1,7 @@
 /**
- * Export / import / effacement complet des données locales (iso aimi) :
- * un seul JSON `{version, kind, conversations, memory, settings}` ;
- * import = merge (jamais de remplacement silencieux) ; effacement = tout.
+ * Export / import / full erasure of local data (mirrors aimi):
+ * a single JSON `{version, kind, conversations, memory, settings}`;
+ * import = merge (never a silent replacement); erasure = everything.
  */
 import type { AparteConversation, AparteMemoryFact } from '@aparte/core';
 import { DexieConversationAdapter } from './conversation-adapter';
@@ -9,10 +9,10 @@ import { LOCAL_KEYS, localRemove } from './settings.service';
 
 export const EXPORT_KIND = 'monaparte-full-export';
 /**
- * `kind` accepté à l'IMPORT. Le renommage bonaparte -> monaparte a changé la
- * valeur écrite : sans cette liste, toute sauvegarde faite avant le renommage
- * était rejetée (« Fichier d'export invalide »). On écrit le nouveau, on lit
- * les deux — un export est une archive de l'utilisateur, pas un détail interne.
+ * `kind` accepted on IMPORT. The bonaparte -> monaparte rename changed the
+ * written value: without this list, any save made before the rename was
+ * rejected ("Invalid export file"). We write the new one, we read
+ * both — an export is the user's archive, not an internal detail.
  */
 const ACCEPTED_KINDS: readonly string[] = [EXPORT_KIND, 'bonaparte-full-export'];
 
@@ -36,7 +36,7 @@ export async function exportAll(adapter: DexieConversationAdapter): Promise<Full
   };
 }
 
-/** Merge dans l'existant. L'appelant recharge la page ensuite. */
+/** Merges into the existing data. The caller reloads the page afterward. */
 export async function importAll(
   adapter: DexieConversationAdapter,
   data: unknown,
@@ -47,9 +47,7 @@ export async function importAll(
     !ACCEPTED_KINDS.includes((data as FullExport).kind) ||
     !Array.isArray((data as FullExport).conversations)
   ) {
-    throw new Error(
-      `Fichier d’export invalide (kind attendu : ${ACCEPTED_KINDS.join(' ou ')}).`,
-    );
+    throw new Error(`Fichier d’export invalide (kind attendu : ${ACCEPTED_KINDS.join(' ou ')}).`);
   }
   const parsed = data as FullExport;
   for (const conv of parsed.conversations) {
@@ -64,7 +62,7 @@ export async function importAll(
   return { conversations: parsed.conversations.length, memory: (parsed.memory ?? []).length };
 }
 
-/** Efface tout : conversations, mémoire, settings IDB, clés locales. L'appelant recharge. */
+/** Erases everything: conversations, memory, IDB settings, local keys. The caller reloads. */
 export async function clearAll(adapter: DexieConversationAdapter): Promise<void> {
   const conversations = await adapter.loadMeta();
   for (const conv of conversations) {

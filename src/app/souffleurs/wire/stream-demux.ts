@@ -1,10 +1,10 @@
 /**
- * Démultiplexeur du flux de tokens décodés (skip_special_tokens:false) :
- * route le texte vers l'UI, les blocs <think> vers les events "thinking",
- * avale les blocs <|tool_call_start|>…<|tool_call_end|> (parsés en fin de tour
- * sur le texte brut complet) et s'arrête à <|im_end|>.
- * Robuste aux marqueurs coupés à cheval sur deux chunks (hold-back du plus
- * long suffixe qui est préfixe d'un marqueur).
+ * Demultiplexer for the decoded token stream (skip_special_tokens:false):
+ * routes text to the UI, <think> blocks to "thinking" events,
+ * swallows <|tool_call_start|>…<|tool_call_end|> blocks (parsed at the end of
+ * the turn on the full raw text) and stops at <|im_end|>.
+ * Robust to markers split across two chunks (holds back the longest suffix
+ * that is a prefix of a marker).
  */
 
 export interface DemuxEvent {
@@ -64,7 +64,7 @@ export class WireStreamDemux {
     return events;
   }
 
-  /** Fin de génération : vide ce qui reste (un préfixe de marqueur jamais complété est du texte). */
+  /** End of generation: flushes what remains (a marker prefix never completed is text). */
   flush(): DemuxEvent[] {
     const events: DemuxEvent[] = [];
     if (this.mode !== 'ended') {
@@ -78,7 +78,7 @@ export class WireStreamDemux {
     if (!chunk) return;
     if (this.mode === 'text') into.push({ kind: 'text', delta: chunk });
     else if (this.mode === 'thinking') into.push({ kind: 'thinking', delta: chunk });
-    // mode 'tool' : avalé (le bloc complet est reparsé en fin de tour)
+    // mode 'tool': swallowed (the full block is re-parsed at the end of the turn)
   }
 
   private earliestMarker(): { index: number; marker: string } | null {
@@ -93,10 +93,7 @@ export class WireStreamDemux {
   }
 
   private holdbackLength(): number {
-    const max = Math.min(
-      this.pending.length,
-      Math.max(...MARKERS.map((m) => m.length)) - 1,
-    );
+    const max = Math.min(this.pending.length, Math.max(...MARKERS.map((m) => m.length)) - 1);
     for (let len = max; len > 0; len--) {
       const suffix = this.pending.slice(this.pending.length - len);
       if (MARKERS.some((m) => m.startsWith(suffix))) return len;

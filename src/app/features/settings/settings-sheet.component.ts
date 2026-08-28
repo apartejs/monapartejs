@@ -128,8 +128,17 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       animation: bp-slide 0.25s ease;
       box-shadow: -24px 0 48px -24px rgb(0 0 0 / 25%);
     }
-    @keyframes bp-fade { from { opacity: 0; } }
-    @keyframes bp-slide { from { transform: translateX(30px); opacity: 0; } }
+    @keyframes bp-fade {
+      from {
+        opacity: 0;
+      }
+    }
+    @keyframes bp-slide {
+      from {
+        transform: translateX(30px);
+        opacity: 0;
+      }
+    }
 
     .head {
       display: flex;
@@ -137,7 +146,10 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       justify-content: space-between;
       margin-bottom: 6px;
     }
-    h2 { margin: 0; font-size: 24px; }
+    h2 {
+      margin: 0;
+      font-size: 24px;
+    }
     .close {
       background: none;
       border: none;
@@ -148,7 +160,10 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       padding: 6px 10px;
       border-radius: 8px;
     }
-    .close:hover { background: var(--aparte-surface-2); color: var(--aparte-text); }
+    .close:hover {
+      background: var(--aparte-surface-2);
+      color: var(--aparte-text);
+    }
 
     .eyebrow {
       font-family: var(--bp-mono);
@@ -172,11 +187,28 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       gap: 14px;
       padding: 13px 16px;
     }
-    .row + .row { border-top: 1px solid var(--aparte-border); }
-    .row-text { display: grid; gap: 3px; min-width: 0; }
-    .label { font-size: 14px; font-weight: 500; }
-    .sub { font-size: 12px; color: var(--aparte-text-muted); line-height: 1.45; }
-    .status-line { display: inline-flex; align-items: center; gap: 8px; }
+    .row + .row {
+      border-top: 1px solid var(--aparte-border);
+    }
+    .row-text {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+    .label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .sub {
+      font-size: 12px;
+      color: var(--aparte-text-muted);
+      line-height: 1.45;
+    }
+    .status-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
 
     .seg {
       display: inline-flex;
@@ -213,7 +245,9 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       flex-shrink: 0;
       transition: background 0.2s ease;
     }
-    .switch.on { background: var(--aparte-primary); }
+    .switch.on {
+      background: var(--aparte-primary);
+    }
     .knob {
       position: absolute;
       top: 3px;
@@ -225,9 +259,14 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       transition: transform 0.2s ease;
       box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
     }
-    .switch.on .knob { transform: translateX(18px); }
+    .switch.on .knob {
+      transform: translateX(18px);
+    }
 
-    .actions { flex-wrap: wrap; justify-content: flex-start; }
+    .actions {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
     .btn {
       font: inherit;
       font-size: 13px;
@@ -238,16 +277,39 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       padding: 8px 14px;
       cursor: pointer;
     }
-    .btn:hover { background: var(--aparte-surface-3); }
-    .btn.danger { color: var(--aparte-error); }
-    .btn.danger:hover { background: color-mix(in srgb, var(--aparte-error) 10%, transparent); }
-    .btn.wide { width: 100%; text-align: center; }
+    .btn:hover {
+      background: var(--aparte-surface-3);
+    }
+    .btn.danger {
+      color: var(--aparte-error);
+    }
+    .btn.danger:hover {
+      background: color-mix(in srgb, var(--aparte-error) 10%, transparent);
+    }
+    .btn.wide {
+      width: 100%;
+      text-align: center;
+    }
 
-    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-    .dot.ok { background: var(--aparte-success); }
-    .dot.busy { background: var(--aparte-warning); }
-    .dot.error { background: var(--aparte-error); }
-    .dot.off { background: var(--aparte-text-muted); }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .dot.ok {
+      background: var(--aparte-success);
+    }
+    .dot.busy {
+      background: var(--aparte-warning);
+    }
+    .dot.error {
+      background: var(--aparte-error);
+    }
+    .dot.off {
+      background: var(--aparte-text-muted);
+    }
 
     .foot {
       text-align: center;
@@ -275,13 +337,20 @@ export class SettingsSheetComponent {
   protected readonly statusLabel = computed(() => {
     const labels = this.t().modelStatus;
     switch (this.modelStatus.state().status) {
-      case 'ready': return labels.ready;
-      case 'generating': return labels.generating;
-      case 'downloading': return labels.downloading;
-      case 'loading': return labels.loading;
-      case 'error': return labels.error;
-      case 'not-downloaded': return labels.notDownloaded;
-      default: return labels.unknown;
+      case 'ready':
+        return labels.ready;
+      case 'generating':
+        return labels.generating;
+      case 'downloading':
+        return labels.downloading;
+      case 'loading':
+        return labels.loading;
+      case 'error':
+        return labels.error;
+      case 'not-downloaded':
+        return labels.notDownloaded;
+      default:
+        return labels.unknown;
     }
   });
 

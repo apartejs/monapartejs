@@ -1,43 +1,42 @@
 /**
- * Prétraitement d'image pour la tour vision — port de `Lfm2VlImageProcessorFast`.
+ * Image preprocessing for the vision tower — port of `Lfm2VlImageProcessorFast`.
  *
- * Référence portée : l'implémentation PYTHON de `transformers`
+ * Reference ported: the PYTHON implementation of `transformers`
  * (`models/lfm2_vl/image_processing_lfm2_vl.py` + `processing_lfm2_vl.py`),
- * pas le portage transformers.js. Ce dernier redimensionne l'image à la
- * `size` du config (512×512) AVANT de décider s'il faut découper, ce qui rend
- * la condition « image trop grande » toujours fausse : il ne découpe jamais.
- * Le Python, lui, décide sur les dimensions D'ORIGINE. Vérifié en lisant les
- * deux le 21/08.
+ * not the transformers.js port. The latter resizes the image to the config's
+ * `size` (512×512) BEFORE deciding whether to split it, which makes the
+ * "image too large" condition always false: it never splits. The Python one,
+ * on the other hand, decides on the ORIGINAL dimensions. Verified by reading
+ * both on 08/21.
  *
- * Produit les TROIS tenseurs que `vision-tower` attend :
+ * Produces the THREE tensors that `vision-tower` expects:
  *   pixel_values         FLOAT [num_tiles, 1024, 768]
  *   pixel_attention_mask INT64 [num_tiles, 1024]
  *   spatial_shapes       INT64 [num_tiles, 2]
  *
- * Un « patch » = 16×16 px aplati en 768 valeurs (16·16·3), normalisé
+ * A "patch" = 16×16 px flattened into 768 values (16·16·3), normalized
  * (pixel/255 − 0.5)/0.5 = pixel/127.5 − 1.
  *
- * DEUX CHEMINS, comme la référence :
+ * TWO PATHS, like the reference:
  *
- *  - image raisonnable -> une tuile, simple smart resize ;
- *  - image trop grande -> grille de tuiles de 512×512 découpées dans l'image
- *    redimensionnée au ratio le plus proche, PLUS une vignette d'ensemble en
- *    dernière position. Sans ce chemin, une capture d'écran ou un document
- *    photographié était écrasé à 256 tokens : le texte fin disparaissait avant
- *    même d'atteindre le modèle.
+ *  - reasonable image -> one tile, simple smart resize;
+ *  - too-large image -> grid of 512×512 tiles cut from the image resized to
+ *    the closest ratio, PLUS an overall thumbnail in last position. Without
+ *    this path, a screenshot or a photographed document was crushed to 256
+ *    tokens: fine text disappeared before it even reached the model.
  *
- * L'ORDRE des tuiles est normatif — ligne par ligne, vignette en dernier. Il
- * doit correspondre exactement à l'ordre des marqueurs du prompt
- * (`<|img_row_R_col_C|>` … `<|img_thumbnail|>`), sinon les embeds atterrissent
- * sur les mauvaises positions et le modèle décrit une image qui n'existe pas.
+ * Tile ORDER is normative — row by row, thumbnail last. It must exactly
+ * match the order of the prompt markers (`<|img_row_R_col_C|>` …
+ * `<|img_thumbnail|>`), otherwise the embeds land on the wrong positions and
+ * the model describes an image that doesn't exist.
  *
- * Worker-safe : `createImageBitmap` + `OffscreenCanvas` (pas de `document`).
+ * Worker-safe: `createImageBitmap` + `OffscreenCanvas` (no `document`).
  */
 
-/** Valeurs de `processor_config.json` du dépôt LFM2.5-VL — toutes vérifiées. */
+/** Values from the LFM2.5-VL repo's `processor_config.json` — all verified. */
 const CONFIG = {
   patchSize: 16,
-  /** 512/16 — une tuile pleine fait 32×32 patches, soit exactement maxPatches. */
+  /** 512/16 — a full tile is 32×32 patches, exactly maxPatches. */
   patchesPerTile: 32,
   downsampleFactor: 2,
   minImageTokens: 64,
@@ -45,16 +44,16 @@ const CONFIG = {
   tileSize: 512,
   minTiles: 2,
   maxTiles: 10,
-  /** Marge avant de découper : une image peut dépasser d'un facteur 2 sans l'être. */
+  /** Margin before splitting: an image can exceed by a factor of 2 without being split. */
   maxPixelsTolerance: 2.0,
   useThumbnail: true,
 } as const;
 
-/** (pixel/255 − 0.5)/0.5 = pixel/127.5 − 1 — mean/std valent 0.5 dans le config. */
+/** (pixel/255 − 0.5)/0.5 = pixel/127.5 − 1 — mean/std are 0.5 in the config. */
 const NORM_SCALE = 1 / 127.5;
 const NORM_OFFSET = -1;
 
-/** 1024 : max(maxImageTokens·downsample², (tileSize/patchSize)²) — les deux valent 1024. */
+/** 1024: max(maxImageTokens·downsample², (tileSize/patchSize)²) — both equal 1024. */
 const MAX_PATCHES = CONFIG.patchesPerTile * CONFIG.patchesPerTile;
 const PATCH_DIM = CONFIG.patchSize * CONFIG.patchSize * 3;
 
@@ -65,12 +64,12 @@ export interface PreprocessedImage {
   numTiles: number;
   /** [num_tiles, patches_per_tile, patch_dim] */
   shape: [number, number, number];
-  /** Grille de découpage. 1×1 = chemin mono-tuile, pas de vignette. */
+  /** Split grid. 1×1 = mono-tile path, no thumbnail. */
   rows: number;
   cols: number;
   /**
-   * Dimensions de la VIGNETTE (chemin mono-tuile : de l'unique tuile). C'est
-   * d'elles que dépend le nombre de tokens de la vignette.
+   * THUMBNAIL dimensions (mono-tile path: those of the single tile). The
+   * thumbnail's token count depends on these.
    */
   width: number;
   height: number;
@@ -81,13 +80,13 @@ const ceilByFactor = (n: number, f: number) => Math.ceil(n / f) * f;
 const floorByFactor = (n: number, f: number) => Math.floor(n / f) * f;
 
 /**
- * Dimensions divisibles par patchSize·downsampleFactor (32) et nombre total de
- * pixels borné dans [minPixels, maxPixels] — port de `_smart_resize()`.
+ * Dimensions divisible by patchSize·downsampleFactor (32) and total pixel
+ * count bounded in [minPixels, maxPixels] — port of `_smart_resize()`.
  */
 export function smartResize(width: number, height: number): { width: number; height: number } {
   const { patchSize, downsampleFactor, minImageTokens, maxImageTokens } = CONFIG;
   const totalFactor = patchSize * downsampleFactor; // 32
-  const unit = patchSize ** 2 * downsampleFactor ** 2; // 1024 px par token
+  const unit = patchSize ** 2 * downsampleFactor ** 2; // 1024 px per token
   const minPixels = minImageTokens * unit;
   const maxPixels = maxImageTokens * unit;
 
@@ -107,11 +106,11 @@ export function smartResize(width: number, height: number): { width: number; hei
 }
 
 /**
- * L'image mérite-t-elle d'être découpée ? Port de `_is_image_too_large()`.
+ * Does the image deserve to be split? Port of `_is_image_too_large()`.
  *
- * Sur les dimensions D'ORIGINE, jamais sur une image déjà redimensionnée —
- * c'est l'erreur du portage transformers.js. Seuil : 256 tokens × 1024 px par
- * token × 2 de tolérance = 524 288 px, soit un peu plus que 720×720.
+ * On the ORIGINAL dimensions, never on an already-resized image — that's the
+ * transformers.js port's bug. Threshold: 256 tokens × 1024 px per token × 2
+ * tolerance = 524,288 px, a bit more than 720×720.
  */
 export function isImageTooLarge(width: number, height: number): boolean {
   const { patchSize, downsampleFactor, maxImageTokens, maxPixelsTolerance } = CONFIG;
@@ -121,7 +120,7 @@ export function isImageTooLarge(width: number, height: number): boolean {
   return hBar * wBar > maxImageTokens * totalFactor ** 2 * maxPixelsTolerance;
 }
 
-/** Toutes les grilles w×h dont le produit tient dans [minTiles, maxTiles]. */
+/** All w×h grids whose product fits in [minTiles, maxTiles]. */
 function targetRatios(minTiles: number, maxTiles: number): [number, number][] {
   const seen = new Set<number>();
   const ratios: [number, number][] = [];
@@ -141,9 +140,9 @@ function targetRatios(minTiles: number, maxTiles: number): [number, number][] {
 }
 
 /**
- * Grille dont le rapport d'aspect approche le mieux celui de l'image.
- * À égalité de rapport, la référence préfère la grille la PLUS GRANDE si
- * l'image est assez grande pour la remplir à moitié — d'où la seconde branche.
+ * The grid whose aspect ratio best approximates the image's.
+ * On a tie, the reference prefers the LARGER grid if the image is big enough
+ * to fill it at least halfway — hence the second branch.
  */
 function findClosestAspectRatio(
   aspect: number,
@@ -167,15 +166,16 @@ function findClosestAspectRatio(
   return best;
 }
 
-/** Port de `_get_grid_layout()`. `cols` = grid_width, `rows` = grid_height. */
+/** Port of `_get_grid_layout()`. `cols` = grid_width, `rows` = grid_height. */
 export function gridLayout(
   width: number,
   height: number,
+  maxTiles: number = CONFIG.maxTiles,
 ): { cols: number; rows: number; targetWidth: number; targetHeight: number } {
-  const { minTiles, maxTiles, tileSize } = CONFIG;
+  const { minTiles, tileSize } = CONFIG;
   const [cols, rows] = findClosestAspectRatio(
     width / height,
-    targetRatios(minTiles, maxTiles),
+    targetRatios(minTiles, Math.min(Math.max(maxTiles, minTiles), CONFIG.maxTiles)),
     width,
     height,
     tileSize,
@@ -184,9 +184,9 @@ export function gridLayout(
 }
 
 /**
- * Nombre de tokens produits par une image de ces dimensions — port de
- * `_compute_tokens_for_image()`. Vaut pour l'unique tuile comme pour la
- * vignette.
+ * Number of tokens produced by an image of these dimensions — port of
+ * `_compute_tokens_for_image()`. Holds for both the single tile and the
+ * thumbnail.
  */
 export function expectedImageTokens(width: number, height: number): number {
   const { patchSize, downsampleFactor } = CONFIG;
@@ -195,17 +195,18 @@ export function expectedImageTokens(width: number, height: number): number {
   return Math.ceil(h / downsampleFactor) * Math.ceil(w / downsampleFactor);
 }
 
-/** Tokens d'une tuile pleine — `_compute_tokens_per_tile()`. 512/16/2 au carré = 256. */
+/** Tokens for a full tile — `_compute_tokens_per_tile()`. 512/16/2 squared = 256. */
 export const TOKENS_PER_TILE = (() => {
   const patches = CONFIG.tileSize / CONFIG.patchSize;
   return Math.ceil(patches / CONFIG.downsampleFactor) ** 2;
 })();
 
 /**
- * Total attendu pour une image prétraitée : les tuiles pleines plus la
- * vignette. Sert de CONTRÔLE face au compte réel renvoyé par la tour — un
- * écart signale une divergence de prétraitement, donc un prompt hors
- * distribution, et c'est exactement ce qu'on veut voir en développement.
+ * Expected total for a preprocessed image: the full tiles plus the
+ * thumbnail. Used as a CHECK against the actual count returned by the
+ * tower — a mismatch signals a preprocessing divergence, hence an
+ * out-of-distribution prompt, which is exactly what we want to see in
+ * development.
  */
 export function expectedTotalTokens(image: PreprocessedImage): number {
   const tiles = image.rows * image.cols;
@@ -213,16 +214,36 @@ export function expectedTotalTokens(image: PreprocessedImage): number {
   return tiles > 1 ? tiles * TOKENS_PER_TILE + thumbnail : thumbnail;
 }
 
-export async function preprocessImage(blob: Blob): Promise<PreprocessedImage> {
+export interface PreprocessOptions {
+  /**
+   * Upper bound on grid tiles (thumbnail excluded). `1` = never split: the
+   * reference's mono-tile path, 256 tokens at most.
+   *
+   * The reference's default (10) is faithful but was MEASURED unusable in
+   * the browser on 2026-08-28: a screenshot became 3x3 tiles + thumbnail,
+   * 10 encoder passes and ~2 560 image tokens — the machine crawled, the
+   * card never filled, and 2 560 of a 4 096-token context would have been
+   * spent on one image anyway. The app defaults to 1 and exposes the switch
+   * (`localStorage bp.vision.tiles`) so fine-text quality can be measured
+   * against cost instead of assumed.
+   */
+  maxTiles?: number;
+}
+
+export async function preprocessImage(
+  blob: Blob,
+  opts: PreprocessOptions = {},
+): Promise<PreprocessedImage> {
+  const maxTiles = opts.maxTiles ?? CONFIG.maxTiles;
   const bitmap = await createImageBitmap(blob);
   try {
     const thumb = smartResize(bitmap.width, bitmap.height);
-    const split = isImageTooLarge(bitmap.width, bitmap.height);
-    const grid = split ? gridLayout(bitmap.width, bitmap.height) : null;
+    const split = maxTiles >= CONFIG.minTiles && isImageTooLarge(bitmap.width, bitmap.height);
+    const grid = split ? gridLayout(bitmap.width, bitmap.height, maxTiles) : null;
 
-    // Une tuile par case de la grille, plus la vignette d'ensemble. La
-    // référence n'ajoute la vignette que si la grille n'est pas 1×1 ; nos
-    // bornes (minTiles = 2) l'excluent déjà, mais la garde reste alignée.
+    // One tile per grid cell, plus the overall thumbnail. The reference only
+    // adds the thumbnail if the grid isn't 1×1; our bounds (minTiles = 2)
+    // already exclude that, but the guard stays aligned with it.
     const tiles: ImageData[] = [];
     if (grid && grid.cols * grid.rows !== 1) {
       const { cols, rows, targetWidth, targetHeight } = grid;
@@ -230,15 +251,24 @@ export async function preprocessImage(blob: Blob): Promise<PreprocessedImage> {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           tiles.push(
-            full.getImageData(c * CONFIG.tileSize, r * CONFIG.tileSize, CONFIG.tileSize, CONFIG.tileSize),
+            full.getImageData(
+              c * CONFIG.tileSize,
+              r * CONFIG.tileSize,
+              CONFIG.tileSize,
+              CONFIG.tileSize,
+            ),
           );
         }
       }
       if (CONFIG.useThumbnail) {
-        tiles.push(draw(bitmap, thumb.width, thumb.height).getImageData(0, 0, thumb.width, thumb.height));
+        tiles.push(
+          draw(bitmap, thumb.width, thumb.height).getImageData(0, 0, thumb.width, thumb.height),
+        );
       }
     } else {
-      tiles.push(draw(bitmap, thumb.width, thumb.height).getImageData(0, 0, thumb.width, thumb.height));
+      tiles.push(
+        draw(bitmap, thumb.width, thumb.height).getImageData(0, 0, thumb.width, thumb.height),
+      );
     }
 
     const numTiles = tiles.length;
@@ -250,8 +280,8 @@ export async function preprocessImage(blob: Blob): Promise<PreprocessedImage> {
       const patchesH = Math.floor(tile.height / CONFIG.patchSize);
       const patchesW = Math.floor(tile.width / CONFIG.patchSize);
       if (patchesH * patchesW > MAX_PATCHES) {
-        // smartResize et la taille de tuile bornent tous deux à 1024 : si on
-        // arrive ici, mieux vaut échouer clairement que déborder en silence.
+        // smartResize and the tile size both bound to 1024: if we get here,
+        // it's better to fail clearly than to overflow silently.
         throw new Error(`prétraitement : ${patchesH * patchesW} patches > ${MAX_PATCHES}`);
       }
       extractPatches(tile, pixelValues, attentionMask, patchesH, patchesW, i);
@@ -275,14 +305,18 @@ export async function preprocessImage(blob: Blob): Promise<PreprocessedImage> {
   }
 }
 
-/** Redimensionne le bitmap sur un canevas hors écran et rend son contexte. */
-function draw(bitmap: ImageBitmap, width: number, height: number): OffscreenCanvasRenderingContext2D {
+/** Resizes the bitmap onto an offscreen canvas and returns its context. */
+function draw(
+  bitmap: ImageBitmap,
+  width: number,
+  height: number,
+): OffscreenCanvasRenderingContext2D {
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('OffscreenCanvas 2d indisponible');
-  // Lissage de qualité : la référence redimensionne en bilinéaire avec
-  // anticrénelage (resample: 2, antialias: True). Un échantillonnage brut
-  // fabriquerait des artefacts que le modèle décrirait comme du contenu.
+  // Quality smoothing: the reference resizes bilinearly with anti-aliasing
+  // (resample: 2, antialias: True). Raw sampling would produce artifacts
+  // that the model would describe as content.
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(bitmap, 0, 0, width, height);
@@ -290,8 +324,8 @@ function draw(bitmap: ImageBitmap, width: number, height: number): OffscreenCanv
 }
 
 /**
- * Aplatit chaque patch 16×16 en 768 valeurs normalisées, marque les patches
- * valides à 1 et laisse le reste de la tuile à zéro / masque 0 (padding).
+ * Flattens each 16×16 patch into 768 normalized values, marks valid patches
+ * as 1 and leaves the rest of the tile at zero / mask 0 (padding).
  */
 function extractPatches(
   imageData: ImageData,

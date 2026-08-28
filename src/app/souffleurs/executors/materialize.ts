@@ -1,7 +1,7 @@
 /**
- * Matérialisation des sorties d'exécuteurs :
- *  - xlsx/docx : ops JSON déclaratives → ExcelJS / docx (runtimes portés d'aimi) ;
- *  - pdf : code jsPDF exécuté dans la sandbox Worker.
+ * Materialization of executor outputs:
+ *  - xlsx/docx: declarative JSON ops → ExcelJS / docx (runtimes ported from aimi);
+ *  - pdf: jsPDF code executed in the sandbox Worker.
  */
 import type { ProducedArtifact } from '../tools/artifact-store';
 import { applyDocxOps, docxOpsPreview, type DocxOp } from './docx-ops-runtime';
@@ -25,8 +25,8 @@ export function defaultFilename(kind: WriteFileKind, name?: string): string {
 }
 
 /**
- * Sans param `name` du caller ni fichier source : nom dérivé de l'intention
- * (slug des premiers mots de la task) — « facture pour Dupont » → facture-pour-dupont.pdf.
+ * Without a `name` param from the caller nor a source file: name derived from
+ * the intent (slug of the task's first words) — "facture pour Dupont" → facture-pour-dupont.pdf.
  */
 export function filenameFromTask(kind: WriteFileKind, task: string): string {
   const slug = task

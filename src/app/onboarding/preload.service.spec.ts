@@ -1,17 +1,18 @@
 /**
- * Régression : le modal de mise à jour bouclait.
+ * Regression: the update modal kept looping.
  *
- * `start()` lançait la tour en tâche de fond (`void this.prefetchVision()`),
- * donc `state` passait à 'done' AVANT que `markSeenVision()` n'ait tourné.
- * L'effet du composant, qui relit `visionHasUpdate()` dès que l'état vaut
- * 'done', voyait donc encore une tour « jamais vue » et rouvrait le modal —
- * en boucle, sans plus rien télécharger puisque le cache était déjà chaud.
+ * `start()` launched the tower in the background (`void this.prefetchVision()`),
+ * so `state` moved to 'done' BEFORE `markSeenVision()` had run.
+ * The component's effect, which rereads `visionHasUpdate()` as soon as the
+ * state is 'done', would then still see a "never seen" tower and reopen the
+ * modal — in a loop, without downloading anything more since the cache was
+ * already warm.
  *
- * Deux invariants verrouillés ici :
- *   1. la version de la tour est acquittée AVANT que l'état ne vaille 'done' ;
- *   2. elle est acquittée même si le téléchargement échoue (c'est l'acquittement
- *      d'une VERSION, pas un accusé de réception d'octets) — sinon le modal
- *      devient insortable dès que le réseau flanche.
+ * Two invariants locked down here:
+ *   1. the tower's version is acknowledged BEFORE the state becomes 'done';
+ *   2. it's acknowledged even if the download fails (it's the acknowledgment
+ *      of a VERSION, not a receipt for bytes) — otherwise the modal
+ *      becomes impossible to dismiss as soon as the network falters.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,7 +44,7 @@ vi.mock('../souffleurs', () => ({
 
 const { OnboardingPreloadService } = await import('./preload.service');
 
-describe('OnboardingPreloadService — cycle de mise à jour de la tour', () => {
+describe('OnboardingPreloadService — tower update cycle', () => {
   let service: InstanceType<typeof OnboardingPreloadService>;
 
   beforeEach(() => {
@@ -53,7 +54,7 @@ describe('OnboardingPreloadService — cycle de mise à jour de la tour', () => 
     service = new OnboardingPreloadService();
   });
 
-  it("acquitte la version AVANT 'done' — sinon le modal reboucle", async () => {
+  it("acknowledges the version BEFORE 'done' — otherwise the modal loops again", async () => {
     let stateWhenAcked: string | null = null;
     markSeenVision.mockImplementation(() => {
       stateWhenAcked = service.state();
@@ -62,12 +63,12 @@ describe('OnboardingPreloadService — cycle de mise à jour de la tour', () => 
     await service.start();
 
     expect(markSeenVision).toHaveBeenCalledTimes(1);
-    // L'acquittement doit tomber pendant 'running', pas après.
+    // The acknowledgment must fall during 'running', not after.
     expect(stateWhenAcked).toBe('running');
     expect(service.state()).toBe('done');
   });
 
-  it('acquitte même si le téléchargement de la tour échoue', async () => {
+  it('acknowledges even if the tower download fails', async () => {
     prefetchTower.mockImplementation(async () => {
       throw new Error('réseau coupé');
     });
@@ -75,12 +76,12 @@ describe('OnboardingPreloadService — cycle de mise à jour de la tour', () => 
     await service.start();
 
     expect(markSeenVision).toHaveBeenCalledTimes(1);
-    // Un échec de la tour ne casse pas le flux : le caller est le seul
-    // prérequis dur, la tour sera retirée à la première image.
+    // A tower failure doesn't break the flow: the caller is the only
+    // hard prerequisite, the tower will be retried on the first image.
     expect(service.state()).toBe('done');
   });
 
-  it('la tour est attendue, pas lancée en tâche de fond', async () => {
+  it('the tower is awaited, not launched in the background', async () => {
     let towerFinished = false;
     prefetchTower.mockImplementation(async () => {
       await new Promise((r) => setTimeout(r, 10));
@@ -93,7 +94,7 @@ describe('OnboardingPreloadService — cycle de mise à jour de la tour', () => 
     expect(service.progress()).toBe(100);
   });
 
-  it("échec du caller : 'error', et on n'acquitte rien", async () => {
+  it("caller failure: 'error', and nothing is acknowledged", async () => {
     prepareModel.mockImplementationOnce(async () => {
       throw new Error('poids introuvables');
     });

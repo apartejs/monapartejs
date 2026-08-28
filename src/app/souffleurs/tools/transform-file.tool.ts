@@ -1,6 +1,6 @@
 /**
- * transform_file — transformation DÉTERMINISTE, sans IA (règle du contrat) :
- * conversions de format, merge/split PDF, conversion/redimensionnement d'image.
+ * transform_file — DETERMINISTIC transformation, no AI (a contract rule):
+ * format conversions, PDF merge/split, image conversion/resizing.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { fileRegistry } from '../files/file-registry';
@@ -71,14 +71,24 @@ export const transformFileHandler: AparteToolHandler = async (call) => {
         return fail(`conversion vers ${target} non prise en charge pour ${source.type}`);
     }
 
-    // Pas de téléchargement auto : la carte a le bouton.
+    // No auto-download: the card has the button.
     const registered = fileRegistry.registerBlob(blob, filename, blob.type);
-    notifyArtifact(call.id, { kind: target, filename, mime: blob.type, blob, preview: '' }, registered.id);
+    notifyArtifact(
+      call.id,
+      { kind: target, filename, mime: blob.type, blob, preview: '' },
+      registered.id,
+    );
 
     return {
       toolCallId: call.id,
       content: JSON.stringify(
-        { ok: true, type: 'transform_file', target, filename, size_kb: +(blob.size / 1024).toFixed(1) },
+        {
+          ok: true,
+          type: 'transform_file',
+          target,
+          filename,
+          size_kb: +(blob.size / 1024).toFixed(1),
+        },
         null,
         2,
       ),
@@ -113,7 +123,7 @@ async function csvToXlsx(blob: Blob): Promise<Blob> {
   const text = await blob.text();
   const wb = new Workbook();
   const sheet = wb.addWorksheet('Feuille1');
-  for (const line of text.replace(/^﻿/, '').split(/\r?\n/)) {
+  for (const line of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
     if (!line) continue;
     sheet.addRow(parseCsvLine(line));
   }
@@ -130,12 +140,16 @@ function parseCsvLine(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (inQuotes) {
-      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
-      else if (ch === '"') inQuotes = false;
+      if (ch === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (ch === '"') inQuotes = false;
       else cur += ch;
     } else if (ch === '"') inQuotes = true;
-    else if (ch === ',' || ch === ';') { out.push(cur); cur = ''; }
-    else cur += ch;
+    else if (ch === ',' || ch === ';') {
+      out.push(cur);
+      cur = '';
+    } else cur += ch;
   }
   out.push(cur);
   return out;
@@ -172,10 +186,10 @@ async function mergePdfs(fileIds: string[]): Promise<Blob> {
     const pages = await out.copyPages(doc, doc.getPageIndices());
     for (const page of pages) out.addPage(page);
   }
-  return new Blob([await out.save() as unknown as BlobPart], { type: 'application/pdf' });
+  return new Blob([(await out.save()) as unknown as BlobPart], { type: 'application/pdf' });
 }
 
-/** options.pages : "1-3" ou [1,2,5] (1-indexé). Sans option : première page. */
+/** options.pages: "1-3" or [1,2,5] (1-indexed). Without an option: first page. */
 async function splitPdf(blob: Blob, options: Record<string, unknown>): Promise<Blob> {
   const { PDFDocument } = await import('pdf-lib');
   const src = await PDFDocument.load(await blob.arrayBuffer());
@@ -196,5 +210,5 @@ async function splitPdf(blob: Blob, options: Record<string, unknown>): Promise<B
   const out = await PDFDocument.create();
   const copied = await out.copyPages(src, indices);
   for (const page of copied) out.addPage(page);
-  return new Blob([await out.save() as unknown as BlobPart], { type: 'application/pdf' });
+  return new Blob([(await out.save()) as unknown as BlobPart], { type: 'application/pdf' });
 }

@@ -1,18 +1,18 @@
 /**
- * Téléchargement caché de la tour vision — SANS onnxruntime.
+ * Cached download of the vision tower — WITHOUT onnxruntime.
  *
- * Module séparé exprès : le worker en a besoin pour obtenir les octets, et le
- * thread principal pour PRÉCHARGER la tour (flux de mise à jour). Importer
- * `vision-tower.ts` depuis le thread principal tirerait ORT dans le bundle
- * principal, ce qu'on ne veut pas — ici il n'y a que du `fetch` et le Cache API.
+ * Separate module on purpose: the worker needs it to get the bytes, and the
+ * main thread to PREFETCH the tower (update flow). Importing
+ * `vision-tower.ts` from the main thread would pull ORT into the main
+ * bundle, which we don't want — here there's only `fetch` and the Cache API.
  */
 
-/** Cache dédié : la tour ne passe pas par celui de transformers.js. */
+/** Dedicated cache: the tower doesn't go through transformers.js's. */
 export const TOWER_CACHE = 'aparte-vision-cache';
 
 export type TowerProgress = (loaded: number, total: number, file: string) => void;
 
-/** true si l'URL est déjà dans le cache (aucun réseau). */
+/** true if the URL is already in the cache (no network). */
 export async function isTowerCached(urls: string[]): Promise<boolean> {
   try {
     const cache = await caches.open(TOWER_CACHE);
@@ -26,10 +26,13 @@ export async function isTowerCached(urls: string[]): Promise<boolean> {
 }
 
 /**
- * Télécharge en réutilisant le Cache API : la tour ne descend qu'une fois,
- * qu'elle soit préchargée par le flux de MAJ ou tirée à la première image.
+ * Downloads while reusing the Cache API: the tower only comes down once,
+ * whether it's prefetched by the update flow or pulled on the first image.
  */
-export async function fetchTowerFile(url: string, onProgress?: TowerProgress): Promise<ArrayBuffer> {
+export async function fetchTowerFile(
+  url: string,
+  onProgress?: TowerProgress,
+): Promise<ArrayBuffer> {
   const name = url.split('/').pop() ?? url;
   let cache: Cache | null = null;
   try {
@@ -37,7 +40,7 @@ export async function fetchTowerFile(url: string, onProgress?: TowerProgress): P
     const hit = await cache.match(url);
     if (hit) return await hit.arrayBuffer();
   } catch {
-    /* Cache API indisponible : on télécharge sans cacher */
+    /* Cache API unavailable: download without caching */
   }
 
   const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
@@ -46,14 +49,14 @@ export async function fetchTowerFile(url: string, onProgress?: TowerProgress): P
     try {
       await cache.put(url, res.clone());
     } catch {
-      /* quota dépassé : on continue sans cacher */
+      /* quota exceeded: continue without caching */
     }
   }
 
   const total = Number(res.headers.get('content-length') ?? 0);
   if (!onProgress || !total || !res.body) return await res.arrayBuffer();
 
-  // Lecture en flux pour une progression réelle (269 Mo, ça se voit).
+  // Streamed read for real progress (269 MB, it's noticeable).
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let loaded = 0;
@@ -74,10 +77,10 @@ export async function fetchTowerFile(url: string, onProgress?: TowerProgress): P
 }
 
 /**
- * Préchargement : met les deux fichiers de la tour en cache sans créer de
- * session ONNX (donc sans ORT, donc appelable côté UI). Fait partie du
- * téléchargement du modèle, comme les exécuteurs — pas une option.
- * Seul le RATTACHEMENT reste lazy (première image), conformément à ADR-001.
+ * Prefetch: puts the tower's two files in cache without creating an ONNX
+ * session (so without ORT, so callable from the UI side). Part of the model
+ * download, like the executors — not an option.
+ * Only ATTACHMENT stays lazy (first image), per ADR-001.
  */
 export async function prefetchTower(
   urls: { graphUrl: string; dataUrl: string },

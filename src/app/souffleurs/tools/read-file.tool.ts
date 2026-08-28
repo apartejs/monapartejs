@@ -1,10 +1,10 @@
 /**
- * read_file — chemin DÉTERMINISTE du contrat (« walker », pas de LLM) :
- * survol structuré du fichier joint. Le résultat JSON réinjecté (rôle tool,
- * indent 2) reproduit les formes vues à l'entraînement :
+ * read_file — the contract's DETERMINISTIC path ("walker", no LLM):
+ * structured survey of the attached file. The reinjected JSON result (tool
+ * role, indent 2) reproduces the shapes seen during training:
  *   xlsx → { ok, type:'read_file', file_id, mime, schema:{sheets…}, preview }
- * La voie image passe par le hot-swap de l'ENCODEUR vision (appel describe
- * séparé, sans LoRA) — cf. surveyImage.
+ * The image path goes through the hot-swap of the vision ENCODER (separate
+ * describe call, no LoRA) — see surveyImage.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { fileRegistry } from '../files/file-registry';
@@ -13,7 +13,7 @@ import { describeImage } from '../souffleurs-provider';
 export const readFileTool: AparteTool = {
   name: 'read_file',
   description: 'Lit un fichier joint (survol déterministe).',
-  // Schéma LOCAL (jamais sérialisé sur le fil — le wire vient de SOUFFLEUR_TOOL_DEFS).
+  // LOCAL schema (never serialized on the wire — the wire comes from SOUFFLEUR_TOOL_DEFS).
   inputSchema: {
     type: 'object',
     required: ['file_id'],
@@ -28,7 +28,12 @@ export const readFileHandler: AparteToolHandler = async (call) => {
     return {
       toolCallId: call.id,
       content: JSON.stringify(
-        { ok: false, type: 'read_file', file_id: fileId, error: 'file_id inconnu — aucun fichier joint sous cet identifiant' },
+        {
+          ok: false,
+          type: 'read_file',
+          file_id: fileId,
+          error: 'file_id inconnu — aucun fichier joint sous cet identifiant',
+        },
         null,
         2,
       ),
@@ -73,7 +78,7 @@ export const readFileHandler: AparteToolHandler = async (call) => {
   };
 };
 
-/** Survol xlsx (forme schema/preview iso training). Réutilisé par write_file (édition). */
+/** Xlsx survey (schema/preview shape iso training). Reused by write_file (edit). */
 export async function surveyXlsx(blob: Blob): Promise<Record<string, unknown>> {
   const { Workbook } = await import('exceljs');
   const workbook = new Workbook();
@@ -111,23 +116,23 @@ export async function surveyXlsx(blob: Blob): Promise<Record<string, unknown>> {
 }
 
 /**
- * Voie IMAGE = hot-swap de l'ENCODEUR vision + appel describe séparé
- * (CONTRACT-HANDOFF §4 : « archi, pas de LoRA »). Le texte rendu part en
- * `description` dans le JSON réinjecté — souffleur-chat, lui, reste text-only
- * et ne voit JAMAIS de pixels.
+ * IMAGE path = hot-swap of the vision ENCODER + separate describe call
+ * (CONTRACT-HANDOFF §4: "architecture, not LoRA"). The rendered text goes into
+ * `description` in the reinjected JSON — souffleur-chat itself stays text-only
+ * and NEVER sees pixels.
  */
 async function surveyImage(blob: Blob, query: string): Promise<Record<string, unknown>> {
-  // ATTENTION : « Describe this image in one or two sentences » donnait
-  // littéralement UNE phrase creuse (« In this image we can see a logo. ») —
-  // le VL obéit au pied de la lettre, et souffleur-chat n’avait alors plus rien
-  // à dire que les dimensions. On demande donc explicitement ce qui sert en
-  // aval, dont la TRANSCRIPTION du texte visible (décisive pour un logo, une
-  // capture d’écran, un document photographié).
+  // WARNING: "Describe this image in one or two sentences" literally produced
+  // ONE hollow sentence ("In this image we can see a logo.") — the VL obeys to
+  // the letter, and souffleur-chat then had nothing left to say but the
+  // dimensions. So we explicitly ask for what's used downstream, including the
+  // TRANSCRIPTION of visible text (decisive for a logo, a screenshot, a
+  // photographed document).
   const question = describePrompt(query.trim());
   const { width, height } = await imageDimensions(blob);
   const description = await describeImage(blob, question);
-  // `description` en TÊTE : souffleur-chat s’appuyait sur width/height
-  // (« un logo de 128x128 pixels ») quand le contenu venait après.
+  // `description` FIRST: souffleur-chat used to lean on width/height
+  // ("a 128x128 pixel logo") when the content came after.
   return {
     description,
     ...(query.trim() ? { query: query.trim() } : {}),
@@ -137,34 +142,34 @@ async function surveyImage(blob: Blob, query: string): Promise<Record<string, un
 }
 
 /**
- * Consigne envoyée au VL. Le défaut reste l'ANGLAIS — mais il est désormais
- * CONTESTÉ par la mesure, et ce commutateur existe pour finir de trancher.
+ * Instruction sent to the VL. The default stays ENGLISH — but it is now
+ * CONTESTED by the measurement, and this switch exists to settle it once and for all.
  *
- * A/B du 21/08 au banc (aparte-repetitions/export/run_souffleur.py, 7 sondes,
- * décodage déterministe, la description anglaise RÉELLE contre sa traduction
- * française fidèle). Sur la moitié AVAL — ce que souffleur-chat fait du
- * résultat d'outil — le français n'est jamais pire, et l'anglais produit trois
- * défauts que le français n'a pas :
+ * A/B from 21/08 on the bench (aparte-repetitions/export/run_souffleur.py, 7 probes,
+ * deterministic decoding, the REAL English description against its faithful
+ * French translation). On the DOWNSTREAM half — what souffleur-chat does with
+ * the tool result — French is never worse, and English produces three defects
+ * that French doesn't have:
  *
- *   « il y a du texte ? » -> « les lettres PR […] aucun texte visible »
- *                            (il se contredit dans la même phrase)
- *   « fond sombre ? »     -> « bien visible sur un fond sombre »
- *                            (faux : le logo est noir sur blanc)
- *   « quelles lettres ? » -> « un petit V vertical en bleu »
- *                            (inventé ; la description dit « ligne verticale »)
+ *   "is there text?"       -> "the letters PR […] no visible text"
+ *                              (it contradicts itself in the same sentence)
+ *   "dark background?"     -> "clearly visible on a dark background"
+ *                              (false: the logo is black on white)
+ *   "which letters?"       -> "a small vertical V in blue"
+ *                              (invented; the description says "vertical line")
  *
- * Le modèle traduit la description en répondant, et perd ou invente au passage.
+ * The model translates the description while answering, and loses or invents things along the way.
  *
- * La moitié AMONT n'est PAS mesurée : la tour décrit-elle aussi bien en
- * français ? Elle est vraisemblablement dominée par l'anglais, et une
- * description française plus pauvre annulerait le gain. Cette mesure demande le
- * navigateur — la tour n'existe pas côté banc — d'où ce commutateur plutôt
- * qu'une bascule à l'aveugle :
+ * The UPSTREAM half is NOT measured: does the tower describe just as well in
+ * French? It is likely dominated by English, and a poorer French description
+ * would cancel out the gain. That measurement needs the browser — the tower
+ * doesn't exist on the bench side — hence this switch rather than a blind
+ * flip:
  *
- *   localStorage.setItem('bp.vision.lang', 'fr')   // puis recharger
+ *   localStorage.setItem('bp.vision.lang', 'fr')   // then reload
  *
- * Joindre deux fois la même image et comparer les lignes DESCRIBE de la
- * console. Si la description française tient, ce défaut devient 'fr'.
+ * Attach the same image twice and compare the DESCRIBE lines in the
+ * console. If the French description holds up, this default becomes 'fr'.
  */
 function describeLang(): 'en' | 'fr' {
   try {
