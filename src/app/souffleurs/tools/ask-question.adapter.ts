@@ -30,14 +30,16 @@ import { askUserHandler, createAskUserTool } from '@aparte/plugin-ask-user';
 /** Name from the souffleurs contract, not the plugin's. */
 export const SOUFFLEUR_ASK_QUESTION_TOOL_NAME = 'ask_question';
 
-const { systemPrompt: _pluginSystemPrompt, ...askUserToolShape } = createAskUserTool();
-
-export const souffleurAskQuestionTool: AparteTool = {
-  ...askUserToolShape,
+// Since aparté 0.14 the plugin takes the name and description itself. The
+// `systemPrompt` is still stripped: an empty string would be sent as an empty
+// system message, and the plugin's default is English prose about `ask_user`.
+const { systemPrompt: _pluginSystemPrompt, ...askUserToolShape } = createAskUserTool({
   name: SOUFFLEUR_ASK_QUESTION_TOOL_NAME,
-  // Uses the contract's vocabulary, not the plugin's.
+  // The contract's vocabulary, not the plugin's.
   description: "Pose une question à l'utilisateur avec des options structurées.",
-};
+});
+
+export const souffleurAskQuestionTool: AparteTool = askUserToolShape;
 
 /**
  * String the plugin returns when the user closes the panel without
