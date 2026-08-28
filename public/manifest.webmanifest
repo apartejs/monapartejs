@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "monaparte — local assistant",
-  "short_name": "monaparte",
+  "name": "Monaparté — local assistant",
+  "short_name": "Monaparté",
   "description": "A conversational assistant whose model runs entirely in your browser: no server, no data sent anywhere.",
   "start_url": "/",
   "scope": "/",

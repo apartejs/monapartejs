@@ -1,4 +1,4 @@
-# Deploying monaparte — build on GitHub, serve on Coolify
+# Deploying Monaparté — build on GitHub, serve on Coolify
 
 The app is **100 % static**: nginx serves a bundle, and the whole model (834 MB base,
 adapters, 269 MB vision tower) is downloaded by the visitor's browser from Hugging Face and

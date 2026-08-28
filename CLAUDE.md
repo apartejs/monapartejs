@@ -1,4 +1,4 @@
-# CLAUDE.md — monaparte
+# CLAUDE.md — Monaparté
 
 The reference product for [aparté](https://apartejs.dev): a conversational assistant whose
 language model runs entirely in the browser. Angular 19 standalone, pnpm, Vitest. It consumes

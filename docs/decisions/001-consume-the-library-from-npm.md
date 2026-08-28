@@ -2,7 +2,7 @@
 
 - **Date**: 2026-07-23
 - **Status**: accepted
-- **Context**: monaparte is the port of the former aimi app onto the aparté library. The
+- **Context**: Monaparté is the port of the former aimi app onto the aparté library. The
   library lives in a neighbouring monorepo; the temptation is to link it locally.
 - **Decision**: the product consumes **only** the `@aparte/*` packages published on npm.
   Fresh Angular CLI scaffold (19.2, aligned with `@aparte/angular`'s peers), standalone,

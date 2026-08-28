@@ -1,4 +1,4 @@
-# monaparte
+# Monaparté
 
 > A conversational assistant whose language model runs entirely in the
 > visitor's browser. No inference server, no account, no data leaving the
