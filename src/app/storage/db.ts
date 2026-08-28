@@ -4,13 +4,44 @@
  * settings in their own tables. Candidate for the @aparte/plugin-storage-indexeddb plugin.
  */
 import Dexie, { type Table } from 'dexie';
-import type {
-  AparteArtifactRow,
-  AparteAttachmentRow,
-  AparteConversationMeta,
-  AparteMemoryFact,
-  AparteMessage,
-} from '@aparte/core';
+import type { AparteAttachmentRow, AparteConversationMeta, AparteMessage } from '@aparte/core';
+
+/**
+ * Memory fact — OUR schema, not the library's. aparté 0.14 dropped
+ * `AparteMemoryFact` from `@aparte/core` (one product's categories were
+ * binding every adapter); the shape is aimi's, kept verbatim so existing
+ * databases and exports keep loading. `remember` is not exposed to the
+ * model yet (ADR-005): the table is reserved.
+ */
+export interface MemoryFactRow {
+  id: string;
+  type: 'identity' | 'fact' | 'preference' | 'tech' | 'project' | 'style';
+  content: string;
+  source?: 'manual' | 'auto' | 'onboarding';
+  addedAt: number;
+  lastUsedAt?: number;
+  sourceConvId?: string;
+  sourceMsgId?: string;
+}
+
+/**
+ * Artifact row — denormalised index of produced artifacts (write_file,
+ * transform_file, create_widget), with the blob and preview needed to
+ * rehydrate a card after a reload. Ours since aparté 0.14 (same reason as
+ * `MemoryFactRow`).
+ */
+export interface ArtifactRow {
+  id: string;
+  convId: string;
+  msgId: string;
+  name: string;
+  mimeType: string;
+  artifactType: string;
+  /** Preview body (HTML/text), duplicated for fast display. */
+  content: string;
+  title?: string;
+  updatedAt: number;
+}
 
 export interface ConversationRow extends AparteConversationMeta {
   /** Full branch tree (exportTree) — null if the conversation is linear. */
@@ -67,8 +98,8 @@ export class monaparteDb extends Dexie {
   messages!: Table<MessageRow, string>;
   attachments!: Table<AparteAttachmentRow & { convId: string }, string>;
   /** blob + preview (in `content`) persisted to rehydrate the cards after a reload. */
-  artifacts!: Table<AparteArtifactRow & { blob?: Blob }, string>;
-  memory!: Table<AparteMemoryFact, string>;
+  artifacts!: Table<ArtifactRow & { blob?: Blob }, string>;
+  memory!: Table<MemoryFactRow, string>;
   settings!: Table<SettingRow, string>;
   folders!: Table<FolderRow, string>;
   /** Registry of `file_id`s seen by the model — see SouffleurFileRow. */

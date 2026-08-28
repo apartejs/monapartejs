@@ -3,7 +3,8 @@
  * a single JSON `{version, kind, conversations, memory, settings}`;
  * import = merge (never a silent replacement); erasure = everything.
  */
-import type { AparteConversation, AparteMemoryFact } from '@aparte/core';
+import type { AparteConversation } from '@aparte/core';
+import type { MemoryFactRow } from './db';
 import { DexieConversationAdapter } from './conversation-adapter';
 import { LOCAL_KEYS, localRemove } from './settings.service';
 
@@ -21,7 +22,7 @@ export interface FullExport {
   kind: typeof EXPORT_KIND;
   exportedAt: number;
   conversations: AparteConversation[];
-  memory: AparteMemoryFact[];
+  memory: MemoryFactRow[];
   settings: Record<string, unknown>;
 }
 
