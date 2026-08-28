@@ -13,7 +13,14 @@
 const networkBlocker = () => {
   throw new Error('Network access is blocked in sandbox');
 };
-for (const name of ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'navigator']) {
+for (const name of [
+  'fetch',
+  'XMLHttpRequest',
+  'WebSocket',
+  'EventSource',
+  'importScripts',
+  'navigator',
+]) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (self as any)[name];
@@ -128,12 +135,17 @@ self.addEventListener('message', async (event: MessageEvent) => {
 
   let userFn: (...args: unknown[]) => Promise<unknown>;
   try {
-    const AsyncFunction = (async function () {}).constructor as new (
+    const AsyncFunction = async function () {}.constructor as new (
       ...args: string[]
     ) => (...a: unknown[]) => Promise<unknown>;
     userFn = new AsyncFunction(...paramNames, code);
   } catch (err) {
-    self.postMessage({ type: 'exec-error', id, message: `Compile error: ${String(err)}`, phase: 'exec' });
+    self.postMessage({
+      type: 'exec-error',
+      id,
+      message: `Compile error: ${String(err)}`,
+      phase: 'exec',
+    });
     return;
   }
 

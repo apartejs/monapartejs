@@ -43,7 +43,9 @@ describe('buildWirePrompt — golden format entraînement (lfm25-chat-1.0.0)', (
       '<|im_start|>user\nRésume ce fichier\n<|im_end|>\n' +
       '<|im_start|>assistant\nJe consulte votre fichier.\n' +
       '<|tool_call_start|>[read_file(file_id="file_m_4")]<|tool_call_end|>\n<|im_end|>\n' +
-      '<|im_start|>tool\n' + toolResult + '\n<|im_end|>\n' +
+      '<|im_start|>tool\n' +
+      toolResult +
+      '\n<|im_end|>\n' +
       '<|im_start|>assistant\nVoici le résumé.\n\nAutre chose ?\n<|im_end|>\n' +
       '<|im_start|>user\nNon merci !\n<|im_end|>\n' +
       '<|im_start|>assistant\n';
@@ -53,7 +55,11 @@ describe('buildWirePrompt — golden format entraînement (lfm25-chat-1.0.0)', (
 
   it('tool_call sans texte d’intro : bloc seul dans le tour assistant', () => {
     const wire = buildWirePrompt('SYS', [
-      { role: 'tool_call', content: '', toolCalls: [{ id: '1', name: 'compute', input: { task: '2+2' } }] },
+      {
+        role: 'tool_call',
+        content: '',
+        toolCalls: [{ id: '1', name: 'compute', input: { task: '2+2' } }],
+      },
     ]);
     expect(wire).toContain(
       '<|im_start|>assistant\n<|tool_call_start|>[compute(task="2+2")]<|tool_call_end|>\n<|im_end|>\n',

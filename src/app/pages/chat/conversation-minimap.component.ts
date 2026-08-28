@@ -47,7 +47,9 @@ interface MinimapDot {
       z-index: 5;
     }
     @media (min-width: 1100px) and (pointer: fine) {
-      :host { display: block; }
+      :host {
+        display: block;
+      }
     }
     .rail {
       display: flex;
@@ -65,10 +67,18 @@ interface MinimapDot {
       background: var(--aparte-border);
       cursor: pointer;
       padding: 0;
-      transition: background 0.15s ease, width 0.15s ease;
+      transition:
+        background 0.15s ease,
+        width 0.15s ease;
     }
-    .dot:hover { background: var(--aparte-text-muted); width: 7px; }
-    .dot.active { background: var(--aparte-primary); width: 7px; }
+    .dot:hover {
+      background: var(--aparte-text-muted);
+      width: 7px;
+    }
+    .dot.active {
+      background: var(--aparte-primary);
+      width: 7px;
+    }
   `,
 })
 export class ConversationMinimapComponent implements AfterViewInit {

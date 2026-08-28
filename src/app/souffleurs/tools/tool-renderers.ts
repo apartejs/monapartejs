@@ -17,7 +17,11 @@ import {
 } from './artifact-store';
 
 const esc = (v: unknown) =>
-  String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
 const CARD_STYLES = `
 .bp-artifact-card { border: 1px solid var(--aparte-border); border-radius: 12px; background: var(--aparte-surface-1); padding: 12px 14px; margin: 6px 0; max-width: 480px; }
@@ -131,9 +135,9 @@ export const artifactCardRenderer: AparteToolRenderer = {
       if (metaEl && !metaEl.textContent) {
         metaEl.textContent = `${(artifact.blob.size / 1024).toFixed(1)} Ko`;
       }
-      element.querySelector<HTMLButtonElement>('.bp-artifact-dl')?.addEventListener('click', () =>
-        triggerDownload(artifact.blob, artifact.filename),
-      );
+      element
+        .querySelector<HTMLButtonElement>('.bp-artifact-dl')
+        ?.addEventListener('click', () => triggerDownload(artifact.blob, artifact.filename));
       const previewHost = element.querySelector<HTMLElement>('.bp-artifact-preview');
       if (previewHost && artifact.preview) previewHost.innerHTML = artifact.preview;
       const pdfHost = element.querySelector<HTMLElement>('.bp-artifact-pdf');
@@ -189,7 +193,8 @@ async function renderPdfPreview(host: HTMLElement, artifact: ProducedArtifact): 
     for (let n = 1; n <= pages; n++) {
       const page = await doc.getPage(n);
       const baseViewport = page.getViewport({ scale: 1 });
-      const scale = ((host.clientWidth || 440) / baseViewport.width) * (window.devicePixelRatio || 1);
+      const scale =
+        ((host.clientWidth || 440) / baseViewport.width) * (window.devicePixelRatio || 1);
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement('canvas');
       canvas.width = viewport.width;

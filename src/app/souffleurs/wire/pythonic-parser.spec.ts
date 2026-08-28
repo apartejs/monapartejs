@@ -39,7 +39,9 @@ describe('parsePythonicOutput', () => {
 
   it('parse listes, nombres, booléens Python et None', () => {
     const out = parsePythonicOutput(
-      wrap('[write_file(kind="xlsx", task="t", file_ids=["a", "b"], count=3, ratio=1.5, force=True, extra=None)]'),
+      wrap(
+        '[write_file(kind="xlsx", task="t", file_ids=["a", "b"], count=3, ratio=1.5, force=True, extra=None)]',
+      ),
     );
     expect(out.calls[0].args).toEqual({
       kind: 'xlsx',
@@ -65,7 +67,9 @@ describe('parsePythonicOutput', () => {
   });
 
   it('tolère le pseudo-python {cle="val"} dans un dict', () => {
-    const out = parsePythonicOutput(wrap('[transform_file(file_id="f1", target="png", options={width=800})]'));
+    const out = parsePythonicOutput(
+      wrap('[transform_file(file_id="f1", target="png", options={width=800})]'),
+    );
     expect(out.calls[0].args['options']).toEqual({ width: 800 });
   });
 
@@ -92,7 +96,9 @@ describe('parsePythonicOutput', () => {
 
   it('bloc imparsable → __unparseable__ avec le brut, sans crash', () => {
     const out = parsePythonicOutput(wrap('[write_file(kind=***garbage'));
-    expect(out.calls).toEqual([{ name: UNPARSEABLE, args: { raw: '[write_file(kind=***garbage' } }]);
+    expect(out.calls).toEqual([
+      { name: UNPARSEABLE, args: { raw: '[write_file(kind=***garbage' } },
+    ]);
   });
 
   it('sans bloc : texte seul', () => {

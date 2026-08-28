@@ -130,15 +130,33 @@ class Scanner {
       if (c === '\\') {
         const e = this.src[this.pos++];
         switch (e) {
-          case 'n': out += '\n'; break;
-          case 't': out += '\t'; break;
-          case 'r': out += '\r'; break;
-          case 'b': out += '\b'; break;
-          case 'f': out += '\f'; break;
-          case '0': out += '\0'; break;
-          case '\\': out += '\\'; break;
-          case "'": out += "'"; break;
-          case '"': out += '"'; break;
+          case 'n':
+            out += '\n';
+            break;
+          case 't':
+            out += '\t';
+            break;
+          case 'r':
+            out += '\r';
+            break;
+          case 'b':
+            out += '\b';
+            break;
+          case 'f':
+            out += '\f';
+            break;
+          case '0':
+            out += '\0';
+            break;
+          case '\\':
+            out += '\\';
+            break;
+          case "'":
+            out += "'";
+            break;
+          case '"':
+            out += '"';
+            break;
           case 'x':
             out += String.fromCharCode(parseInt(this.src.slice(this.pos, this.pos + 2), 16));
             this.pos += 2;

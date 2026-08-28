@@ -47,7 +47,12 @@ import { SIZE_ADAPTER_BYTES, getSouffleurManifest, isTowerCached } from '../../s
     </div>
   `,
   styles: `
-    .backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 45%); z-index: 50; }
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgb(0 0 0 / 45%);
+      z-index: 50;
+    }
     .modal {
       position: fixed;
       top: 50%;
@@ -65,10 +70,21 @@ import { SIZE_ADAPTER_BYTES, getSouffleurManifest, isTowerCached } from '../../s
       gap: 12px;
       align-items: center;
     }
-    h2 { margin: 0; font-size: 20px; }
-    p { margin: 0; color: var(--aparte-text-muted); line-height: 1.6; }
-    .meta { font-size: 12px; }
-    .error { color: var(--aparte-error); }
+    h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+    p {
+      margin: 0;
+      color: var(--aparte-text-muted);
+      line-height: 1.6;
+    }
+    .meta {
+      font-size: 12px;
+    }
+    .error {
+      color: var(--aparte-error);
+    }
     .primary {
       font: inherit;
       background: var(--aparte-primary);
@@ -78,9 +94,21 @@ import { SIZE_ADAPTER_BYTES, getSouffleurManifest, isTowerCached } from '../../s
       padding: 10px 22px;
       cursor: pointer;
     }
-    .primary:hover { background: var(--aparte-primary-hover); }
-    .progress { width: 100%; height: 8px; border-radius: 4px; background: var(--aparte-surface-3); overflow: hidden; }
-    .bar { height: 100%; background: var(--aparte-primary); transition: width 0.3s ease; }
+    .primary:hover {
+      background: var(--aparte-primary-hover);
+    }
+    .progress {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--aparte-surface-3);
+      overflow: hidden;
+    }
+    .bar {
+      height: 100%;
+      background: var(--aparte-primary);
+      transition: width 0.3s ease;
+    }
   `,
 })
 export class ModelUpdateModalComponent {
@@ -108,7 +136,11 @@ export class ModelUpdateModalComponent {
       const manifest = await getSouffleurManifest();
       const urls = manifest.visionUrls();
       let bytes = manifest.hasUpdate('chat') ? SIZE_ADAPTER_BYTES : 0;
-      if (urls && manifest.visionHasUpdate() && !(await isTowerCached([urls.graphUrl, urls.dataUrl]))) {
+      if (
+        urls &&
+        manifest.visionHasUpdate() &&
+        !(await isTowerCached([urls.graphUrl, urls.dataUrl]))
+      ) {
         bytes += manifest.visionSize();
       }
       this.pendingBytes.set(bytes || SIZE_ADAPTER_BYTES);
@@ -126,10 +158,14 @@ export class ModelUpdateModalComponent {
 
   protected readonly mascotteState = computed(() => {
     switch (this.preload.state()) {
-      case 'running': return 'thinking' as const;
-      case 'error': return 'error' as const;
-      case 'done': return 'happy' as const;
-      default: return 'wake' as const;
+      case 'running':
+        return 'thinking' as const;
+      case 'error':
+        return 'error' as const;
+      case 'done':
+        return 'happy' as const;
+      default:
+        return 'wake' as const;
     }
   });
 

@@ -1,7 +1,15 @@
 {
-  "name": "monapartejs",
+  "name": "monaparte",
   "version": "0.1.0",
-  "description": "aparté — assistant personnel 100 % local, dans le navigateur",
+  "description": "Un assistant conversationnel dont le modèle tourne entièrement dans le navigateur — vitrine d'aparté",
+  "license": "MIT",
+  "author": "Paul Richez",
+  "homepage": "https://mon.apartejs.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apartejs/monapartejs.git"
+  },
+  "bugs": "https://github.com/apartejs/monapartejs/issues",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -9,9 +17,12 @@
     "watch": "ng build --watch --configuration development",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "typecheck:worker": "tsc --noEmit --strict --target ES2022 --module ES2022 --moduleResolution bundler --skipLibCheck --lib ES2022,DOM,WebWorker src/app/souffleurs/souffleurs.worker.ts",
-    "verify": "pnpm typecheck && pnpm typecheck:worker && pnpm test"
+    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:worker && pnpm test"
   },
   "private": true,
   "dependencies": {
@@ -60,13 +71,19 @@
     "@angular-devkit/build-angular": "^19.2.27",
     "@angular/cli": "^19.2.27",
     "@angular/compiler-cli": "^19.2.0",
+    "@eslint/js": "^9.39.5",
     "@types/lodash-es": "^4.17.12",
+    "angular-eslint": "^19.8.1",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
     "fake-indexeddb": "^6.0.0",
+    "prettier": "^3.9.6",
     "typescript": "~5.7.2",
+    "typescript-eslint": "^8.68.0",
     "vitest": "^3.0.0"
   },
   "packageManager": "pnpm@10.32.1",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   }
 }

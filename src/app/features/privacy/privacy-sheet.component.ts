@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { MascotteComponent } from '../../mascotte';
 import { TranslateService } from '../../core/i18n/translate.service';
 
@@ -16,7 +16,9 @@ import { TranslateService } from '../../core/i18n/translate.service';
     <div class="backdrop" (click)="close.emit()"></div>
     <aside class="sheet" role="dialog" [attr.aria-label]="t().privacy.title">
       <header class="head">
-        <button class="close" (click)="close.emit()" [attr.aria-label]="t().privacy.close">×</button>
+        <button class="close" (click)="close.emit()" [attr.aria-label]="t().privacy.close">
+          ×
+        </button>
       </header>
 
       <div class="hero">
@@ -59,10 +61,22 @@ import { TranslateService } from '../../core/i18n/translate.service';
       animation: bp-slide 0.25s ease;
       box-shadow: -24px 0 48px -24px rgb(0 0 0 / 25%);
     }
-    @keyframes bp-fade { from { opacity: 0; } }
-    @keyframes bp-slide { from { transform: translateX(30px); opacity: 0; } }
+    @keyframes bp-fade {
+      from {
+        opacity: 0;
+      }
+    }
+    @keyframes bp-slide {
+      from {
+        transform: translateX(30px);
+        opacity: 0;
+      }
+    }
 
-    .head { display: flex; justify-content: flex-end; }
+    .head {
+      display: flex;
+      justify-content: flex-end;
+    }
     .close {
       background: none;
       border: none;
@@ -73,7 +87,10 @@ import { TranslateService } from '../../core/i18n/translate.service';
       padding: 6px 10px;
       border-radius: 8px;
     }
-    .close:hover { background: var(--aparte-surface-2); color: var(--aparte-text); }
+    .close:hover {
+      background: var(--aparte-surface-2);
+      color: var(--aparte-text);
+    }
 
     .hero {
       display: flex;
@@ -83,7 +100,10 @@ import { TranslateService } from '../../core/i18n/translate.service';
       text-align: center;
       padding: 6px 0 22px;
     }
-    h2 { margin: 4px 0 0; font-size: 26px; }
+    h2 {
+      margin: 4px 0 0;
+      font-size: 26px;
+    }
     .badge {
       font-family: var(--bp-mono);
       font-size: 11px;
@@ -95,7 +115,10 @@ import { TranslateService } from '../../core/i18n/translate.service';
       margin: 0;
     }
 
-    .cards { display: grid; gap: 12px; }
+    .cards {
+      display: grid;
+      gap: 12px;
+    }
     .card {
       background: var(--aparte-surface-1);
       border: 1px solid var(--aparte-border);

@@ -197,7 +197,8 @@ const MODELS: AparteAIModel[] = [
     id: CALLER_MODEL_ID,
     name: 'aparté (local)',
     capabilities: ['streaming', 'function_calling'],
-    description: 'Souffleur-chat — tourne entièrement dans votre navigateur, rien ne sort de votre appareil.',
+    description:
+      'Souffleur-chat — tourne entièrement dans votre navigateur, rien ne sort de votre appareil.',
   },
 ];
 
@@ -223,8 +224,7 @@ export const SouffleursProvider: AparteAIProvider = {
     const device = await detectComputeDevice();
     const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
     const enabledTools = request.tools?.map((t) => t.name) ?? [];
-    const files =
-      (request._meta?.[META_FILES_KEY] as SouffleurFileRef[] | undefined) ?? [];
+    const files = (request._meta?.[META_FILES_KEY] as SouffleurFileRef[] | undefined) ?? [];
     const system = buildSystemPrompt(enabledTools, files);
     const prompt = buildWirePrompt(system, request.messages);
     const maxNewTokens = Math.max(request.maxTokens ?? 0, CALLER_MAX_NEW_TOKENS);
@@ -359,10 +359,7 @@ export const SouffleursProvider: AparteAIProvider = {
     }
   },
 
-  async prepareModel(
-    _modelId: string,
-    onProgress: (p: ModelLoadProgress) => void,
-  ): Promise<void> {
+  async prepareModel(_modelId: string, onProgress: (p: ModelLoadProgress) => void): Promise<void> {
     const device = await detectComputeDevice();
     const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
     return enqueue(
@@ -407,9 +404,7 @@ export const SouffleursProvider: AparteAIProvider = {
       const cache = await caches.open('transformers-cache');
       const keys = await cache.keys();
       await Promise.all(
-        keys
-          .filter((req) => req.url.includes(SOUFFLEURS_HF_REPO))
-          .map((req) => cache.delete(req)),
+        keys.filter((req) => req.url.includes(SOUFFLEURS_HF_REPO)).map((req) => cache.delete(req)),
       );
     } catch {
       // cache indisponible : rien à effacer
@@ -517,7 +512,8 @@ export async function prepareExecutor(
         const id = _nextId++;
         const aggregator = new ProgressAggregator(resolved.size);
         _pending.set(id, {
-          onProgress: (p) => onProgress?.({ status: 'downloading', file: p.file, progress: aggregator.push(p) }),
+          onProgress: (p) =>
+            onProgress?.({ status: 'downloading', file: p.file, progress: aggregator.push(p) }),
           onReady: () => {
             _pending.delete(id);
             resolved.markSeen();

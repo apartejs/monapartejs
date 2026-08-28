@@ -6,13 +6,17 @@ import { docxOpsPreview } from './docx-ops-runtime';
 
 describe('extractCompleteOps (sortie exécuteur xlsx-docx)', () => {
   it('parse un array JSON propre', () => {
-    const ops = extractCompleteOps('[{"op":"addWorksheet","name":"Contacts"},{"op":"setCell","cell":"A1","value":"Nom"}]');
+    const ops = extractCompleteOps(
+      '[{"op":"addWorksheet","name":"Contacts"},{"op":"setCell","cell":"A1","value":"Nom"}]',
+    );
     expect(ops).toHaveLength(2);
     expect(ops[0]['op']).toBe('addWorksheet');
   });
 
   it('tolère une fence markdown et une fin tronquée', () => {
-    const ops = extractCompleteOps('```json\n[{"op":"setCell","cell":"A1","value":"X"},{"op":"setCe');
+    const ops = extractCompleteOps(
+      '```json\n[{"op":"setCell","cell":"A1","value":"X"},{"op":"setCe',
+    );
     expect(ops).toHaveLength(1);
   });
 
@@ -24,9 +28,11 @@ describe('extractCompleteOps (sortie exécuteur xlsx-docx)', () => {
 
 describe('extractCode (sortie exécuteur pdf/sandbox)', () => {
   it('retire les fences et coupe à im_end', () => {
-    expect(extractCode('```js\nconst doc = new jsPDF();\nreturn doc.output("blob");\n```<|im_end|>pollution')).toBe(
-      'const doc = new jsPDF();\nreturn doc.output("blob");',
-    );
+    expect(
+      extractCode(
+        '```js\nconst doc = new jsPDF();\nreturn doc.output("blob");\n```<|im_end|>pollution',
+      ),
+    ).toBe('const doc = new jsPDF();\nreturn doc.output("blob");');
   });
 
   it('code nu inchangé', () => {

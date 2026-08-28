@@ -1,0 +1,20 @@
+# Sorties et caches
+dist/
+.angular/
+node_modules/
+coverage/
+pnpm-lock.yaml
+
+# Contrat d'entraînement : porté verbatim, on ne le reformate pas (ADR-003)
+src/app/souffleurs/wire/tool-defs.ts
+
+# Généré / vendorisé
+public/
+tools/og-card.html
+
+# Notes locales
+*.local.md
+.claude/
+
+# Prose mise en forme à la main (tableaux, césures) : hors Prettier
+*.md

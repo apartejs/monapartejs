@@ -3,10 +3,7 @@
 export const SOUFFLEURS_HF_REPO = 'maxituc/aparte-souffleurs';
 
 export type AdapterName =
-  | 'souffleur-chat'
-  | 'souffleur-pdf'
-  | 'souffleur-xlsx-docx'
-  | 'souffleur-sandbox';
+  'souffleur-chat' | 'souffleur-pdf' | 'souffleur-xlsx-docx' | 'souffleur-sandbox';
 
 export const CALLER_ADAPTER: AdapterName = 'souffleur-chat';
 

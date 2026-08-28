@@ -93,10 +93,7 @@ export class WireStreamDemux {
   }
 
   private holdbackLength(): number {
-    const max = Math.min(
-      this.pending.length,
-      Math.max(...MARKERS.map((m) => m.length)) - 1,
-    );
+    const max = Math.min(this.pending.length, Math.max(...MARKERS.map((m) => m.length)) - 1);
     for (let len = max; len > 0; len--) {
       const suffix = this.pending.slice(this.pending.length - len);
       if (MARKERS.some((m) => m.startsWith(suffix))) return len;

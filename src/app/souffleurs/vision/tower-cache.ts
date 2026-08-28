@@ -29,7 +29,10 @@ export async function isTowerCached(urls: string[]): Promise<boolean> {
  * Télécharge en réutilisant le Cache API : la tour ne descend qu'une fois,
  * qu'elle soit préchargée par le flux de MAJ ou tirée à la première image.
  */
-export async function fetchTowerFile(url: string, onProgress?: TowerProgress): Promise<ArrayBuffer> {
+export async function fetchTowerFile(
+  url: string,
+  onProgress?: TowerProgress,
+): Promise<ArrayBuffer> {
   const name = url.split('/').pop() ?? url;
   let cache: Cache | null = null;
   try {

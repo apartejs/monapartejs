@@ -8,7 +8,7 @@ describe('ProgressAggregator', () => {
     expect(agg.push({ file: 'b', loaded: 400, total: 800, done: false })).toBe(50);
   });
 
-  it("un done SANS tailles ne fait JAMAIS retomber la progression (bug aimi/transformers)", () => {
+  it('un done SANS tailles ne fait JAMAIS retomber la progression (bug aimi/transformers)', () => {
     const agg = new ProgressAggregator(1000);
     agg.push({ file: 'config', loaded: 100, total: 100, done: false });
     const afterDone = agg.push({ file: 'config', loaded: 0, total: 0, done: true });

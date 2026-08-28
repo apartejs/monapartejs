@@ -33,8 +33,15 @@ import { TranslateService } from '../../core/i18n/translate.service';
       animation: bp-toast 0.25s ease;
       font-size: 13px;
     }
-    @keyframes bp-toast { from { opacity: 0; transform: translateY(8px); } }
-    .glyph { color: var(--aparte-primary); }
+    @keyframes bp-toast {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+    }
+    .glyph {
+      color: var(--aparte-primary);
+    }
     .apply {
       font: inherit;
       background: var(--aparte-primary);

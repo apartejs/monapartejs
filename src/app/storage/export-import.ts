@@ -47,9 +47,7 @@ export async function importAll(
     !ACCEPTED_KINDS.includes((data as FullExport).kind) ||
     !Array.isArray((data as FullExport).conversations)
   ) {
-    throw new Error(
-      `Fichier d’export invalide (kind attendu : ${ACCEPTED_KINDS.join(' ou ')}).`,
-    );
+    throw new Error(`Fichier d’export invalide (kind attendu : ${ACCEPTED_KINDS.join(' ou ')}).`);
   }
   const parsed = data as FullExport;
   for (const conv of parsed.conversations) {

@@ -248,7 +248,8 @@ export const FR: Translations = {
   },
   context: {
     label: 'contexte',
-    tooltip: 'Estimation de la place occupée dans la fenêtre de contexte du modèle (≈ 4096 tokens).',
+    tooltip:
+      'Estimation de la place occupée dans la fenêtre de contexte du modèle (≈ 4096 tokens).',
   },
   common: { cancel: 'Annuler', confirm: 'Confirmer' },
 };

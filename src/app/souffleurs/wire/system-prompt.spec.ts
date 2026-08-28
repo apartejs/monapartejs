@@ -31,7 +31,10 @@ describe('buildSystemPrompt', () => {
   });
 
   it('bloc Files available au format [{id,name,type}], clés dans cet ordre', () => {
-    const s = buildSystemPrompt(['read_file'], [{ id: 'file_x_1', name: 'rapport.pdf', type: 'pdf' }]);
+    const s = buildSystemPrompt(
+      ['read_file'],
+      [{ id: 'file_x_1', name: 'rapport.pdf', type: 'pdf' }],
+    );
     expect(s).toContain(
       '\n\nFiles available: [{"id":"file_x_1","name":"rapport.pdf","type":"pdf"}]',
     );

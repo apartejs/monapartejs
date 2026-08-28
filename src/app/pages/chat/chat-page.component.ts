@@ -91,22 +91,35 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
           [style.top.px]="s.y"
           (click)="stats.set(null)"
         >
-          <p class="stats-title">
-            <span class="bp-serif glyph">('.')</span> {{ t().stats.title }}
-          </p>
+          <p class="stats-title"><span class="bp-serif glyph">('.')</span> {{ t().stats.title }}</p>
           <dl>
-            <div><dt>{{ t().stats.device }}</dt><dd>{{ deviceLabel() }}</dd></div>
+            <div>
+              <dt>{{ t().stats.device }}</dt>
+              <dd>{{ deviceLabel() }}</dd>
+            </div>
             @if (s.usage.outputTokens) {
-              <div><dt>{{ t().stats.tokens }}</dt><dd>{{ s.usage.inputTokens }} → {{ s.usage.outputTokens }}</dd></div>
+              <div>
+                <dt>{{ t().stats.tokens }}</dt>
+                <dd>{{ s.usage.inputTokens }} → {{ s.usage.outputTokens }}</dd>
+              </div>
             }
             @if (s.usage.ttftMs !== undefined) {
-              <div><dt>{{ t().stats.ttft }}</dt><dd>{{ s.usage.ttftMs }} ms</dd></div>
+              <div>
+                <dt>{{ t().stats.ttft }}</dt>
+                <dd>{{ s.usage.ttftMs }} ms</dd>
+              </div>
             }
             @if (speed(s.usage); as v) {
-              <div><dt>{{ t().stats.speed }}</dt><dd>{{ v }} tok/s</dd></div>
+              <div>
+                <dt>{{ t().stats.speed }}</dt>
+                <dd>{{ v }} tok/s</dd>
+              </div>
             }
             @if (s.usage.durationMs !== undefined) {
-              <div><dt>{{ t().stats.duration }}</dt><dd>{{ (s.usage.durationMs / 1000).toFixed(1) }} s</dd></div>
+              <div>
+                <dt>{{ t().stats.duration }}</dt>
+                <dd>{{ (s.usage.durationMs / 1000).toFixed(1) }} s</dd>
+              </div>
             }
           </dl>
         </div>
@@ -181,10 +194,16 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       cursor: default;
       white-space: nowrap;
     }
-    .context-pill.warn { color: var(--aparte-warning); }
-    .context-pill.danger { color: var(--aparte-error); }
+    .context-pill.warn {
+      color: var(--aparte-warning);
+    }
+    .context-pill.danger {
+      color: var(--aparte-error);
+    }
     @media (pointer: coarse) {
-      .helper { display: none; }
+      .helper {
+        display: none;
+      }
     }
 
     .stats-pop {
@@ -201,10 +220,16 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       animation: bp-pop 0.18s ease;
       min-width: 180px;
     }
-    .stats-pop.flip { transform: translateY(-100%); }
+    .stats-pop.flip {
+      transform: translateY(-100%);
+    }
     /* N'anime que l'opacite : animer transform ecrasait le translateY(-100%)
      * de .flip pendant la transition (le popover sautait). */
-    @keyframes bp-pop { from { opacity: 0; } }
+    @keyframes bp-pop {
+      from {
+        opacity: 0;
+      }
+    }
     .stats-title {
       margin: 0 0 8px;
       font-size: 12px;
@@ -213,11 +238,29 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       text-transform: uppercase;
       color: var(--aparte-text-muted);
     }
-    .glyph { color: var(--aparte-primary); text-transform: none; letter-spacing: 0; }
-    dl { margin: 0; display: grid; gap: 4px; }
-    dl div { display: flex; justify-content: space-between; gap: 18px; font-size: 13px; }
-    dt { color: var(--aparte-text-muted); }
-    dd { margin: 0; font-variant-numeric: tabular-nums; }
+    .glyph {
+      color: var(--aparte-primary);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    dl {
+      margin: 0;
+      display: grid;
+      gap: 4px;
+    }
+    dl div {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      font-size: 13px;
+    }
+    dt {
+      color: var(--aparte-text-muted);
+    }
+    dd {
+      margin: 0;
+      font-variant-numeric: tabular-nums;
+    }
   `,
 })
 export class ChatPageComponent {

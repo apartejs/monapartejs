@@ -10,9 +10,15 @@ function collect(chunks: string[]): DemuxEvent[] {
 }
 
 const text = (events: DemuxEvent[]) =>
-  events.filter((e) => e.kind === 'text').map((e) => e.delta).join('');
+  events
+    .filter((e) => e.kind === 'text')
+    .map((e) => e.delta)
+    .join('');
 const thinking = (events: DemuxEvent[]) =>
-  events.filter((e) => e.kind === 'thinking').map((e) => e.delta).join('');
+  events
+    .filter((e) => e.kind === 'thinking')
+    .map((e) => e.delta)
+    .join('');
 
 describe('WireStreamDemux', () => {
   it('laisse passer le texte simple', () => {

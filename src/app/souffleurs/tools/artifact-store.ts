@@ -49,7 +49,11 @@ export async function loadArtifact(toolCallId: string): Promise<ProducedArtifact
   }
 }
 
-export function notifyArtifact(toolCallId: string, artifact: ProducedArtifact, fileId: string): void {
+export function notifyArtifact(
+  toolCallId: string,
+  artifact: ProducedArtifact,
+  fileId: string,
+): void {
   artifactsByCall.set(toolCallId, artifact);
   try {
     sink?.(toolCallId, artifact, fileId);

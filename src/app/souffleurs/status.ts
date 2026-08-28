@@ -1,13 +1,7 @@
 /** État observable du modèle souffleurs (pastille sidebar, onboarding) — framework-agnostic. */
 
 export type SouffleurStatus =
-  | 'unknown'
-  | 'not-downloaded'
-  | 'downloading'
-  | 'loading'
-  | 'ready'
-  | 'generating'
-  | 'error';
+  'unknown' | 'not-downloaded' | 'downloading' | 'loading' | 'ready' | 'generating' | 'error';
 
 export interface SouffleurStatusState {
   status: SouffleurStatus;

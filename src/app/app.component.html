@@ -3,10 +3,7 @@
 } @else {
   <div class="shell" [class.sidebar-closed]="!sidebarOpen()">
     <div class="sidebar-slot">
-      <bp-sidebar
-        (openSettings)="settingsOpen.set(true)"
-        (openSearch)="searchOpen.set(true)"
-      />
+      <bp-sidebar (openSettings)="settingsOpen.set(true)" (openSearch)="searchOpen.set(true)" />
     </div>
 
     <main class="main">
@@ -26,11 +23,7 @@
         <button class="local-badge" (click)="privacyOpen.set(true)">
           {{ t().topbar.localBadge }}
         </button>
-        <button
-          class="icon-btn"
-          (click)="toggleTheme()"
-          [attr.aria-label]="t().topbar.themeToggle"
-        >
+        <button class="icon-btn" (click)="toggleTheme()" [attr.aria-label]="t().topbar.themeToggle">
           ◐
         </button>
       </header>

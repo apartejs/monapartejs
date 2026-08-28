@@ -92,10 +92,7 @@ function installImageHook(model: any): void {
         pendingImage.numTokens,
         HIDDEN,
       ]);
-      out.image_indices = new Tensor('int64', pendingImage.indices, [
-        pendingImage.numTokens,
-        2,
-      ]);
+      out.image_indices = new Tensor('int64', pendingImage.indices, [pendingImage.numTokens, 2]);
     } else {
       out.image_features = EMPTY_FEATURES;
       out.image_indices = EMPTY_INDICES;
@@ -114,7 +111,15 @@ self.onmessage = async (event: MessageEvent<MainToWorker>) => {
         await ensurePipeline(msg.id, msg.adapter, msg.device, msg, msg.modelFileName ?? 'model');
         break;
       case 'generate':
-        await generate(msg.id, msg.adapter, msg.device, msg.prompt, msg.maxNewTokens, msg, msg.debug);
+        await generate(
+          msg.id,
+          msg.adapter,
+          msg.device,
+          msg.prompt,
+          msg.maxNewTokens,
+          msg,
+          msg.debug,
+        );
         break;
       case 'describe-image':
         await describeImage(msg);
@@ -277,8 +282,6 @@ async function generate(
  * Réseau supplémentaire : la tour, et rien d'autre.
  */
 const IMAGE_TOKEN_ID = 396n; // <image>
-const IMAGE_START_ID = 498n; // <|image_start|>
-const IMAGE_END_ID = 499n; // <|image_end|>
 
 /**
  * Bloc image du prompt — port de `Lfm2VlProcessor._build_image_tokens()`.
@@ -377,7 +380,11 @@ async function describeImage(msg: {
         : `${processed.width}x${processed.height}`;
     console.log(
       '[souffleurs.worker] vision %s -> %d tokens (attendu %d) hidden=%d, tour rattachée en %d ms',
-      layout, numTokens, want, hiddenSize, attachMs,
+      layout,
+      numTokens,
+      want,
+      hiddenSize,
+      attachMs,
     );
     if (want !== numTokens) {
       // Divergence de prétraitement = prompt hors distribution : on veut le voir.

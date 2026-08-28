@@ -65,9 +65,7 @@ export class AppComponent {
   protected readonly privacyOpen = signal(false);
   protected readonly searchOpen = signal(false);
 
-  protected readonly topbarTitle = computed(
-    () => this.manager.activeConversation()?.title ?? '',
-  );
+  protected readonly topbarTitle = computed(() => this.manager.activeConversation()?.title ?? '');
 
   /** Mascotte coin branchée sur le cycle RÉEL du modèle (provider souffleurs) :
    *  téléchargement/chargement (dont swap d'exécuteur ~3,8 s) → thinking ;

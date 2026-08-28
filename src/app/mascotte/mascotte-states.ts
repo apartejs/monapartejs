@@ -5,13 +5,7 @@
  */
 
 export type MascotteState =
-  | 'idle'
-  | 'thinking'
-  | 'talking'
-  | 'happy'
-  | 'error'
-  | 'sleeping'
-  | 'wake';
+  'idle' | 'thinking' | 'talking' | 'happy' | 'error' | 'sleeping' | 'wake';
 
 export interface MascotteFace {
   eyeLeft: string;

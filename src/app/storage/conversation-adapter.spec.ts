@@ -18,7 +18,12 @@ function makeConv(overrides: Partial<AparteConversation> = {}): AparteConversati
     updatedAt: t,
     messages: [
       { id: `${id}-m1`, role: 'user', content: 'Bonjour !', timestamp: t },
-      { id: `${id}-m2`, role: 'assistant', content: 'Bonjour, comment puis-je aider ?', timestamp: t + 1 },
+      {
+        id: `${id}-m2`,
+        role: 'assistant',
+        content: 'Bonjour, comment puis-je aider ?',
+        timestamp: t + 1,
+      },
     ],
     ...overrides,
   };
@@ -46,7 +51,10 @@ describe('DexieConversationAdapter', () => {
     await adapter.save(conv);
     await adapter.save({
       ...conv,
-      messages: [...conv.messages, { id: `${conv.id}-m3`, role: 'user', content: 'Suite', timestamp: Date.now() + 2 }],
+      messages: [
+        ...conv.messages,
+        { id: `${conv.id}-m3`, role: 'user', content: 'Suite', timestamp: Date.now() + 2 },
+      ],
     });
     const all = await adapter.loadAll();
     expect(all[0].messages).toHaveLength(3);
@@ -104,7 +112,12 @@ describe('DexieConversationAdapter', () => {
   it('settings k/v + mémoire', async () => {
     await adapter.setSetting('send-on-enter', false);
     expect(await adapter.getSetting('send-on-enter')).toBe(false);
-    await adapter.addMemoryFact({ id: 'f1', type: 'preference', content: 'aime le thé', addedAt: Date.now() });
+    await adapter.addMemoryFact({
+      id: 'f1',
+      type: 'preference',
+      content: 'aime le thé',
+      addedAt: Date.now(),
+    });
     expect(await adapter.getMemory()).toHaveLength(1);
     await adapter.clearMemory();
     expect(await adapter.getMemory()).toHaveLength(0);
@@ -177,8 +190,11 @@ describe('DexieConversationAdapter — pièces jointes au reload', () => {
     await adapter.save(conv);
     const loaded = await adapter.loadFull(conv.id);
 
-    const atts = (loaded!.messages![0] as unknown as { attachments: { url: string; blob: Blob; name: string }[] })
-      .attachments;
+    const atts = (
+      loaded!.messages![0] as unknown as {
+        attachments: { url: string; blob: Blob; name: string }[];
+      }
+    ).attachments;
     expect(atts).toHaveLength(1);
     expect(atts[0].url).not.toBe('blob:http://localhost:4200/dead-uuid');
     expect(atts[0].url).toMatch(/^blob:fresh-/);

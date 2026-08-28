@@ -49,7 +49,12 @@ export const createWidgetHandler: AparteToolHandler = async (call) => {
     return {
       toolCallId: call.id,
       content: JSON.stringify(
-        { ok: false, type: 'create_widget', kind, error: err instanceof Error ? err.message : String(err) },
+        {
+          ok: false,
+          type: 'create_widget',
+          kind,
+          error: err instanceof Error ? err.message : String(err),
+        },
         null,
         2,
       ),

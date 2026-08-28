@@ -230,15 +230,24 @@ export async function preprocessImage(blob: Blob): Promise<PreprocessedImage> {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           tiles.push(
-            full.getImageData(c * CONFIG.tileSize, r * CONFIG.tileSize, CONFIG.tileSize, CONFIG.tileSize),
+            full.getImageData(
+              c * CONFIG.tileSize,
+              r * CONFIG.tileSize,
+              CONFIG.tileSize,
+              CONFIG.tileSize,
+            ),
           );
         }
       }
       if (CONFIG.useThumbnail) {
-        tiles.push(draw(bitmap, thumb.width, thumb.height).getImageData(0, 0, thumb.width, thumb.height));
+        tiles.push(
+          draw(bitmap, thumb.width, thumb.height).getImageData(0, 0, thumb.width, thumb.height),
+        );
       }
     } else {
-      tiles.push(draw(bitmap, thumb.width, thumb.height).getImageData(0, 0, thumb.width, thumb.height));
+      tiles.push(
+        draw(bitmap, thumb.width, thumb.height).getImageData(0, 0, thumb.width, thumb.height),
+      );
     }
 
     const numTiles = tiles.length;
@@ -276,7 +285,11 @@ export async function preprocessImage(blob: Blob): Promise<PreprocessedImage> {
 }
 
 /** Redimensionne le bitmap sur un canevas hors écran et rend son contexte. */
-function draw(bitmap: ImageBitmap, width: number, height: number): OffscreenCanvasRenderingContext2D {
+function draw(
+  bitmap: ImageBitmap,
+  width: number,
+  height: number,
+): OffscreenCanvasRenderingContext2D {
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('OffscreenCanvas 2d indisponible');

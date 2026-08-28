@@ -42,7 +42,7 @@ export type MainToWorker =
       /** Trace console (ids des premiers tokens — contrôle double-BOS, etc.). */
       debug?: boolean;
     } & AdapterFiles)
-  | {
+  | ({
       /**
        * read_file(image) — swap vers le « rôle » vision : MÊME graphe, MÊMES
        * poids, seul `adapter.data` change (neutre, alloué localement) et la
@@ -58,7 +58,7 @@ export type MainToWorker =
       maxNewTokens: number;
       tower: TowerFiles;
       debug?: boolean;
-    } & AdapterFiles
+    } & AdapterFiles)
   | { type: 'abort' }
   | { type: 'dispose' };
 

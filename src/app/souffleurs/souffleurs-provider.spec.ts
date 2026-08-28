@@ -66,7 +66,10 @@ beforeEach(() => {
     setItem: (k: string, v: string) => void store.set(k, v),
     removeItem: (k: string) => void store.delete(k),
   });
-  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => MANIFEST })));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({ ok: true, json: async () => MANIFEST })),
+  );
   vi.stubGlobal('navigator', { gpu: undefined, language: 'fr' });
   vi.stubGlobal('Worker', FakeWorker);
 });
@@ -74,7 +77,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('SouffleursProvider.chat — annulation', () => {
-  it("le `done` tardif après cancel ne jette pas et libère la file", async () => {
+  it('le `done` tardif après cancel ne jette pas et libère la file', async () => {
     const { SouffleursProvider } = await import('./souffleurs-provider');
 
     const stream = (await SouffleursProvider.chat(REQUEST)) as ReadableStream;
@@ -145,8 +148,7 @@ describe('runExecutor — format du tour utilisateur', () => {
     await tick();
     const worker = FakeWorker.last!;
     const generate = worker.posted.find((m) => m.type === 'generate') as
-      | (Posted & { prompt: string })
-      | undefined;
+      (Posted & { prompt: string }) | undefined;
     expect(generate).toBeDefined();
     expect(generate!.prompt).toContain('user\nintent: somme de 1 à 10');
     expect(generate!.prompt).not.toContain('user\nsomme de 1 à 10');

@@ -42,13 +42,19 @@ export class RichRenderService {
       const { default: mermaid } = await import('mermaid');
       mermaid.initialize({
         startOnLoad: false,
-        theme: document.documentElement.getAttribute('data-aparte-theme') === 'dark' ? 'dark' : 'neutral',
+        theme:
+          document.documentElement.getAttribute('data-aparte-theme') === 'dark'
+            ? 'dark'
+            : 'neutral',
       });
       for (const [i, code] of blocks.entries()) {
         const host = code.closest('pre') ?? code;
         host.setAttribute('data-bp-mermaid', '1');
         try {
-          const { svg } = await mermaid.render(`bp-mermaid-${Date.now()}-${i}`, code.textContent ?? '');
+          const { svg } = await mermaid.render(
+            `bp-mermaid-${Date.now()}-${i}`,
+            code.textContent ?? '',
+          );
           const wrap = document.createElement('div');
           wrap.className = 'bp-mermaid';
           wrap.innerHTML = svg; // sortie mermaid (générée localement), pas du contenu utilisateur brut

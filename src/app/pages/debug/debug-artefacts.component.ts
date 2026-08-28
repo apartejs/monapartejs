@@ -44,8 +44,19 @@ return doc.output('blob');`;
     </div>
   `,
   styles: `
-    .wrap { padding: 24px; max-width: 720px; margin: 0 auto; overflow-y: auto; height: 100%; }
-    p { font-family: var(--bp-mono); font-size: 12px; color: var(--aparte-text-muted); margin: 22px 0 6px; }
+    .wrap {
+      padding: 24px;
+      max-width: 720px;
+      margin: 0 auto;
+      overflow-y: auto;
+      height: 100%;
+    }
+    p {
+      font-family: var(--bp-mono);
+      font-size: 12px;
+      color: var(--aparte-text-muted);
+      margin: 22px 0 6px;
+    }
   `,
 })
 export class DebugArtefactsComponent implements AfterViewInit {

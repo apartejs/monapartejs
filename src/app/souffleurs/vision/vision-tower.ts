@@ -75,8 +75,7 @@ function ensureWasmPaths(): void {
   if (!version) return; // pas de web build : rien à configurer
   const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${version}/dist/`;
   const isSafari =
-    typeof navigator !== 'undefined' &&
-    /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   ort.env.wasm.wasmPaths = isSafari
     ? {
         mjs: `${prefix}ort-wasm-simd-threaded.mjs`,
@@ -139,10 +138,7 @@ export async function encodeImage(image: PreprocessedImage): Promise<ImageEmbedd
   const [numTiles, patchesPerTile] = image.shape;
   const outputs = await session.run({
     pixel_values: new ort.Tensor('float32', image.pixelValues, image.shape),
-    pixel_attention_mask: new ort.Tensor('int64', image.attentionMask, [
-      numTiles,
-      patchesPerTile,
-    ]),
+    pixel_attention_mask: new ort.Tensor('int64', image.attentionMask, [numTiles, patchesPerTile]),
     spatial_shapes: new ort.Tensor('int64', image.spatialShapes, [numTiles, 2]),
   });
 

@@ -251,9 +251,7 @@ export function getSouffleurManifest(): Promise<SouffleurManifestClient> {
           const cache = await caches.open('transformers-cache');
           const keys = await cache.keys();
           await Promise.all(
-            keys
-              .filter((req) => req.url.includes('model_q4.onnx'))
-              .map((req) => cache.delete(req)),
+            keys.filter((req) => req.url.includes('model_q4.onnx')).map((req) => cache.delete(req)),
           );
         } catch {
           /* cache indisponible */

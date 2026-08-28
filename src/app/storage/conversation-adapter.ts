@@ -188,10 +188,7 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
   /* ── interne ── */
 
   private async hydrate(row: ConversationRow): Promise<AparteConversation> {
-    const messages = await this.db.messages
-      .where('convId')
-      .equals(row.id)
-      .sortBy('timestamp');
+    const messages = await this.db.messages.where('convId').equals(row.id).sortBy('timestamp');
     const attachmentRows = await this.db.attachments.where('convId').equals(row.id).toArray();
     const fresh = freshAttachmentsByMsg(attachmentRows);
     const { tree, lastMessagePreview: _p, messageCount: _c, ...meta } = row;
@@ -222,7 +219,13 @@ function extractAttachments(convId: string, messages: AparteMessage[]): Attachme
   for (const m of messages) {
     const atts = (m as AparteMessage & { attachments?: unknown }).attachments;
     if (!Array.isArray(atts)) continue;
-    for (const a of atts as { id: string; name: string; type?: string; size?: number; blob?: Blob }[]) {
+    for (const a of atts as {
+      id: string;
+      name: string;
+      type?: string;
+      size?: number;
+      blob?: Blob;
+    }[]) {
       if (!a?.blob) continue; // url seule (legacy) : rien à persister
       rows.push({
         id: a.id,

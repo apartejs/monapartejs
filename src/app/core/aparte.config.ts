@@ -9,12 +9,7 @@
  * (status + erreur), `souffleurs/tools/tool-renderers` (coloration live) et
  * `core/i18n/translate.service` (bascule de locale).
  */
-import {
-  inject,
-  isDevMode,
-  provideAppInitializer,
-  type EnvironmentProviders,
-} from '@angular/core';
+import { inject, isDevMode, provideAppInitializer, type EnvironmentProviders } from '@angular/core';
 import { provideServiceWorker } from '@angular/service-worker';
 import { ConversationManagerService, provideAparte } from '@aparte/angular';
 import { AparteDirectTransport, aparteGlobalConfig, registerSegmentRenderer } from '@aparte/core';
@@ -223,9 +218,8 @@ export function provideMonaparte(): EnvironmentProviders[] {
       window.addEventListener(
         'aparte-send',
         (event) => {
-          const composer = (event.target as HTMLElement | null)?.closest?.(
-            'aparte-composer',
-          ) as (HTMLElement & { attachments?: File[] }) | null;
+          const composer = (event.target as HTMLElement | null)?.closest?.('aparte-composer') as
+            (HTMLElement & { attachments?: File[] }) | null;
           for (const file of composer?.attachments ?? []) {
             fileRegistry.register(file);
           }

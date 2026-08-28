@@ -28,7 +28,10 @@ afterEach(() => {
 });
 
 const okFetch = () =>
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(MANIFEST), { status: 200 })));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(JSON.stringify(MANIFEST), { status: 200 })),
+  );
 
 describe('SouffleurManifestClient', () => {
   it('charge le manifest en no-store et résout fichiers/versions', async () => {
@@ -66,14 +69,22 @@ describe('SouffleurManifestClient', () => {
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
 
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline');
+      }),
+    );
     const m2 = new SouffleurManifestClient('https://hf.example/r');
     await m2.load();
     expect(m2.file('chat')).toBe('adapters/souffleur-chat-0.2.0.data');
   });
 
   it('premier lancement sans réseau ni cache : fallback legacy (noms non versionnés)', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 404 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('nope', { status: 404 })),
+    );
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
     expect(m.file('chat')).toBe('adapters/souffleur-chat.data');
@@ -105,7 +116,9 @@ describe('SouffleurManifestClient — bloc vision', () => {
   it('vision publiée : modelFileName pointe le graphe greffé', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => new Response(JSON.stringify({ ...MANIFEST, vision: VISION }), { status: 200 })),
+      vi.fn(
+        async () => new Response(JSON.stringify({ ...MANIFEST, vision: VISION }), { status: 200 }),
+      ),
     );
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
@@ -129,7 +142,10 @@ describe('SouffleurManifestClient — bloc vision', () => {
   });
 
   it('manifest legacy (hors-ligne, jamais chargé) : pas de vision', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 404 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('nope', { status: 404 })),
+    );
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
     expect(m.vision()).toBeNull();
@@ -212,7 +228,10 @@ describe('SouffleurManifestClient — mise à jour de la tour', () => {
   });
 
   it('pas de tour publiée : rien à proposer, rien à résoudre', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(MANIFEST), { status: 200 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(MANIFEST), { status: 200 })),
+    );
     const m = new SouffleurManifestClient('https://hf.example/r');
     await m.load();
     expect(m.visionHasUpdate()).toBe(false);

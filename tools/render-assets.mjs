@@ -19,7 +19,14 @@
  * façon fiable.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  rmSync,
+  copyFileSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -58,20 +65,40 @@ svg{display:block}</style>${svg}`;
 
 /** Une capture = une page, une taille, un fichier de sortie. */
 const JOBS = [
-  { page: () => readFileSync(join(root, 'tools/og-card.html'), 'utf8'),
-    out: 'public/og-card.png', w: 1200, h: 630 },
-  { page: (w, h) => wrapSvg('public/icons/mascotte.svg', w, h),
-    out: 'public/icons/icon-192.png', w: 192, h: 192 },
-  { page: (w, h) => wrapSvg('public/icons/mascotte.svg', w, h),
-    out: 'public/icons/icon-512.png', w: 512, h: 512 },
-  { page: (w, h) => wrapSvg('public/icons/mascotte-maskable.svg', w, h),
-    out: 'public/icons/icon-512-maskable.png', w: 512, h: 512 },
+  {
+    page: () => readFileSync(join(root, 'tools/og-card.html'), 'utf8'),
+    out: 'public/og-card.png',
+    w: 1200,
+    h: 630,
+  },
+  {
+    page: (w, h) => wrapSvg('public/icons/mascotte.svg', w, h),
+    out: 'public/icons/icon-192.png',
+    w: 192,
+    h: 192,
+  },
+  {
+    page: (w, h) => wrapSvg('public/icons/mascotte.svg', w, h),
+    out: 'public/icons/icon-512.png',
+    w: 512,
+    h: 512,
+  },
+  {
+    page: (w, h) => wrapSvg('public/icons/mascotte-maskable.svg', w, h),
+    out: 'public/icons/icon-512-maskable.png',
+    w: 512,
+    h: 512,
+  },
   // iOS ne lit ni le manifeste ni le SVG pour l'icône de l'écran d'accueil :
   // il lui faut ce PNG, à cette taille, sous ce nom. Et il applique SON propre
   // masque arrondi — d'où la variante pleine page plutôt que la mascotte aux
   // coins déjà arrondis, qui se serait retrouvée arrondie deux fois.
-  { page: (w, h) => wrapSvg('public/icons/mascotte-maskable.svg', w, h),
-    out: 'public/apple-touch-icon.png', w: 180, h: 180 },
+  {
+    page: (w, h) => wrapSvg('public/icons/mascotte-maskable.svg', w, h),
+    out: 'public/apple-touch-icon.png',
+    w: 180,
+    h: 180,
+  },
 ];
 
 for (const job of JOBS) {

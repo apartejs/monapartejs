@@ -103,10 +103,7 @@ const splitValues = (s: string): string[] =>
  * multi-sélection par « , » : une valeur qui contiendrait elle-même « , »
  * serait coupée — assumé, les options viennent du modèle et sont courtes.
  */
-export function toTrainingResult(
-  plain: string,
-  input: Record<string, unknown>,
-): AskQuestionResult {
+export function toTrainingResult(plain: string, input: Record<string, unknown>): AskQuestionResult {
   const text = plain.trim();
   if (text === PLUGIN_DECLINED_TEXT) {
     return { ok: false, type: 'ask_question', error: 'declined' };
@@ -154,9 +151,7 @@ export function askQuestionReceiptText(
     .join('\n');
 }
 
-export function normalizeAskQuestionInput(
-  input: Record<string, unknown>,
-): Record<string, unknown> {
+export function normalizeAskQuestionInput(input: Record<string, unknown>): Record<string, unknown> {
   const questions = input['questions'];
   if (!Array.isArray(questions)) return input;
   return {
@@ -165,9 +160,7 @@ export function normalizeAskQuestionInput(
       if (q === null || typeof q !== 'object') return q;
       const item = q as Record<string, unknown>;
       const options = Array.isArray(item['options'])
-        ? (item['options'] as unknown[]).map((o) =>
-            typeof o === 'string' ? { title: o } : o,
-          )
+        ? (item['options'] as unknown[]).map((o) => (typeof o === 'string' ? { title: o } : o))
         : item['options'];
       return {
         ...item,

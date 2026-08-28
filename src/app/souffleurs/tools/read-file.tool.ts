@@ -28,7 +28,12 @@ export const readFileHandler: AparteToolHandler = async (call) => {
     return {
       toolCallId: call.id,
       content: JSON.stringify(
-        { ok: false, type: 'read_file', file_id: fileId, error: 'file_id inconnu — aucun fichier joint sous cet identifiant' },
+        {
+          ok: false,
+          type: 'read_file',
+          file_id: fileId,
+          error: 'file_id inconnu — aucun fichier joint sous cet identifiant',
+        },
         null,
         2,
       ),
