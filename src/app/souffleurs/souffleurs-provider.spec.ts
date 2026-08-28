@@ -134,6 +134,32 @@ describe('SouffleursProvider.chat — annulation', () => {
 });
 
 /**
+ * Les exécuteurs ont été entraînés sur un tour utilisateur `intent: <task>`
+ * (100 % des exemples, audit lab du 26/07). La task nue était hors distribution.
+ */
+describe('runExecutor — format du tour utilisateur', () => {
+  it('préfixe la task par `intent: ` comme à l’entraînement', async () => {
+    const { runExecutor } = await import('./souffleurs-provider');
+    const pending = runExecutor('souffleur-sandbox', 'SYSTEM', 'somme de 1 à 10');
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    const generate = worker.posted.find((m) => m.type === 'generate') as
+      | (Posted & { prompt: string })
+      | undefined;
+    expect(generate).toBeDefined();
+    expect(generate!.prompt).toContain('user\nintent: somme de 1 à 10');
+    expect(generate!.prompt).not.toContain('user\nsomme de 1 à 10');
+    worker.reply({
+      type: 'done',
+      id: generate!.id,
+      usage: { inputTokens: 5, outputTokens: 1, ttftMs: 1, durationMs: 2 },
+    });
+    await pending;
+  });
+});
+
+/**
  * En dev on veut les traces du fil SANS avoir à activer quoi que ce soit —
  * demande explicite. `bp.debug` reste un override dans les deux sens.
  */

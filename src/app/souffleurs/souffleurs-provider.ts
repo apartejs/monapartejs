@@ -575,7 +575,12 @@ export async function runExecutor(
 ): Promise<ExecutorResult> {
   const device = await detectComputeDevice();
   const resolved = await resolveAdapterFiles(adapter);
-  const prompt = buildWirePrompt(systemPrompt, [{ role: 'user', content: task }]);
+  // Préfixe `intent: ` — FORMAT D'ENTRAÎNEMENT des trois exécuteurs (100 % des
+  // exemples : pdf 1228/1228, xlsx-docx 1056/1056, sandbox 1492/1492, audit lab
+  // du 26/07, HANDOFF-fixes-bonaparte §1), et ce que fait l'exécuteur du lab
+  // (`browser/app/executor.js` : `intent: ${args.intent}`). L'app envoyait la
+  // task nue : chaque génération de fichier partait hors distribution.
+  const prompt = buildWirePrompt(systemPrompt, [{ role: 'user', content: `intent: ${task}` }]);
   // Cycle visible (mascotte/pastille) : loading pendant le swap, generating
   // pendant la production de l'exécuteur, ready au retour.
   setSouffleurStatus({ status: 'loading', device });
