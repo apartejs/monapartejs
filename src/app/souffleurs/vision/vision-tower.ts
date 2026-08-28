@@ -68,7 +68,7 @@ let wasmConfigured = false;
  * not ours: without this, ours ends up on a relative path that doesn't
  * exist. So we reproduce its configuration exactly (same CDN, same version).
  */
-function ensureWasmPaths(): void {
+function ensureWasmPaths(device: TowerSpec['device']): void {
   if (wasmConfigured) return;
   wasmConfigured = true;
   if (ort.env.wasm.wasmPaths) return; // already configured (shared instance)
@@ -77,15 +77,17 @@ function ensureWasmPaths(): void {
   const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${version}/dist/`;
   const isSafari =
     typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  ort.env.wasm.wasmPaths = isSafari
-    ? {
-        mjs: `${prefix}ort-wasm-simd-threaded.mjs`,
-        wasm: `${prefix}ort-wasm-simd-threaded.wasm`,
-      }
-    : {
-        mjs: `${prefix}ort-wasm-simd-threaded.asyncify.mjs`,
-        wasm: `${prefix}ort-wasm-simd-threaded.asyncify.wasm`,
-      };
+  // The WebGPU execution provider lives in the `.jsep.` build of the wasm
+  // module. Seen 2026-08-28 with the `.asyncify.` build: ORT logged
+  // "removing requested execution provider webgpu … The WebAssembly module is
+  // not built with JSEP support" and silently ran the tower on wasm — a large
+  // image (3x3 tiles + thumbnail) then took minutes with no feedback.
+  // transformers.js picks `.jsep.` for WebGPU as well; we mirror it.
+  const variant = device === 'webgpu' ? '.jsep' : isSafari ? '' : '.asyncify';
+  ort.env.wasm.wasmPaths = {
+    mjs: `${prefix}ort-wasm-simd-threaded${variant}.mjs`,
+    wasm: `${prefix}ort-wasm-simd-threaded${variant}.wasm`,
+  };
 }
 
 /** true if the tower is currently attached. */
@@ -101,7 +103,7 @@ export async function attachTower(spec: TowerSpec): Promise<number> {
   if (session && sessionKey === spec.graphUrl) return 0;
   await detachTower();
 
-  ensureWasmPaths();
+  ensureWasmPaths(spec.device);
   const t0 = performance.now();
   const graph = await fetchTowerFile(spec.graphUrl, spec.onProgress);
   const data = await fetchTowerFile(spec.dataUrl, spec.onProgress);
