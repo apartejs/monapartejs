@@ -1,130 +1,151 @@
 <!doctype html>
-<!-- `lang` est réécrit par le script ci-dessous selon la langue choisie ou celle
-     du navigateur. La valeur en dur est celle que voient les moissonneurs qui
-     n'exécutent pas de JavaScript, et le français est la langue de rédaction du
-     site — c'est donc la bonne valeur par défaut, pas un pis-aller. -->
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <title>monaparte — un assistant IA qui tourne dans votre navigateur</title>
-  <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- `lang` is rewritten by the script below to the chosen locale or the browser's.
+     The hard-coded value is what crawlers that do not run JavaScript see; English
+     is the site's writing language, so it is the right default, not a fallback. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>monaparte — an AI assistant that runs in your browser</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- ── Ce que lisent les moteurs ─────────────────────────────────────────
-       La description est la seule phrase que Google affichera sous le titre :
-       elle dit ce que fait le site et ce qui le distingue. Environ 155
-       caractères, au-delà elle est coupée en plein milieu. -->
-  <meta name="description" content="Un assistant conversationnel dont le modèle tourne entièrement dans votre navigateur : aucun serveur, aucune donnée envoyée. Une démonstration d'aparté.">
-  <!-- `max-image-preview:large` autorise la grande vignette dans les résultats.
-       Sans elle, Google se limite à une miniature pour un site qu'il ne
-       connaît pas encore. -->
-  <meta name="robots" content="index, follow, max-image-preview:large">
-  <!-- Toutes les routes servent ce même document (repli SPA). Sans canonique,
-       une conversation ouverte par un moissonneur — /chat/&lt;id&gt; — serait
-       indexée comme une page distincte au contenu identique. -->
-  <link rel="canonical" href="https://mon.apartejs.dev/">
+    <!-- ── What search engines read ─────────────────────────────────────────
+       The description is the one sentence Google shows under the title: it says
+       what the site does and what sets it apart. About 155 characters; beyond
+       that it is cut mid-sentence. -->
+    <meta
+      name="description"
+      content="A conversational assistant whose model runs entirely in your browser: no server, no data sent anywhere. A demonstration of aparté."
+    />
+    <!-- `max-image-preview:large` allows the large thumbnail in results. Without
+       it, Google limits an unknown site to a small one. -->
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <!-- Every route serves this same document (SPA fallback). Without a canonical,
+       a conversation opened by a crawler — /chat/&lt;id&gt; — would be indexed as
+       a distinct page with identical content. -->
+    <link rel="canonical" href="https://mon.apartejs.dev/" />
 
-  <!-- ── Ce que lisent les réseaux sociaux et les messageries ──────────────
-       Ces moissonneurs n'exécutent PAS de JavaScript : sans ces balises, un
-       lien partagé n'affiche qu'une URL nue. L'image doit être une URL ABSOLUE
-       et un bitmap — le SVG est refusé par la plupart des plateformes, d'où
-       public/og-card.png, fabriqué par tools/render-assets.mjs. -->
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="monaparte">
-  <meta property="og:url" content="https://mon.apartejs.dev/">
-  <meta property="og:title" content="monaparte — un assistant IA qui tourne dans votre navigateur">
-  <meta property="og:description" content="Le modèle s'exécute dans votre navigateur : aucun serveur, aucune donnée envoyée. Une démonstration d'aparté.">
-  <meta property="og:image" content="https://mon.apartejs.dev/og-card.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="monaparte — un assistant qui tourne entièrement dans votre navigateur">
-  <meta property="og:locale" content="fr_FR">
-  <meta property="og:locale:alternate" content="en_US">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="monaparte — un assistant IA qui tourne dans votre navigateur">
-  <meta name="twitter:description" content="Le modèle s'exécute dans votre navigateur : aucun serveur, aucune donnée envoyée. Une démonstration d'aparté.">
-  <meta name="twitter:image" content="https://mon.apartejs.dev/og-card.png">
+    <!-- ── What social networks and messengers read ─────────────────────────
+       These crawlers do NOT run JavaScript: without these tags a shared link
+       shows a bare URL. The image must be an ABSOLUTE URL and a bitmap — SVG is
+       refused by most platforms, hence public/og-card.png, produced by
+       tools/render-assets.mjs. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="monaparte" />
+    <meta property="og:url" content="https://mon.apartejs.dev/" />
+    <meta property="og:title" content="monaparte — an AI assistant that runs in your browser" />
+    <meta
+      property="og:description"
+      content="The model runs in your browser: no server, no data sent anywhere. A demonstration of aparté."
+    />
+    <meta property="og:image" content="https://mon.apartejs.dev/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="monaparte — an assistant that runs entirely in your browser"
+    />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="fr_FR" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="monaparte — an AI assistant that runs in your browser" />
+    <meta
+      name="twitter:description"
+      content="The model runs in your browser: no server, no data sent anywhere. A demonstration of aparté."
+    />
+    <meta name="twitter:image" content="https://mon.apartejs.dev/og-card.png" />
 
-  <!-- ── Icônes et intégration au système ──────────────────────────────────
-       Le manifeste existait déjà mais n'était lié nulle part : il ne servait
-       donc à rien. iOS, lui, ignore le manifeste ET le SVG pour l'écran
-       d'accueil — il lui faut apple-touch-icon.png, sous ce nom exact. -->
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="icon" type="image/svg+xml" href="icons/mascotte.svg">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="manifest" href="manifest.webmanifest">
-  <!-- Deux `theme-color` : la barre du navigateur suit le thème du système au
-       lieu de rester claire sur une page sombre. -->
-  <meta name="theme-color" content="#f6f2ea" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#17141c" media="(prefers-color-scheme: dark)">
-  <meta name="color-scheme" content="light dark">
-  <meta name="apple-mobile-web-app-title" content="monaparte">
+    <!-- ── Icons and system integration ─────────────────────────────────────
+       The manifest existed but was linked nowhere, so it did nothing. iOS ignores
+       both the manifest AND the SVG for the home screen — it wants
+       apple-touch-icon.png, under that exact name. -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="icons/mascotte.svg" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <!-- Two `theme-color`s: the browser chrome follows the system theme instead
+       of staying light over a dark page. -->
+    <meta name="theme-color" content="#f6f2ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#17141c" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="apple-mobile-web-app-title" content="monaparte" />
 
-  <!-- ── Donnée structurée ─────────────────────────────────────────────────
-       Décrit l'application aux moteurs dans leur vocabulaire. `price: 0` et
-       `isAccessibleForFree` sont vrais et vérifiables : il n'y a ni compte ni
-       paiement. Ne rien déclarer ici qu'on ne puisse montrer sur la page. -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "monaparte",
-    "url": "https://mon.apartejs.dev/",
-    "description": "Un assistant conversationnel dont le modèle tourne entièrement dans le navigateur du visiteur : aucune requête vers un serveur d'inférence, aucune donnée envoyée.",
-    "applicationCategory": "UtilitiesApplication",
-    "operatingSystem": "Navigateur avec WebAssembly ; WebGPU recommandé",
-    "isAccessibleForFree": true,
-    "inLanguage": ["fr", "en"],
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
-    "image": "https://mon.apartejs.dev/og-card.png"
-  }
-  </script>
+    <!-- ── Structured data ──────────────────────────────────────────────────
+       Describes the application to search engines in their own vocabulary.
+       `price: 0` and `isAccessibleForFree` are true and verifiable: there is no
+       account and no payment. Declare nothing here that the page cannot show. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "monaparte",
+        "url": "https://mon.apartejs.dev/",
+        "description": "A conversational assistant whose model runs entirely in the visitor's browser: no request to an inference server, no data sent anywhere.",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Browser with WebAssembly; WebGPU recommended",
+        "isAccessibleForFree": true,
+        "inLanguage": ["en", "fr"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+        "image": "https://mon.apartejs.dev/og-card.png"
+      }
+    </script>
 
-  <script>
-    // Thème + langue AVANT la première peinture (anti-FOUC, anti popup "traduire ?").
-    (function () {
-      try {
-        var theme = localStorage.getItem('bp.theme');
-        if (theme !== 'light' && theme !== 'dark') {
-          theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    <script>
+      // Theme + locale BEFORE first paint (no FOUC, no "translate this page?" popup).
+      (function () {
+        try {
+          var theme = localStorage.getItem('bp.theme');
+          if (theme !== 'light' && theme !== 'dark') {
+            theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-aparte-theme', theme);
+          document.documentElement.style.colorScheme = theme;
+          var locale = localStorage.getItem('bp.locale');
+          if (!locale) locale = (navigator.language || 'en').slice(0, 2) === 'fr' ? 'fr' : 'en';
+          document.documentElement.lang = locale;
+        } catch (e) {
+          /* storage unavailable: CSS defaults */
         }
-        document.documentElement.setAttribute('data-aparte-theme', theme);
-        document.documentElement.style.colorScheme = theme;
-        var locale = localStorage.getItem('bp.locale');
-        if (!locale) locale = (navigator.language || 'fr').slice(0, 2) === 'fr' ? 'fr' : 'en';
-        document.documentElement.lang = locale;
-      } catch (e) { /* stockage indisponible : défauts du CSS */ }
-    })();
-  </script>
-</head>
-<body>
-  <app-root></app-root>
+      })();
+    </script>
+  </head>
+  <body>
+    <app-root></app-root>
 
-  <!-- Sans JavaScript, `app-root` reste vide : une page blanche pour le
-       visiteur, et rien à indexer pour les moissonneurs qui ne rendent pas de
-       JavaScript — c'est-à-dire presque tous, Google excepté. Ce bloc leur
-       donne le texte de la page, et à qui a désactivé JavaScript une
-       explication plutôt qu'un écran vide. Les styles sont en ligne : la
-       feuille de style est chargée par le JavaScript qui manque. -->
-  <noscript>
-    <div style="max-width:42rem;margin:12vh auto;padding:0 1.5rem;font-family:Georgia,'Times New Roman',serif;line-height:1.6;color:#241f2b">
-      <p style="font-size:2rem;color:#b07d33;margin:0 0 1.5rem">('.')</p>
-      <h1 style="font-size:1.9rem;font-weight:400;margin:0 0 1rem">monaparte</h1>
-      <p style="margin:0 0 1rem">
-        Un assistant conversationnel dont le modèle de langage s'exécute
-        entièrement dans votre navigateur. Aucune requête n'est envoyée à un
-        serveur d'inférence : la conversation, les fichiers que vous joignez et
-        les documents produits ne quittent pas votre appareil.
-      </p>
-      <p style="margin:0 0 1rem">
-        L'application a besoin de JavaScript pour fonctionner — c'est lui qui
-        exécute le modèle. Activez-le, puis rechargez la page.
-      </p>
-      <p style="margin:0;color:#6d6479">
-        monaparte est une démonstration d'<a href="https://apartejs.dev" style="color:#b07d33">aparté</a>,
-        une bibliothèque d'interface de conversation.
-      </p>
-    </div>
-  </noscript>
-</body>
+    <!-- Without JavaScript, `app-root` stays empty: a blank page for the visitor,
+       and nothing to index for crawlers that do not render JavaScript — that is,
+       almost all of them, Google excepted. This block gives them the page's text,
+       and gives whoever disabled JavaScript an explanation rather than an empty
+       screen. Styles are inline: the stylesheet is loaded by the very JavaScript
+       that is missing. -->
+    <noscript>
+      <div
+        style="
+          max-width: 42rem;
+          margin: 12vh auto;
+          padding: 0 1.5rem;
+          font-family: Georgia, 'Times New Roman', serif;
+          line-height: 1.6;
+          color: #241f2b;
+        "
+      >
+        <p style="font-size: 2rem; color: #b07d33; margin: 0 0 1.5rem">('.')</p>
+        <h1 style="font-size: 1.9rem; font-weight: 400; margin: 0 0 1rem">monaparte</h1>
+        <p style="margin: 0 0 1rem">
+          A conversational assistant whose language model runs entirely in your browser. No request
+          is sent to an inference server: the conversation, the files you attach and the documents
+          produced never leave your device.
+        </p>
+        <p style="margin: 0 0 1rem">
+          The application needs JavaScript to work — it is what runs the model. Enable it, then
+          reload the page.
+        </p>
+        <p style="margin: 0; color: #6d6479">
+          monaparte is a demonstration of
+          <a href="https://apartejs.dev" style="color: #b07d33">aparté</a>, a chat-interface
+          library.
+        </p>
+      </div>
+    </noscript>
+  </body>
 </html>
