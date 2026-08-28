@@ -22,7 +22,7 @@ import { TranslateService } from '../../core/i18n/translate.service';
       </header>
 
       <div class="hero">
-        <bp-mascotte [state]="'idle'" [size]="64" />
+        <bp-mascotte [state]="'idle'" [size]="64" housed />
         <h2 class="bp-serif">{{ t().privacy.title }}</h2>
         <p class="badge">100 % local</p>
       </div>

@@ -27,7 +27,7 @@ type StepKind = 'intro' | 'download' | 'ready';
   template: `
     <div class="onboarding">
       <div class="card">
-        <bp-mascotte [state]="mascotteState()" [size]="72" />
+        <bp-mascotte [state]="mascotteState()" [size]="72" housed />
         <p class="tag">{{ tag() }}</p>
 
         @switch (step()) {

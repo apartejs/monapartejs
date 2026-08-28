@@ -25,7 +25,7 @@ import { SIZE_ADAPTER_BYTES, getSouffleurManifest, isTowerCached } from '../../s
   template: `
     <div class="backdrop"></div>
     <div class="modal" role="dialog" [attr.aria-label]="t().modelUpdate.title">
-      <bp-mascotte [state]="mascotteState()" [size]="56" />
+      <bp-mascotte [state]="mascotteState()" [size]="56" housed />
       <h2>{{ t().modelUpdate.title }}</h2>
       <p>{{ t().modelUpdate.body }}</p>
 
