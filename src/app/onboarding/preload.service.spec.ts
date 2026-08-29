@@ -17,7 +17,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const markSeenVision = vi.fn();
-const prefetchTower = vi.fn(async () => undefined);
+type TowerProgress = (loaded: number, total: number) => void;
+const prefetchTower = vi.fn(
+  async (_urls?: unknown, _onProgress?: TowerProgress): Promise<void> => undefined,
+);
 const prepareModel = vi.fn(async (_id: string, onProgress: (p: { progress: number }) => void) => {
   onProgress({ progress: 100 });
 });
@@ -91,6 +94,27 @@ describe('OnboardingPreloadService — tower update cycle', () => {
     await service.start();
 
     expect(towerFinished).toBe(true);
+    expect(service.progress()).toBe(100);
+  });
+
+  it('the percentage is a whole number, whatever the byte shares', async () => {
+    // 886 MB of caller against 269 MB of tower: the caller's share is
+    // 0.7668…, and 24 % of it is 18.404171932196558 — what the modal showed.
+    const seen: number[] = [];
+    prepareModel.mockImplementationOnce(async (_id, onProgress) => {
+      onProgress({ progress: 24 });
+      seen.push(service.progress());
+      onProgress({ progress: 100 });
+    });
+    prefetchTower.mockImplementation(async (_urls, onProgress) => {
+      onProgress?.(1000, 3000);
+      seen.push(service.progress());
+    });
+
+    await service.start();
+
+    // floor(18.40) during the caller, floor(76.68 + 7.77) during the tower.
+    expect(seen).toEqual([18, 84]);
     expect(service.progress()).toBe(100);
   });
 
