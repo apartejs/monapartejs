@@ -118,8 +118,9 @@
 }
 
 /* As on aimi: the corner mascot lives in the gutter to the right of the
- * centered content (760px). Below 1100px there's no more gutter → hidden,
- * never over the composer. */
+ * centered content (760px), never over the composer. Whether there IS a
+ * gutter is decided in TypeScript (layout/corner-mascotte.ts): it depends on
+ * the sidebar as much as on the viewport, which a media query cannot see. */
 .corner-mascotte {
   position: fixed;
   right: 22px;
@@ -127,13 +128,6 @@
   z-index: 30;
   pointer-events: none;
   opacity: 0.9;
-  display: none;
-}
-
-@media (min-width: 1100px) {
-  .corner-mascotte {
-    display: block;
-  }
 }
 
 @media (max-width: 768px) {

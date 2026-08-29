@@ -15,6 +15,7 @@ import { ModelStatusService } from './core/model-status.service';
 import { ThemeService } from './core/theme.service';
 import { PrivacySheetComponent } from './features/privacy/privacy-sheet.component';
 import { SettingsSheetComponent } from './features/settings/settings-sheet.component';
+import { cornerMascotteSize } from './layout/corner-mascotte';
 import { SidebarComponent } from './layout/sidebar/sidebar.component';
 import { FaviconService, MascotteComponent } from './mascotte';
 import { ModelUpdateModalComponent } from './features/model-update/model-update-modal.component';
@@ -61,6 +62,7 @@ export class AppComponent {
   );
   protected readonly modelUpdateOpen = signal(false);
   protected readonly sidebarOpen = signal(window.innerWidth > 768);
+  private readonly viewportWidth = signal(window.innerWidth);
   protected readonly settingsOpen = signal(false);
   protected readonly privacyOpen = signal(false);
   protected readonly searchOpen = signal(false);
@@ -69,7 +71,8 @@ export class AppComponent {
 
   /** Corner mascot wired to the model's REAL cycle (souffleurs provider):
    *  downloading/loading (including executor swap ~3.8 s) → thinking;
-   *  generating (caller or executor) → talking; error → (x.x). */
+   *  generating (caller or executor) → talking; error → (x.x); and a happy
+   *  beat for 1.5 s when a generation ends. */
   protected readonly cornerMascotteState = computed(() => {
     switch (this.modelStatus.state().status) {
       case 'error':
@@ -80,13 +83,26 @@ export class AppComponent {
       case 'generating':
         return 'talking' as const;
       default:
-        return this.generating.generating() ? ('talking' as const) : ('idle' as const);
+        if (this.generating.generating()) return 'talking' as const;
+        return this.generating.celebrating() ? ('happy' as const) : ('idle' as const);
     }
   });
 
-  protected readonly showCornerMascotte = computed(
-    () => this.manager.activeId() !== null && !this.onboardingOpen(),
+  /** 56, 40, or 0 when the gutter beside the column is too narrow — the
+   *  sidebar counts, which is why this is not a media query. */
+  protected readonly cornerMascotteSize = computed(() =>
+    cornerMascotteSize(this.viewportWidth(), this.sidebarOpen()),
   );
+
+  protected readonly showCornerMascotte = computed(
+    () =>
+      this.manager.activeId() !== null && !this.onboardingOpen() && this.cornerMascotteSize() > 0,
+  );
+
+  @HostListener('window:resize')
+  protected onResize(): void {
+    this.viewportWidth.set(window.innerWidth);
+  }
 
   private readonly preload = inject(OnboardingPreloadService);
   private readonly callerUpdate = signal<boolean | null>(null);

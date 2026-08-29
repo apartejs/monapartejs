@@ -18,9 +18,11 @@ drive-by sweep.
 
 ## Rules
 
-1. `pnpm verify` before claiming anything works — lint, format, app types, **worker types**,
-   tests. `typecheck:worker` is a separate pass on purpose: `tsc` does not follow
-   `new Worker(new URL(...))`, so the inference worker belongs to no program otherwise.
+1. `pnpm verify` before claiming anything works — lint, format, app types **and
+   templates**, **worker types**, tests. `typecheck` runs `ngc`: plain `tsc` never looks
+   at a template, so a wrong binding passes and breaks at `ng build`. `typecheck:worker`
+   is a separate pass again — `tsc` does not follow `new Worker(new URL(...))`, so the
+   inference worker belongs to no program otherwise.
 2. **The contract is verbatim.** `souffleurs/wire/tool-defs.ts`, `wire/system-prompt.ts`,
    `executors/executor-prompts.ts` are regenerated from the lab, never rephrased. Measured:
    adding one sentence to the system prompt changes nothing, token for token (see

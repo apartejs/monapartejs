@@ -17,5 +17,6 @@ is not rewritten.
 | [009](009-english-repository.md) | The repository is in English; model-facing text keeps the contract's language | accepted |
 | [010](010-bp-prefixes-kept.md) | The `bp-`/`bp.` prefixes are kept, not migrated | proposed |
 | [011](011-scope-of-1-0.md) | Scope of 1.0: prove what exists, do not extend it | proposed |
+| [012](012-product-colour-and-mark.md) | Monaparté carries its own colour (Angular magenta-violet) and its own mark (the mascot at home) | accepted |
 
 Format: [000-template.md](000-template.md).

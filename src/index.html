@@ -59,8 +59,11 @@
        The manifest existed but was linked nowhere, so it did nothing. iOS ignores
        both the manifest AND the SVG for the home screen — it wants
        apple-touch-icon.png, under that exact name. -->
+    <!-- The .ico is for browsers without SVG favicons; the SVG is the same
+       silhouette, and FaviconService redraws THAT link with the state's colour
+       — so the tab never shows two different marks. -->
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="icon" type="image/svg+xml" href="icons/mascotte.svg" />
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
     <!-- Two `theme-color`s: the browser chrome follows the system theme instead
@@ -142,7 +145,7 @@
         </p>
         <p style="margin: 0; color: #6d6479">
           Monaparté is a demonstration of
-          <a href="https://apartejs.dev" style="color: #b07d33">aparté</a>, a chat-interface
+          <a href="https://apartejs.dev" style="color: #a21caf">aparté</a>, a chat-interface
           library.
         </p>
       </div>

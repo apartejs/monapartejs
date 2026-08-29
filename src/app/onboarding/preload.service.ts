@@ -38,9 +38,9 @@ export class OnboardingPreloadService {
         : 1;
 
       await SouffleursProvider.prepareModel!(CALLER_MODEL_ID, (p) => {
-        if (typeof p.progress === 'number') this.progress.set(p.progress * callerShare);
+        if (typeof p.progress === 'number') this.setProgress(p.progress * callerShare);
       });
-      this.progress.set(100 * callerShare);
+      this.setProgress(100 * callerShare);
 
       // AWAITED, not in the background. Otherwise `state` would move to
       // 'done' before markSeenVision() had run, and the component's effect
@@ -48,11 +48,11 @@ export class OnboardingPreloadService {
       // arrived too late).
       await this.prefetchVision((loaded, total) => {
         if (total) {
-          this.progress.set(100 * callerShare + (loaded / total) * 100 * (1 - callerShare));
+          this.setProgress(100 * callerShare + (loaded / total) * 100 * (1 - callerShare));
         }
       });
 
-      this.progress.set(100);
+      this.setProgress(100);
       // ("seen" versions are memorized by the provider via the manifest on
       // every successful load — never a modal after a fresh download)
       this.state.set('done');
@@ -63,6 +63,16 @@ export class OnboardingPreloadService {
       this.state.set('error');
       this.errorMessage.set(err instanceof Error ? err.message : String(err));
     }
+  }
+
+  /**
+   * The only writer of `progress`. The aggregator hands out whole percentages,
+   * but weighting them by the caller's share of the bytes (0.7668…) made
+   * 18.404171932196558 %, and the modal printed it as is. Floored, like the
+   * aggregator: the bar never claims more than what has arrived.
+   */
+  private setProgress(value: number): void {
+    this.progress.set(Math.floor(value));
   }
 
   /** Bytes of the tower still to download (0 if absent or already cached). */

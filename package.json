@@ -20,7 +20,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "typecheck": "ngc -p tsconfig.app.json --noEmit",
     "typecheck:worker": "tsc --noEmit --strict --target ES2022 --module ES2022 --moduleResolution bundler --skipLibCheck --lib ES2022,DOM,WebWorker src/app/souffleurs/souffleurs.worker.ts",
     "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:worker && pnpm test"
   },

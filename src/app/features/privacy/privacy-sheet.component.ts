@@ -22,7 +22,7 @@ import { TranslateService } from '../../core/i18n/translate.service';
       </header>
 
       <div class="hero">
-        <bp-mascotte [state]="'idle'" [size]="64" />
+        <bp-mascotte [state]="'idle'" [size]="64" housed />
         <h2 class="bp-serif">{{ t().privacy.title }}</h2>
         <p class="badge">100 % local</p>
       </div>
@@ -131,7 +131,7 @@ import { TranslateService } from '../../core/i18n/translate.service';
     }
     .glyph {
       font-size: 1.5rem;
-      color: var(--aparte-primary);
+      color: var(--bp-mascotte, var(--aparte-primary));
       text-align: center;
       line-height: 1.3;
     }

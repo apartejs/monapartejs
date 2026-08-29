@@ -27,7 +27,9 @@ interface ConvGroup {
   template: `
     <aside class="sidebar">
       <header class="brand bp-serif">
-        <bp-mascotte [state]="'idle'" [size]="22" />
+        <!-- The mark, at the scale of the wordmark beside it: the house is three
+             times the face's size, so a face of 15 makes a 45px-wide house. -->
+        <bp-mascotte [state]="'idle'" [size]="15" housed />
         <span>{{ t().brand }}</span>
       </header>
 

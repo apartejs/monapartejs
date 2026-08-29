@@ -26,7 +26,7 @@ const esc = (v: unknown) =>
 const CARD_STYLES = `
 .bp-artifact-card { border: 1px solid var(--aparte-border); border-radius: 12px; background: var(--aparte-surface-1); padding: 12px 14px; margin: 6px 0; max-width: 480px; }
 .bp-artifact-head { display: flex; align-items: center; gap: 10px; }
-.bp-artifact-icon { font-family: var(--bp-serif, serif); color: var(--aparte-primary); font-size: 18px; }
+.bp-artifact-icon { font-family: var(--bp-serif, serif); color: var(--bp-mascotte, var(--aparte-primary)); font-size: 18px; }
 .bp-artifact-name { font-weight: 500; font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bp-artifact-meta { color: var(--aparte-text-muted); font-size: 12px; }
 .bp-artifact-dl { font: inherit; font-size: 12.5px; background: var(--aparte-primary); color: var(--aparte-on-primary, #fff); border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
