@@ -110,7 +110,7 @@ export interface Translations {
 }
 
 export const FR: Translations = {
-  brand: 'aparté',
+  brand: 'Monaparté',
   topbar: {
     toggleSidebar: 'Ouvrir/fermer le panneau',
     localBadge: '100 % local',
@@ -255,7 +255,7 @@ export const FR: Translations = {
 };
 
 export const EN: Translations = {
-  brand: 'aparté',
+  brand: 'Monaparté',
   topbar: {
     toggleSidebar: 'Toggle sidebar',
     localBadge: '100% local',

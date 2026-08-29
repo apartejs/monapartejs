@@ -9,6 +9,10 @@
 
   1200x630: the ratio Open Graph and the large Twitter card expect. Below
   600x315, platforms downgrade to a square thumbnail.
+
+  The mark is the same scene as public/icons/mascotte.svg, minus the rounded
+  square (the card is its own night) and the stars; the house is MARK_PATH
+  from src/app/mascotte/mark.ts, and mark.spec.ts checks that it stays so.
 -->
 <html lang="en">
 <head>
@@ -23,11 +27,12 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 0 88px;
+    /* The bottom padding lifts the centred block clear of the footer line. */
+    padding: 0 88px 56px;
     position: relative;
     overflow: hidden;
   }
-  /* Brass halo, very diffuse: adds depth without stealing legibility. */
+  /* Magenta halo, very diffuse: adds depth without stealing legibility. */
   body::before {
     content: '';
     position: absolute;
@@ -35,22 +40,13 @@
     width: 780px; height: 780px;
     background: radial-gradient(circle, rgba(233,0,102,.20) 0%, rgba(233,0,102,0) 62%);
   }
-  /* The mark: the mascot at home. The house is sized off the glyph, so the two
-     stay locked together whatever the font metrics do. */
+  /* The house's left wall sits 100/512 into the scene: pulled left so it
+     lines up with the text below. */
   .mark {
-    position: relative;
-    width: 150px; height: 150px;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 0 10px -12px;
+    width: 190px; height: 190px;
+    margin: 0 0 4px -37px;
+    display: block;
   }
-  .mark svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .glyph {
-    position: relative;
-    font-size: 50px;
-    color: #d946ef;
-    letter-spacing: -2px;
-  }
-  .glyph em { color: #f2eee7; font-style: normal; }
   h1 {
     font-size: 96px;
     font-weight: 400;
@@ -76,17 +72,30 @@
 </style>
 </head>
 <body>
-  <div class="mark">
-    <svg viewBox="0 0 100 100" aria-hidden="true">
-      <defs><linearGradient id="g" x1="0" y1="1" x2="1" y2="0">
-        <stop offset="0" stop-color="#e90066"/><stop offset="1" stop-color="#d946ef"/>
-      </linearGradient></defs>
-      <path d="M14 78 L14 22 L50 2 L86 22 L86 78 Z" fill="url(#g)" opacity=".14"/>
-      <path d="M14 78 L14 22 L50 2 L86 22 L86 78 Z" fill="none" stroke="url(#g)"
-            stroke-width="3.4" stroke-linejoin="round"/>
-    </svg>
-    <span class="glyph">(<em>'.'</em>)</span>
-  </div>
+  <svg class="mark" viewBox="0 0 512 512" aria-hidden="true">
+    <defs>
+      <linearGradient id="walls" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" stop-color="#e90066"/>
+        <stop offset="1" stop-color="#d946ef"/>
+      </linearGradient>
+      <radialGradient id="light" cx="60" cy="52" r="60" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#d9a24b" stop-opacity=".36"/>
+        <stop offset="1" stop-color="#d9a24b" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="ground">
+        <stop offset="0" stop-color="#d946ef" stop-opacity=".5"/>
+        <stop offset="1" stop-color="#d946ef" stop-opacity="0"/>
+      </radialGradient>
+      <clipPath id="inside"><path d="M60 4 L112 34 L112 84 L48 84 L30 100 L30 84 L8 84 L8 34 Z"/></clipPath>
+    </defs>
+    <ellipse cx="256" cy="390" rx="174" ry="21" fill="url(#ground)"/>
+    <g transform="translate(76 70) scale(3)">
+      <path d="M60 4 L112 34 L112 84 L48 84 L30 100 L30 84 L8 84 L8 34 Z" fill="#2b2436"/>
+      <rect width="120" height="100" fill="url(#light)" clip-path="url(#inside)"/>
+      <path d="M60 4 L112 34 L112 84 L48 84 L30 100 L30 84 L8 84 L8 34 Z" fill="none" stroke="url(#walls)" stroke-width="4" stroke-linejoin="round"/>
+      <text x="60" y="71" font-family="Georgia, 'Times New Roman', serif" font-size="40" text-anchor="middle" fill="#d9a24b">(<tspan fill="#e7c588">'.'</tspan>)</text>
+    </g>
+  </svg>
   <h1>Monaparté</h1>
   <p>An assistant that runs entirely in your browser.</p>
   <div class="foot">mon.apartejs.dev <span>·</span> 100 % local</div>

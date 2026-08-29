@@ -1,15 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Maskable: the launcher may crop to a circle of 80 % (radius 204 from the
+       centre), so the scene is drawn smaller and centred — the roof's apex,
+       its furthest point, sits 138 from the centre. Same house as mascotte.svg
+       (MARK_PATH, checked by mark.spec.ts), no stars: they would be cropped. -->
   <defs>
-    <linearGradient id="brandMask" x1="0" y1="1" x2="1" y2="0">
+    <linearGradient id="walls" x1="0" y1="1" x2="1" y2="0">
       <stop offset="0" stop-color="#e90066"/>
       <stop offset="1" stop-color="#d946ef"/>
     </linearGradient>
+    <radialGradient id="light" cx="60" cy="52" r="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d9a24b" stop-opacity=".36"/>
+      <stop offset="1" stop-color="#d9a24b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ground">
+      <stop offset="0" stop-color="#d946ef" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#d946ef" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="inside"><path d="M60 4 L112 34 L112 84 L48 84 L30 100 L30 84 L8 84 L8 34 Z"/></clipPath>
   </defs>
-  <!-- Maskable: the launcher may crop to a circle of 80% (radius 204 from the
-       centre), so the house is drawn smaller and centred — its furthest point,
-       a bottom corner, sits at 184 from the centre. -->
   <rect width="512" height="512" fill="#17141c"/>
-  <path d="M110 368 L110 216 L256 144 L402 216 L402 368 Z" fill="url(#brandMask)" opacity="0.12"/>
-  <path d="M110 368 L110 216 L256 144 L402 216 L402 368 Z" fill="none" stroke="url(#brandMask)" stroke-width="11" stroke-linejoin="round"/>
-  <text x="256" y="326" font-family="Georgia, 'Times New Roman', serif" font-size="105" text-anchor="middle" fill="#f2eee7">('.')</text>
+  <ellipse cx="256" cy="373" rx="142" ry="17" fill="url(#ground)"/>
+  <g transform="translate(109 108) scale(2.45)">
+    <path d="M60 4 L112 34 L112 84 L48 84 L30 100 L30 84 L8 84 L8 34 Z" fill="#2b2436"/>
+    <rect width="120" height="100" fill="url(#light)" clip-path="url(#inside)"/>
+    <path d="M60 4 L112 34 L112 84 L48 84 L30 100 L30 84 L8 84 L8 34 Z" fill="none" stroke="url(#walls)" stroke-width="4" stroke-linejoin="round"/>
+    <text x="60" y="71" font-family="Georgia, 'Times New Roman', serif" font-size="40" text-anchor="middle" fill="#d9a24b">(<tspan fill="#e7c588">'.'</tspan>)</text>
+  </g>
 </svg>

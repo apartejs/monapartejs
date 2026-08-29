@@ -14,6 +14,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/debug/debug-artefacts.component').then((m) => m.DebugArtefactsComponent),
   },
+  {
+    // Every state of the mascot, in the real component, without a model.
+    path: 'debug/mascotte',
+    loadComponent: () =>
+      import('./pages/debug/debug-mascotte.component').then((m) => m.DebugMascotteComponent),
+  },
   { path: '', component: ChatPageComponent },
   { path: '**', redirectTo: '' },
 ];

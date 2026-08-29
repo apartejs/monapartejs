@@ -40,7 +40,7 @@ import { TranslateService } from '../../core/i18n/translate.service';
       }
     }
     .glyph {
-      color: var(--aparte-primary);
+      color: var(--bp-mascotte, var(--aparte-primary));
     }
     .apply {
       font: inherit;

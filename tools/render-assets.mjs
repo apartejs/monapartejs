@@ -6,26 +6,19 @@
  *
  * Why a script and not hand-placed PNGs: the sources are SVG and HTML,
  * versioned and readable; the PNGs are derived from them and must stay that
- * way. Without this script, touching up the mascot would leave the icons
- * and the social card behind, with nothing to flag it.
+ * way. Without this script, touching up the mascot would leave the icons,
+ * the favicon and the social card behind, with nothing to flag it.
  *
  * Why Chrome rather than a library: the project bundles neither sharp nor
- * resvg, and adding one for four images to regenerate once a year would be
+ * resvg, and adding one for six images to regenerate once a year would be
  * a bad trade. Chrome already renders SVG and HTML with the same fonts as
  * the site.
  *
- * The produced PNGs ARE committed: neither social crawlers nor operating
- * systems render JavaScript, and none of them reliably accepts SVG.
+ * The produced PNGs and the .ico ARE committed: neither social crawlers nor
+ * operating systems render JavaScript, and none of them reliably accepts SVG.
  */
 import { execFileSync } from 'node:child_process';
-import {
-  mkdtempSync,
-  rmSync,
-  copyFileSync,
-  existsSync,
-  readFileSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -58,11 +51,72 @@ function wrapSvg(svgPath, w, h) {
     .replace(/<svg /, `<svg width="${w}" height="${h}" `)
     .replace(/<\?xml[^>]*\?>/, '');
   return `<!doctype html><meta charset="utf-8">
-<style>html,body{margin:0;padding:0;width:${w}px;height:${h}px;overflow:hidden}
+<style>html,body{margin:0;padding:0;width:${w}px;height:${h}px;overflow:hidden;background:transparent}
 svg{display:block}</style>${svg}`;
 }
 
-/** One capture = one page, one size, one output file. */
+/**
+ * One capture = one page, one size, one PNG (as a Buffer).
+ *
+ * The page is written INTO the source folder: the card template might
+ * reference a neighboring file, and a page served from /tmp wouldn't find it.
+ * `--default-background-color=00000000` keeps the corners of the rounded
+ * icons transparent instead of white.
+ */
+function capture(html, w, h) {
+  const dir = mkdtempSync(join(tmpdir(), 'monaparte-render-'));
+  const pagePath = join(root, 'tools', `.render-${Date.now()}-${w}.html`);
+  try {
+    writeFileSync(pagePath, html, 'utf8');
+    const shot = join(dir, 'shot.png');
+    execFileSync(
+      CHROME,
+      [
+        '--headless',
+        '--disable-gpu',
+        '--default-background-color=00000000',
+        `--screenshot=${shot}`,
+        `--window-size=${w},${h}`,
+        '--hide-scrollbars',
+        '--force-device-scale-factor=1',
+        pathToFileURL(pagePath).href,
+      ],
+      { stdio: 'pipe' },
+    );
+    return readFileSync(shot);
+  } finally {
+    rmSync(pagePath, { force: true });
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Packs PNGs into an .ico. The container is trivial — a 6-byte header, one
+ * 16-byte entry per image, then the PNG data as is: every browser and
+ * Windows since Vista read PNG-compressed entries.
+ */
+function packIco(images) {
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // 1 = icon
+  header.writeUInt16LE(images.length, 4);
+  const entries = Buffer.alloc(16 * images.length);
+  let offset = header.length + entries.length;
+  images.forEach(({ size, data }, i) => {
+    const at = i * 16;
+    entries[at] = size === 256 ? 0 : size; // width, 0 meaning 256
+    entries[at + 1] = size === 256 ? 0 : size; // height
+    entries[at + 2] = 0; // palette
+    entries[at + 3] = 0; // reserved
+    entries.writeUInt16LE(1, at + 4); // colour planes
+    entries.writeUInt16LE(32, at + 6); // bits per pixel
+    entries.writeUInt32LE(data.length, at + 8);
+    entries.writeUInt32LE(offset, at + 12);
+    offset += data.length;
+  });
+  return Buffer.concat([header, entries, ...images.map((i) => i.data)]);
+}
+
 const JOBS = [
   {
     page: () => readFileSync(join(root, 'tools/og-card.html'), 'utf8'),
@@ -101,33 +155,20 @@ const JOBS = [
 ];
 
 for (const job of JOBS) {
-  const dir = mkdtempSync(join(tmpdir(), 'monaparte-render-'));
-  try {
-    // The page is written INTO the source folder: the card template might
-    // reference a neighboring file, and a page served from /tmp wouldn't
-    // find it.
-    const pagePath = join(root, 'tools', `.render-${Date.now()}.html`);
-    writeFileSync(pagePath, job.page(job.w, job.h), 'utf8');
-    try {
-      execFileSync(
-        CHROME,
-        [
-          '--headless',
-          '--disable-gpu',
-          `--screenshot=${join(dir, 'shot.png')}`,
-          `--window-size=${job.w},${job.h}`,
-          '--hide-scrollbars',
-          '--force-device-scale-factor=1',
-          pathToFileURL(pagePath).href,
-        ],
-        { stdio: 'pipe' },
-      );
-      copyFileSync(join(dir, 'shot.png'), join(root, job.out));
-      console.log(`${job.out}  ${job.w}x${job.h}`);
-    } finally {
-      rmSync(pagePath, { force: true });
-    }
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  writeFileSync(join(root, job.out), capture(job.page(job.w, job.h), job.w, job.h));
+  console.log(`${job.out}  ${job.w}x${job.h}`);
 }
+
+// The .ico, for browsers without SVG favicons: the same silhouette as
+// icons/favicon.svg, rasterised at the three sizes a tab or a shortcut asks for.
+const ICO_SIZES = [16, 32, 48];
+writeFileSync(
+  join(root, 'public/favicon.ico'),
+  packIco(
+    ICO_SIZES.map((size) => ({
+      size,
+      data: capture(wrapSvg('public/icons/favicon.svg', size, size), size, size),
+    })),
+  ),
+);
+console.log(`public/favicon.ico  ${ICO_SIZES.join('/')}`);

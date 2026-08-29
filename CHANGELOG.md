@@ -6,12 +6,19 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
 ## [Unreleased]
 
 ### Added
-- Monaparté has its own colour and its own mark (ADR-012): Angular's
-  magenta-violet as the interface accent, and the mascot drawn at home — a closed
-  house, no door, no window, the light only ever inside. The house wraps the home
-  screen mascot, the corner one and the sidebar wordmark, and it is the PWA icon and
-  the social card. The favicon keeps the bare face — at 16 px the walls and the face
-  fight for the same pixels — and says the state through its colour.
+- Monaparté has its own colour (ADR-012) and its own mark (ADR-013): Angular's
+  magenta-violet as the interface accent, and the mascot at home in a house-shaped
+  speech bubble — a body, walls in the accent, and a warm light behind the face,
+  which keeps the library's brass. One geometry (`mark.ts`) drawn by the component,
+  the launcher icons, the favicon (the silhouette, solid, its colour the state) and
+  the social card, with a test that keeps them identical.
+- The mascot has real states, in the manner of aimi's robot: it blinks; thinks with
+  dots in the attic and a breathing light; talks with a flapping mouth and a lit
+  tail; bounces when happy, with hearts on a click; shakes red on an error; sleeps
+  under rising z's; is surprised by a hover and looks around when the cursor goes
+  quiet. Its eyes follow the cursor on the home screen and in the corner, and the
+  corner has a happy beat when a generation ends. `/debug/mascotte` shows every
+  state without a model.
 - MIT licence, contributing guide, code of conduct, security policy, roadmap, decision
   records (`docs/decisions/`), issue and PR templates, Dependabot.
 - ESLint (angular-eslint) and Prettier; `pnpm verify` now runs lint and format checks
@@ -21,6 +28,22 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   and only fail at `ng build`.
 
 ### Fixed
+- The download showed `18.404171932196558 %`: the aggregator hands out whole
+  percentages, but weighting them by the caller's share of the bytes made a float,
+  printed as is. The service now floors, at its single point of writing.
+- The corner mascot sat over the chat column when the sidebar was open, and slid
+  behind the composer while the window was resized: its media query read the
+  viewport, which cannot see the 268 px of sidebar. The gutter is now computed
+  from the main area (`layout/corner-mascotte.ts`, tested with real widths), and a
+  laptop with the sidebar open keeps a smaller mascot rather than losing it.
+- The mark had drifted into four different drawings; the favicon declared a house
+  the decision said it must not have, and the dynamic favicon rewrote the `.ico`
+  link instead of the SVG one; `favicon.ico` was July's brass face; the sidebar
+  wordmark still read "aparté". The face bobbed in `steps(24)` inside an immobile
+  house — jitter at 14 px, a snap on every state change, a freeze mid-bob during
+  the decode — and the state light at 7 % was invisible in the light theme. A happy
+  face `(^.^)` ran into the walls: Georgia's `^` is three times an apostrophe's
+  width, so the happy eyes are `ˆ` and the surprised ones `°`.
 - Executors: the task is prefixed with `intent: ` as in 100 % of the training examples —
   every file generation was going out of distribution.
 - PDF sandbox: `autoTable` exposed as a global in addition to `doc.autoTable`; the prompt

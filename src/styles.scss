@@ -28,12 +28,20 @@
    * fail to substitute, silently. */
   --bp-brand-from: #e90066;
   --bp-brand-to: #a21caf;
+
+  /* The mascot keeps the LIBRARY's brass wherever it appears (ADR-013): it is
+   * aparté's mascot, visiting an Angular product. The product colours the house
+   * around it, never the face. `-ink` is the eyes and nose. */
+  --bp-mascotte: #b07d33;
+  --bp-mascotte-ink: #241f2b;
 }
 
 :root[data-aparte-theme='dark'] {
   --aparte-primary: #d946ef;
   --aparte-primary-hover: #e879f9;
   --bp-brand-to: #d946ef;
+  --bp-mascotte: #d9a24b;
+  --bp-mascotte-ink: #e7c588;
 }
 
 :root {
@@ -80,7 +88,10 @@ h3,
 }
 
 /* During GPU decoding, we freeze decorative animations to avoid competing
- * with WebGPU (lesson learned from aimi). The class is set on <body> by the app. */
+ * with WebGPU (lesson learned from aimi). The class is set on <body> by the app.
+ * The mascot does not carry the class: its animations are transform/opacity on
+ * small elements, capped with steps(), cheap enough to run during the decode —
+ * which is exactly when it talks (aimi's second lesson, ADR-013). */
 body.bp-generating .bp-decorative,
 body.bp-generating .bp-decorative * {
   animation-play-state: paused !important;

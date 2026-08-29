@@ -28,7 +28,7 @@ Hugging Face; allow a few minutes and keep the tab open.
 | `pnpm test` | Vitest, no browser |
 | `pnpm lint`, `pnpm format` | ESLint (`--max-warnings 0`) and Prettier |
 | `pnpm build` | production build into `dist/monaparte/browser` |
-| `node tools/render-assets.mjs` | rebuilds the social card and icons from the SVGs |
+| `node tools/render-assets.mjs` | rebuilds the social card, the icons and `favicon.ico` from the SVGs |
 
 `typecheck` runs `ngc`, not `tsc`: plain `tsc` never looks at an Angular template, so a
 binding to a property that does not exist — or an input given the wrong type — compiles

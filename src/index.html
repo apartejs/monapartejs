@@ -59,8 +59,11 @@
        The manifest existed but was linked nowhere, so it did nothing. iOS ignores
        both the manifest AND the SVG for the home screen — it wants
        apple-touch-icon.png, under that exact name. -->
+    <!-- The .ico is for browsers without SVG favicons; the SVG is the same
+       silhouette, and FaviconService redraws THAT link with the state's colour
+       — so the tab never shows two different marks. -->
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="icon" type="image/svg+xml" href="icons/mascotte.svg" />
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.webmanifest" />
     <!-- Two `theme-color`s: the browser chrome follows the system theme instead
@@ -129,7 +132,7 @@
           color: #241f2b;
         "
       >
-        <p style="font-size: 2rem; color: #a21caf; margin: 0 0 1.5rem">('.')</p>
+        <p style="font-size: 2rem; color: #b07d33; margin: 0 0 1.5rem">('.')</p>
         <h1 style="font-size: 1.9rem; font-weight: 400; margin: 0 0 1rem">Monaparté</h1>
         <p style="margin: 0 0 1rem">
           A conversational assistant whose language model runs entirely in your browser. No request

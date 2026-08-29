@@ -41,7 +41,7 @@ function errorRenderer({ message }: { message: string }): HTMLElement {
 
 const STYLES = `
 .bp-mascotte-inline { display: inline-flex; align-items: baseline; gap: 6px; }
-.bp-mascotte-face { font-family: var(--bp-serif, serif); color: var(--aparte-primary); }
+.bp-mascotte-face { font-family: var(--bp-serif, serif); color: var(--bp-mascotte, var(--aparte-primary)); }
 .bp-mascotte-dots::after { content: '…'; color: var(--aparte-text-muted); animation: bp-mascotte-dots 1.6s steps(4) infinite; }
 .bp-mascotte-status-text { color: var(--aparte-text-muted); }
 .bp-mascotte-error-text { color: var(--aparte-error); }

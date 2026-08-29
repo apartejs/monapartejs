@@ -36,7 +36,9 @@
 
   @if (showCornerMascotte()) {
     <div class="corner-mascotte">
-      <bp-mascotte [state]="cornerMascotteState()" [size]="64" housed />
+      <!-- `follow`, not `interactive`: the corner cannot be clicked (pointer-events:
+           none, so it never sits over the composer), but its eyes can follow. -->
+      <bp-mascotte [state]="cornerMascotteState()" [size]="cornerMascotteSize()" housed follow />
     </div>
   }
 

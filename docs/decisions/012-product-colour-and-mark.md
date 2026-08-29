@@ -1,7 +1,10 @@
 # ADR-012 — Monaparté carries its own colour and its own mark
 
 - **Date**: 2026-08-29
-- **Status**: accepted
+- **Status**: accepted for the colour; the mark and its motion are superseded by
+  ADR-013 (the house became a house-shaped speech bubble with a body and a light,
+  the mascot kept its brass, the favicon carries the silhouette, and the states
+  animate)
 - **Context**: until now the product overrode no colour at all: brass and plum came
   from `@aparte/core`'s defaults, so Monaparté wore the library's identity. With
   several products built on aparté, each on its own framework, they were
