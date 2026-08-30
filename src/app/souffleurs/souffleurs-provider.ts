@@ -24,6 +24,7 @@ import type {
 import {
   CALLER_ADAPTER,
   CALLER_DOWNLOAD_BYTES,
+  CALLER_CONTEXT_WINDOW,
   CALLER_MAX_NEW_TOKENS,
   CALLER_MODEL_ID,
   EXECUTOR_MAX_NEW_TOKENS,
@@ -197,6 +198,13 @@ const MODELS: AparteAIModel[] = [
     id: CALLER_MODEL_ID,
     name: 'aparté (local)',
     capabilities: ['streaming', 'function_calling'],
+    // The base model's window. Declared because <aparte-context> draws nothing
+    // without one, and the compaction selector budgets against it. It is the
+    // model's MAXIMUM, not a comfortable size in a browser: we rebuild the whole
+    // wire prompt every turn and reuse no KV cache, so a conversation near this
+    // window re-prefills it at every send — on WASM for anyone without WebGPU.
+    // The gauge exists to make that cost visible before it is paid.
+    contextWindow: CALLER_CONTEXT_WINDOW,
     description:
       'Souffleur-chat — tourne entièrement dans votre navigateur, rien ne sort de votre appareil.',
   },

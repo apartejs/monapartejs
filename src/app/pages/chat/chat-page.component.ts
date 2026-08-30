@@ -11,32 +11,27 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
-import { AparteChatComponent, AparteElicitationDirective } from '@aparte/angular';
+import { AparteChatComponent, AparteContextDirective } from '@aparte/angular';
 import type { AparteMessageInfoEventDetail, AparteUsage } from '@aparte/core';
 import { ConversationManagerService } from '@aparte/angular';
-import { estimateTokens } from '@aparte/engine';
 import { GeneratingService } from '../../core/generating.service';
 import { TranslateService } from '../../core/i18n/translate.service';
 import { ModelStatusService } from '../../core/model-status.service';
 import { MascotteComponent } from '../../mascotte';
-import { buildSystemPrompt, fileRegistry } from '../../souffleurs';
+import { fileRegistry } from '../../souffleurs';
 import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
 import { ConversationMinimapComponent } from './conversation-minimap.component';
-
-/** Caller's practical context window (training MAX_SEQ_LEN). */
-const CONTEXT_BUDGET_TOKENS = 4096;
-const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
 
 @Component({
   selector: 'bp-chat-page',
   standalone: true,
-  // `AparteElicitationDirective` rather than CUSTOM_ELEMENTS_SCHEMA: since
-  // aparté 0.11 every core element has its Angular directive. The schema used
-  // to turn off template checking for ALL unknown tags in the file — a typo
-  // on an <aparte-chat> binding would get through.
+  // A directive per element rather than CUSTOM_ELEMENTS_SCHEMA: since aparté
+  // 0.11 every core element has its Angular directive. The schema used to turn
+  // off template checking for ALL unknown tags in the file — a typo on an
+  // <aparte-chat> binding would get through.
   imports: [
     AparteChatComponent,
-    AparteElicitationDirective,
+    AparteContextDirective,
     MascotteComponent,
     ConversationMinimapComponent,
   ],
@@ -59,25 +54,21 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
           <p class="tagline bp-serif">{{ t().welcome.tagline }}</p>
           <p class="sub">{{ t().welcome.sub }}</p>
         </div>
-        <!-- ask_question presenter: MANDATORY in the chat (it mounts its
-             panels in the composer via showPanel), otherwise requestUserInput
-             has no presenter. Renders nothing by itself. -->
-        <aparte-elicitation slot="above-composer"></aparte-elicitation>
+        <!-- The ask_question presenter is MANDATORY in the chat: without it
+             requestUserInput has nowhere to ask. Since aparté 0.16 the wrapper
+             renders <aparte-elicitation> itself, right before this slot — hence
+             no element here. Placing our own again would need
+             [elicitation]="false", or the question would open two panels. -->
         <!-- A single bar since aparté 0.7.0: the three slots
              footer-left / footer-center / footer-right merged into a single
              "toolbar". Placement is now decided by DOM order and by
              logical margins (see .helper below). -->
-        @if (contextTokens(); as ctx) {
-          <span
-            slot="toolbar"
-            class="context-pill"
-            [class.warn]="ctx.ratio > 0.75"
-            [class.danger]="ctx.ratio > 0.9"
-            [title]="t().context.tooltip"
-          >
-            ≈ {{ ctx.tokens }} / {{ ctx.budget }} · {{ t().context.label }}
-          </span>
-        }
+        <!-- The library's gauge, not an estimate of ours: it reads the
+             inputTokens the worker actually reports, against the model's
+             declared contextWindow (32k). It draws nothing before the first
+             turn. auto-compact makes it ask for a compaction on reaching 90 %;
+             plugin-compaction answers, wired in core/aparte.config.ts. -->
+        <aparte-context slot="toolbar" variant="ring" auto-compact></aparte-context>
         <div slot="toolbar" class="helper">{{ t().chat.helper }}</div>
       </aparte-chat>
 
@@ -187,19 +178,6 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
        * in right-to-left reading. The toolbar brings its own
        * padding: don't add more, or the line grows. */
       margin-inline: auto;
-    }
-    .context-pill {
-      font-family: var(--bp-mono);
-      font-size: 10.5px;
-      color: var(--aparte-text-muted);
-      cursor: default;
-      white-space: nowrap;
-    }
-    .context-pill.warn {
-      color: var(--aparte-warning);
-    }
-    .context-pill.danger {
-      color: var(--aparte-error);
     }
     @media (pointer: coarse) {
       .helper {
@@ -324,21 +302,6 @@ export class ChatPageComponent {
   protected readonly deviceLabel = computed(() =>
     this.modelStatus.state().device === 'webgpu' ? 'WebGPU' : 'WASM (CPU)',
   );
-
-  /** Context budget pill (iso context-stats aimi) — lib estimate. */
-  protected readonly contextTokens = computed(() => {
-    const conv = this.manager.activeConversation();
-    if (!conv || !conv.messages.length) return null;
-    let tokens = SYSTEM_TOKENS;
-    for (const message of conv.messages) {
-      tokens += estimateTokens(message.content ?? '') + 8;
-    }
-    return {
-      tokens,
-      budget: CONTEXT_BUDGET_TOKENS,
-      ratio: tokens / CONTEXT_BUDGET_TOKENS,
-    };
-  });
 
   protected onConversationCreated(id: string): void {
     // Attachments are registered at SEND time, so before the conversation has

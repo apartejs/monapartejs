@@ -13,8 +13,10 @@ import { inject, isDevMode, provideAppInitializer, type EnvironmentProviders } f
 import { provideServiceWorker } from '@angular/service-worker';
 import { ConversationManagerService, provideAparte } from '@aparte/angular';
 import { AparteDirectTransport, aparteGlobalConfig, registerSegmentRenderer } from '@aparte/core';
+import type { AparteMessage } from '@aparte/core';
 import { fr } from '@aparte/locale-fr';
 import { buildReceipt, questionReceiptRenderer } from '@aparte/plugin-ask-user';
+import { createCompactionSelector, setupCompaction } from '@aparte/plugin-compaction';
 import { setupMarkedProvider } from '@aparte/plugin-marked';
 import { setupShikiProvider } from '@aparte/plugin-shiki';
 import { setupStreamingMarkdownProvider } from '@aparte/plugin-streaming-markdown';
@@ -53,6 +55,8 @@ import {
 } from '../souffleurs';
 import { DexieConversationAdapter } from '../storage/conversation-adapter';
 import { LOCAL_KEYS, SettingsService, localGet } from '../storage/settings.service';
+import { buildCompactionDigest } from './compaction-digest';
+import { TranslateService } from './i18n/translate.service';
 import { LinkGuardService } from './link-guard.service';
 import { RichRenderService } from './rich-render.service';
 
@@ -101,6 +105,53 @@ export function provideMonaparte(): EnvironmentProviders[] {
       //    so the button had disappeared with the move to 0.5.
       // Lib reminder: `info` only shows if the message carries a `usage`.
       aparteGlobalConfig.setBubbleActions({ retry: true, edit: true, info: true });
+
+      // Compaction. The gauge (<aparte-context auto-compact> in the chat) asks
+      // at 90 % of the window; this answers.
+      //
+      // `summarize` REPLACES the model call, and that is deliberate, not a
+      // shortcut. Two reasons, in order:
+      //  1. Measured (souffleur-chat 0.3.0, 6 generations): asked to summarise,
+      //     the model refuses, answers as if continuing the chat, or invents —
+      //     one run produced a second client's amounts found nowhere in the
+      //     transcript. See FRICTIONS-MODELE.local.md.
+      //  2. It could not have worked anyway: the plugin puts its instruction in
+      //     a `system` message, and our provider imposes the contract's own
+      //     system prompt while buildWirePrompt drops the rest. The instruction
+      //     never reached the model. Going through `summarize` sidesteps the
+      //     transport entirely, so the verbatim contract is untouched.
+      //
+      // The selector stays the library's, budget-aware over the 32k the model
+      // now declares: it keeps the newest turns that still fit. We capture what
+      // it drops so the digest reads the real messages rather than parsing the
+      // flattened prose back out — the plugin runs one compaction at a time, so
+      // the capture cannot interleave.
+      const i18n = inject(TranslateService);
+      let lastDropped: AparteMessage[] = [];
+      const budgeted = createCompactionSelector({
+        contextWindow: () => aparteGlobalConfig.getCurrentModel()?.contextWindow,
+        systemPrompt: () => aparteGlobalConfig.resolveSystemPrompt(),
+        tools: () => aparteGlobalConfig.getTools(),
+      });
+      setupCompaction({
+        selector: (messages) => {
+          const selection = budgeted(messages);
+          lastDropped = selection.drop;
+          return selection;
+        },
+        summarize: async () => {
+          // Consumed, not just read: should a summarise ever run without the
+          // selector having just run, the digest comes out empty — and the plugin
+          // treats an empty summary as a failure ("Empty summary returned by
+          // model"), so the compaction reports `aparte-compact-error` and leaves
+          // the transcript untouched. That is the outcome we want: a stale digest
+          // would state facts about ANOTHER compaction, in a notice the model then
+          // reads as true.
+          const dropped = lastDropped;
+          lastDropped = [];
+          return buildCompactionDigest(dropped, i18n.t().compaction);
+        },
+      });
 
       setupMarkedProvider();
       setupStreamingMarkdownProvider();

@@ -33,32 +33,32 @@ importers:
         specifier: ^19.2.25
         version: 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@aparte/angular':
-        specifier: 0.15.1
-        version: 0.15.1(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.15.1)(rxjs@7.8.2)
+        specifier: 0.16.1
+        version: 0.16.1(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.16.1)(rxjs@7.8.2)
       '@aparte/core':
-        specifier: 0.15.1
-        version: 0.15.1
-      '@aparte/engine':
-        specifier: 0.15.1
-        version: 0.15.1(@aparte/core@0.15.1)
+        specifier: 0.16.1
+        version: 0.16.1
       '@aparte/locale-fr':
-        specifier: 0.15.1
-        version: 0.15.1(@aparte/core@0.15.1)
+        specifier: 0.16.1
+        version: 0.16.1(@aparte/core@0.16.1)
       '@aparte/plugin-ask-user':
-        specifier: 0.15.1
-        version: 0.15.1(@aparte/core@0.15.1)
+        specifier: 0.16.1
+        version: 0.16.1(@aparte/core@0.16.1)
+      '@aparte/plugin-compaction':
+        specifier: 0.16.1
+        version: 0.16.1(@aparte/core@0.16.1)
       '@aparte/plugin-marked':
-        specifier: 0.15.1
-        version: 0.15.1(@aparte/core@0.15.1)(marked@18.0.7)
+        specifier: 0.16.1
+        version: 0.16.1(@aparte/core@0.16.1)(marked@18.0.7)
       '@aparte/plugin-model-selector':
-        specifier: 0.15.1
-        version: 0.15.1(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.15.1)
+        specifier: 0.16.1
+        version: 0.16.1(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.16.1)
       '@aparte/plugin-shiki':
-        specifier: 0.15.1
-        version: 0.15.1(@aparte/core@0.15.1)(shiki@4.3.1)
+        specifier: 0.16.1
+        version: 0.16.1(@aparte/core@0.16.1)(shiki@4.3.1)
       '@aparte/plugin-streaming-markdown':
-        specifier: 0.15.1
-        version: 0.15.1(@aparte/core@0.15.1)(streaming-markdown@0.2.15)
+        specifier: 0.16.1
+        version: 0.16.1(@aparte/core@0.16.1)(streaming-markdown@0.2.15)
       '@faker-js/faker':
         specifier: ^10.5.0
         version: 10.5.0
@@ -400,21 +400,21 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@aparte/angular@0.15.1':
-    resolution: {integrity: sha512-KJe/EQkibCg0KZ3bSGtnLVLWGS+mxjB+Yfz3pMHvGLkFiyAwTLB0gBWLmR2jHbJUrSUlyoGztJMHjQ5YcO+sZA==}
+  '@aparte/angular@0.16.1':
+    resolution: {integrity: sha512-FSpUpkR3FCbm1tkGqOUF4YTOirPtbuJsIPj5kSEIYKI/gR0dpwGiJMp1V4htc3Fu4dhBtqoIrxGHdQPpphp4TA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@angular/common': ^19.2.0
       '@angular/core': ^19.2.0
-      '@aparte/core': '>=0.15.1 <1.0.0'
+      '@aparte/core': '>=0.16.1 <1.0.0'
       rxjs: ^7.8.0
 
-  '@aparte/core@0.15.1':
-    resolution: {integrity: sha512-HEpYe2vyvqUgQDZdTDO4Si3lzew57Wn7UQeDSEUrJnMR8T1yq77aI67cqcDb2nl8MynGQvNadW2FseE8lzxPBA==}
+  '@aparte/core@0.16.1':
+    resolution: {integrity: sha512-mX/+zdgI7sonIlUPvcSJFWKAPWqFW/A1gTtm4Y9tz3Z6Wm45YjAT+F5EQKJ5t3c8TRoMSNxZ9Zoc/xnmHAwjww==}
     engines: {node: '>=18'}
 
-  '@aparte/engine@0.15.1':
-    resolution: {integrity: sha512-2RJd+GA/zQVXvU2harcCcP0qKGqoM6D1h7IvApHELhINH4CV4aBY4EHSq7PXbcZu+0d5uJG3gxkZl8Pdrbu/cw==}
+  '@aparte/engine@0.16.1':
+    resolution: {integrity: sha512-aGBXOF1PFeotGn36Iwfb/cE72IDWHh6rmOoZyvE9c0koLt8o7FLx1HT1IFmhNOMbsR9Hv39PR97Vj/2z8r1Pbg==}
     engines: {node: '>=18'}
     peerDependencies:
       '@aparte/core': '*'
@@ -422,31 +422,37 @@ packages:
       '@aparte/core':
         optional: true
 
-  '@aparte/locale-fr@0.15.1':
-    resolution: {integrity: sha512-PQSYZM6pFHt87HmHkcbnpiqKtEnGWf9IoxeKMi0k0aNOVtEwEvKDQwUmMswl3MmO7OEL6hxg1ZLfQERKgTJkWg==}
+  '@aparte/locale-fr@0.16.1':
+    resolution: {integrity: sha512-lADGbQ7cwY9Kys0w6neyyJAaA1yqrhVEgn4IEwmzcgdkQsn8/LejMCEllcuxT3qvHmCt9YO4JDFrCWPRfN/3bQ==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.15.1 <1.0.0'
+      '@aparte/core': '>=0.16.1 <1.0.0'
 
-  '@aparte/plugin-ask-user@0.15.1':
-    resolution: {integrity: sha512-Qv2+taA3TqHDRJ5ViR8+cEUnTZ7u/Tpg1UWvJFKkjeSv5w8y13QG6ERTPkJScSInnaorA5++ko30Bonw2U7Oxg==}
+  '@aparte/plugin-ask-user@0.16.1':
+    resolution: {integrity: sha512-IfLN2V3TjDaXQXOGrM7HvlcgHSSf/F8y+QEw79iiNHXLhAebL3Qo3JdebG21N8Z8wE1SsgGrvzZBqdt3kKvLRg==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.15.1 <1.0.0'
+      '@aparte/core': '>=0.16.1 <1.0.0'
 
-  '@aparte/plugin-marked@0.15.1':
-    resolution: {integrity: sha512-ZM/O8nmJc4e+i9I1CkiyzcqJwjqtuGVoqNrtSPzgKU9LDQQBizYpD/Y+ZCasOilMMosn7X3OmM9raOXP/PLikg==}
+  '@aparte/plugin-compaction@0.16.1':
+    resolution: {integrity: sha512-lPhg6YK8pkyMul6xidQB8TgOj9NhWsCl482gAPsIlFc1g4Zy9KDHdqR1aonIYmgGWHelHMTsbfe1Fsem0yhA1g==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.15.1 <1.0.0'
+      '@aparte/core': '>=0.16.1 <1.0.0'
+
+  '@aparte/plugin-marked@0.16.1':
+    resolution: {integrity: sha512-Z8cT6a+P6ODn3/4tCkCGFnxSfRILCLOa/Ol3jz/JubU1OWVYlopwaax+c57Qpxwc4Xcf3I9fPD+FI6UuKnoatw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@aparte/core': '>=0.16.1 <1.0.0'
       marked: ^18.0.0
 
-  '@aparte/plugin-model-selector@0.15.1':
-    resolution: {integrity: sha512-8wvWXrjX+E+4G7it0T02y+nE7I6nZljtPsTREKKpeumqnT8TzGr2ARYXeksx/fNWwogVL9brvYq7xYC+SOCY0A==}
+  '@aparte/plugin-model-selector@0.16.1':
+    resolution: {integrity: sha512-cIE93REK0jpMtWqInWbS05Kyb6Fz3/Lja60wXKgKbEZ8287Oo+XG54MKOT5nP2GiPQA0HIj0xAbPX5EdndEEPg==}
     engines: {node: '>=18'}
     peerDependencies:
       '@angular/core': ^19.2.0
-      '@aparte/core': '>=0.15.1 <1.0.0'
+      '@aparte/core': '>=0.16.1 <1.0.0'
       react: ^18.0.0 || ^19.0.0
       svelte: ^4.0.0 || ^5.0.0
       vue: ^3.5.0
@@ -460,18 +466,18 @@ packages:
       vue:
         optional: true
 
-  '@aparte/plugin-shiki@0.15.1':
-    resolution: {integrity: sha512-q68EtTxgyNh19oStVtQXEZPx1aNFMJzbyFMeH2TGioGB3x2ECedFLzCa22cOpa9NL7BOOn93u2Ps25W4gHzQpQ==}
+  '@aparte/plugin-shiki@0.16.1':
+    resolution: {integrity: sha512-cbP7ZFTodmpTYwGzNV14YGH8+EVk3HlKAUv0CWifJeYcz1ZPv5vFXGcR26UxUMcHXXiE5hsAXUJcVqcKzo3KjQ==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.15.1 <1.0.0'
+      '@aparte/core': '>=0.16.1 <1.0.0'
       shiki: ^4.0.0
 
-  '@aparte/plugin-streaming-markdown@0.15.1':
-    resolution: {integrity: sha512-dxSlK2fqvGqFmMZZ99mRZgAaOobf+VOR5l3/gGdBbPWABOr8anpuXdgZAT4COOcz0eRMvZiBTJ4DlVKRAnzaIQ==}
+  '@aparte/plugin-streaming-markdown@0.16.1':
+    resolution: {integrity: sha512-n7dJmhRJ6GyLc9lyZ/cUtPshfnHk+TzTxEPxZifgUif4Uhq8y4NENt5tI0iYOJb6HDgWF3367e0RkAq5JHVFVA==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.15.1 <1.0.0'
+      '@aparte/core': '>=0.16.1 <1.0.0'
       streaming-markdown: ^0.2.15
 
   '@babel/code-frame@7.29.7':
@@ -6637,7 +6643,7 @@ snapshots:
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@angular-devkit/architect': 0.1902.27(chokidar@4.0.3)
-      '@angular-devkit/build-webpack': 0.1902.27(chokidar@4.0.3)(webpack-dev-server@5.2.2(tslib@2.8.1)(webpack@5.105.0(postcss@8.5.12)))(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      '@angular-devkit/build-webpack': 0.1902.27(chokidar@4.0.3)(webpack-dev-server@5.2.2(tslib@2.8.1)(webpack@5.105.0(postcss@8.5.12)))(webpack@5.105.0(postcss@8.5.12))
       '@angular-devkit/core': 19.2.27(chokidar@4.0.3)
       '@angular/build': 19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(less@4.2.2)(postcss@8.5.12)(terser@5.39.0)(typescript@5.7.3)
       '@angular/compiler-cli': 19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3)
@@ -6651,14 +6657,14 @@ snapshots:
       '@babel/preset-env': 7.26.9(@babel/core@7.26.10)
       '@babel/runtime': 7.26.10
       '@discoveryjs/json-ext': 0.6.3
-      '@ngtools/webpack': 19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(typescript@5.7.3)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      '@ngtools/webpack': 19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(typescript@5.7.3)(webpack@5.105.0(postcss@8.5.12))
       '@vitejs/plugin-basic-ssl': 1.2.0(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))
       ansi-colors: 4.1.3
       autoprefixer: 10.4.20(postcss@8.5.12)
-      babel-loader: 9.2.1(@babel/core@7.26.10)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      babel-loader: 9.2.1(@babel/core@7.26.10)(webpack@5.105.0(postcss@8.5.12))
       browserslist: 4.28.7
-      copy-webpack-plugin: 12.0.2(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
-      css-loader: 7.1.2(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      copy-webpack-plugin: 12.0.2(webpack@5.105.0(postcss@8.5.12))
+      css-loader: 7.1.2(webpack@5.105.0(postcss@8.5.12))
       esbuild-wasm: 0.28.0
       fast-glob: 3.3.3
       http-proxy-middleware: 3.0.5
@@ -6666,22 +6672,22 @@ snapshots:
       jsonc-parser: 3.3.1
       karma-source-map-support: 1.4.0
       less: 4.2.2
-      less-loader: 12.2.0(less@4.2.2)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
-      license-webpack-plugin: 4.0.2(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      less-loader: 12.2.0(less@4.2.2)(webpack@5.105.0(postcss@8.5.12))
+      license-webpack-plugin: 4.0.2(webpack@5.105.0(postcss@8.5.12))
       loader-utils: 3.3.1
-      mini-css-extract-plugin: 2.9.2(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      mini-css-extract-plugin: 2.9.2(webpack@5.105.0(postcss@8.5.12))
       open: 10.1.0
       ora: 5.4.1
       picomatch: 4.0.4
       piscina: 4.8.0
       postcss: 8.5.12
-      postcss-loader: 8.1.1(postcss@8.5.12)(typescript@5.7.3)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      postcss-loader: 8.1.1(postcss@8.5.12)(typescript@5.7.3)(webpack@5.105.0(postcss@8.5.12))
       resolve-url-loader: 5.0.0
       rxjs: 7.8.1
       sass: 1.85.0
-      sass-loader: 16.0.5(sass@1.85.0)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      sass-loader: 16.0.5(sass@1.85.0)(webpack@5.105.0(postcss@8.5.12))
       semver: 7.7.1
-      source-map-loader: 5.0.0(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      source-map-loader: 5.0.0(webpack@5.105.0(postcss@8.5.12))
       source-map-support: 0.5.21
       terser: 5.39.0
       tree-kill: 1.2.2
@@ -6691,7 +6697,7 @@ snapshots:
       webpack-dev-middleware: 7.4.2(tslib@2.8.1)(webpack@5.105.0(postcss@8.5.12))
       webpack-dev-server: 5.2.2(tslib@2.8.1)(webpack@5.105.0(postcss@8.5.12))
       webpack-merge: 6.0.1
-      webpack-subresource-integrity: 5.1.0(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
+      webpack-subresource-integrity: 5.1.0(webpack@5.105.0(postcss@8.5.12))
     optionalDependencies:
       '@angular/service-worker': 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       esbuild: 0.28.0
@@ -6725,7 +6731,7 @@ snapshots:
       - webpack-cli
       - yaml
 
-  '@angular-devkit/build-webpack@0.1902.27(chokidar@4.0.3)(webpack-dev-server@5.2.2(tslib@2.8.1)(webpack@5.105.0(postcss@8.5.12)))(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))':
+  '@angular-devkit/build-webpack@0.1902.27(chokidar@4.0.3)(webpack-dev-server@5.2.2(tslib@2.8.1)(webpack@5.105.0(postcss@8.5.12)))(webpack@5.105.0(postcss@8.5.12))':
     dependencies:
       '@angular-devkit/architect': 0.1902.27(chokidar@4.0.3)
       rxjs: 7.8.1
@@ -6962,48 +6968,52 @@ snapshots:
       package-manager-detector: 1.8.0
       tinyexec: 1.2.4
 
-  '@aparte/angular@0.15.1(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.15.1)(rxjs@7.8.2)':
+  '@aparte/angular@0.16.1(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.16.1)(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@angular/core': 19.2.25(rxjs@7.8.2)(zone.js@0.15.1)
-      '@aparte/core': 0.15.1
+      '@aparte/core': 0.16.1
       rxjs: 7.8.2
 
-  '@aparte/core@0.15.1':
+  '@aparte/core@0.16.1':
     dependencies:
-      '@aparte/engine': 0.15.1(@aparte/core@0.15.1)
+      '@aparte/engine': 0.16.1(@aparte/core@0.16.1)
 
-  '@aparte/engine@0.15.1(@aparte/core@0.15.1)':
+  '@aparte/engine@0.16.1(@aparte/core@0.16.1)':
     optionalDependencies:
-      '@aparte/core': 0.15.1
+      '@aparte/core': 0.16.1
 
-  '@aparte/locale-fr@0.15.1(@aparte/core@0.15.1)':
+  '@aparte/locale-fr@0.16.1(@aparte/core@0.16.1)':
     dependencies:
-      '@aparte/core': 0.15.1
+      '@aparte/core': 0.16.1
 
-  '@aparte/plugin-ask-user@0.15.1(@aparte/core@0.15.1)':
+  '@aparte/plugin-ask-user@0.16.1(@aparte/core@0.16.1)':
     dependencies:
-      '@aparte/core': 0.15.1
+      '@aparte/core': 0.16.1
 
-  '@aparte/plugin-marked@0.15.1(@aparte/core@0.15.1)(marked@18.0.7)':
+  '@aparte/plugin-compaction@0.16.1(@aparte/core@0.16.1)':
     dependencies:
-      '@aparte/core': 0.15.1
+      '@aparte/core': 0.16.1
+
+  '@aparte/plugin-marked@0.16.1(@aparte/core@0.16.1)(marked@18.0.7)':
+    dependencies:
+      '@aparte/core': 0.16.1
       marked: 18.0.7
 
-  '@aparte/plugin-model-selector@0.15.1(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.15.1)':
+  '@aparte/plugin-model-selector@0.16.1(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.16.1)':
     dependencies:
-      '@aparte/core': 0.15.1
+      '@aparte/core': 0.16.1
     optionalDependencies:
       '@angular/core': 19.2.25(rxjs@7.8.2)(zone.js@0.15.1)
 
-  '@aparte/plugin-shiki@0.15.1(@aparte/core@0.15.1)(shiki@4.3.1)':
+  '@aparte/plugin-shiki@0.16.1(@aparte/core@0.16.1)(shiki@4.3.1)':
     dependencies:
-      '@aparte/core': 0.15.1
+      '@aparte/core': 0.16.1
       shiki: 4.3.1
 
-  '@aparte/plugin-streaming-markdown@0.15.1(@aparte/core@0.15.1)(streaming-markdown@0.2.15)':
+  '@aparte/plugin-streaming-markdown@0.16.1(@aparte/core@0.16.1)(streaming-markdown@0.2.15)':
     dependencies:
-      '@aparte/core': 0.15.1
+      '@aparte/core': 0.16.1
       streaming-markdown: 0.2.15
 
   '@babel/code-frame@7.29.7':
@@ -8628,7 +8638,7 @@ snapshots:
       '@napi-rs/nice-win32-x64-msvc': 1.1.1
     optional: true
 
-  '@ngtools/webpack@19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(typescript@5.7.3)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))':
+  '@ngtools/webpack@19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(typescript@5.7.3)(webpack@5.105.0(postcss@8.5.12))':
     dependencies:
       '@angular/compiler-cli': 19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3)
       typescript: 5.7.3
@@ -9674,7 +9684,7 @@ snapshots:
 
   axobject-query@4.1.0: {}
 
-  babel-loader@9.2.1(@babel/core@7.26.10)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  babel-loader@9.2.1(@babel/core@7.26.10)(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       '@babel/core': 7.26.10
       find-cache-dir: 4.0.0
@@ -10010,7 +10020,7 @@ snapshots:
     dependencies:
       is-what: 3.14.1
 
-  copy-webpack-plugin@12.0.2(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  copy-webpack-plugin@12.0.2(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       fast-glob: 3.3.3
       glob-parent: 6.0.2
@@ -10064,7 +10074,7 @@ snapshots:
       utrie: 1.0.2
     optional: true
 
-  css-loader@7.1.2(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  css-loader@7.1.2(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.5.12)
       postcss: 8.5.12
@@ -11285,7 +11295,7 @@ snapshots:
     dependencies:
       readable-stream: 2.3.8
 
-  less-loader@12.2.0(less@4.2.2)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  less-loader@12.2.0(less@4.2.2)(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       less: 4.2.2
     optionalDependencies:
@@ -11310,7 +11320,7 @@ snapshots:
       prelude-ls: 1.2.1
       type-check: 0.4.0
 
-  license-webpack-plugin@4.0.2(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  license-webpack-plugin@4.0.2(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       webpack-sources: 3.5.1
     optionalDependencies:
@@ -11573,7 +11583,7 @@ snapshots:
 
   mimic-function@5.0.1: {}
 
-  mini-css-extract-plugin@2.9.2(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  mini-css-extract-plugin@2.9.2(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       schema-utils: 4.3.3
       tapable: 2.3.3
@@ -12013,7 +12023,7 @@ snapshots:
       path-data-parser: 0.1.0
       points-on-curve: 0.2.0
 
-  postcss-loader@8.1.1(postcss@8.5.12)(typescript@5.7.3)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  postcss-loader@8.1.1(postcss@8.5.12)(typescript@5.7.3)(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       cosmiconfig: 9.0.2(typescript@5.7.3)
       jiti: 1.21.7
@@ -12354,7 +12364,7 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass-loader@16.0.5(sass@1.85.0)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  sass-loader@16.0.5(sass@1.85.0)(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       neo-async: 2.6.2
     optionalDependencies:
@@ -12591,7 +12601,7 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  source-map-loader@5.0.0(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  source-map-loader@5.0.0(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       iconv-lite: 0.6.3
       source-map-js: 1.2.1
@@ -13142,7 +13152,7 @@ snapshots:
 
   webpack-sources@3.5.1: {}
 
-  webpack-subresource-integrity@5.1.0(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12)):
+  webpack-subresource-integrity@5.1.0(webpack@5.105.0(postcss@8.5.12)):
     dependencies:
       typed-assert: 1.0.9
       webpack: 5.105.0(esbuild@0.28.0)(postcss@8.5.12)
