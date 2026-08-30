@@ -11,7 +11,11 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
-import { AparteChatComponent, AparteContextDirective } from '@aparte/angular';
+import {
+  AparteChatComponent,
+  AparteContextDirective,
+  AparteScrollRailDirective,
+} from '@aparte/angular';
 import type { AparteMessageInfoEventDetail, AparteUsage } from '@aparte/core';
 import { ConversationManagerService } from '@aparte/angular';
 import { GeneratingService } from '../../core/generating.service';
@@ -20,7 +24,6 @@ import { ModelStatusService } from '../../core/model-status.service';
 import { MascotteComponent } from '../../mascotte';
 import { fileRegistry } from '../../souffleurs';
 import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
-import { ConversationMinimapComponent } from './conversation-minimap.component';
 
 @Component({
   selector: 'bp-chat-page',
@@ -32,16 +35,18 @@ import { ConversationMinimapComponent } from './conversation-minimap.component';
   imports: [
     AparteChatComponent,
     AparteContextDirective,
+    AparteScrollRailDirective,
     MascotteComponent,
-    ConversationMinimapComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="chat-wrap">
       <aparte-chat
+        id="bp-chat"
         [conversationId]="conversationId()"
         [placeholder]="t().chat.placeholder"
         [centerWhenEmpty]="true"
+        [overlayComposer]="true"
         [submitOnEnter]="sendOnEnter()"
         attachments
         (conversationCreated)="onConversationCreated($event)"
@@ -72,7 +77,13 @@ import { ConversationMinimapComponent } from './conversation-minimap.component';
         <div slot="toolbar" class="helper">{{ t().chat.helper }}</div>
       </aparte-chat>
 
-      <bp-conversation-minimap />
+      <!-- The library's rail replaces our hand-rolled minimap: one tick per user
+           turn, real buttons walked by the arrows (ours was aria-hidden and
+           tabindex=-1), and it reads which message is under the viewport from an
+           intersection observer instead of scroll arithmetic. It sits OUTSIDE
+           aparte-chat because the Angular wrapper projects only its four named
+           slots — hence the target attribute. -->
+      <aparte-scroll-rail class="scroll-rail" target="bp-chat" every="user"></aparte-scroll-rail>
 
       @if (stats(); as s) {
         <div
@@ -127,19 +138,59 @@ import { ConversationMinimapComponent } from './conversation-minimap.component';
       height: 100%;
       min-height: 0;
       overflow: hidden;
+
+      /* The scroll surface spans the whole main area, and the LIBRARY centres the
+       * content inside it: .aparte-message and .aparte-composer-shell both carry
+       * max-width: var(--aparte-message-max-width) with margin: 0 auto. So the
+       * scrollbar sits at the edge of the page instead of floating beside a centred
+       * column, and the column keeps the width it had. Making the DOCUMENT scroll
+       * instead is not an option: the layout guide is explicit that a transcript
+       * which does not scroll reports scrollHeight === clientHeight, so the follow
+       * rule, the scroll-to-bottom button and the reader-gesture detection all go
+       * quiet — silently.
+       *
+       * The vertical half is the library's since 0.16.2: [overlayComposer] lets the
+       * scroll surface span the whole column with the composer floating over it, so
+       * the bar runs edge to edge instead of stopping at the composer's top. It also
+       * publishes --aparte-bottom-inset, which is what keeps the last message from
+       * ending up hidden behind the composer — the classic trap of this layout. */
+      --aparte-message-max-width: var(--bp-content-max-width);
+
+      /* "A host page with a scrollbar of its own sets this and the track so the
+       * chat's does not read as a second, foreign scrollbar" (aparté). We had never
+       * set any of the three and were taking the defaults by accident. */
+      --aparte-scrollbar-width: 8px;
+      --aparte-scrollbar-track: transparent;
+      --aparte-scrollbar-thumb: var(--bp-border-strong, rgba(128, 128, 128, 0.35));
     }
     .chat-wrap {
       height: 100%;
-      max-width: var(--bp-content-max-width);
-      margin: 0 auto;
       width: 100%;
       /* The bottom BREATHES. This space used to come from the "padding: 4px 0 8px"
        * of the hint below the composer; the single bar of aparté 0.7.0 brings its
        * own padding, so I removed that one — and the composer ended up stuck
        * to the edge of the screen. It belongs to the layout anyway, not to
        * the hint, which disappears on touch screens. */
+      /* The 12px horizontal inset stays: COLUMN_WIDTH in corner-mascotte.ts is
+       * --bp-content-max-width PLUS this padding, and the mascot's gutter rule is
+       * tested against that number. */
       padding: 0 12px 12px;
       position: relative;
+    }
+    /* Beside the centred column, not beside the now full-width scroll surface:
+     * half the area, plus half the column, plus a gap. */
+    .scroll-rail {
+      display: none;
+      position: absolute;
+      top: 60px;
+      bottom: 120px;
+      left: calc(50% + (var(--bp-content-max-width) / 2) + 14px);
+      z-index: 5;
+    }
+    @media (min-width: 1100px) and (pointer: fine) {
+      .scroll-rail {
+        display: block;
+      }
     }
     aparte-chat {
       height: 100%;

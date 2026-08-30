@@ -27,6 +27,22 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   binding to a missing property, or an input given the wrong type, used to compile clean
   and only fail at `ng build`.
 
+- The chat scrollbar runs the height of the column and sits at the edge of the page,
+  where a page's scrollbar belongs, instead of floating against a centred one. Two
+  halves: horizontally, we stopped imposing our own `max-width` on the scroll surface
+  and let the library centre the content it already knows how to centre
+  (`.aparte-message` and `.aparte-composer-shell` both carry
+  `max-width: var(--aparte-message-max-width); margin: 0 auto`); vertically, aparté
+  0.16.2's `overlayComposer` floats the composer over a full-height transcript. Making
+  the document scroll instead was never an option — the layout guide is explicit that
+  a transcript which does not scroll reports `scrollHeight === clientHeight`, so the
+  follow rule, the scroll-to-bottom button and the reader-gesture detection all go
+  quiet, silently. The three scrollbar tokens are set for the first time, so the chat's
+  bar no longer reads as a second, foreign one.
+- The hand-rolled conversation minimap is replaced by `<aparte-scroll-rail>`: one tick
+  per user turn, real buttons walked by the arrow keys where ours was `aria-hidden`
+  with `tabindex="-1"`, and the current message read from an intersection observer
+  rather than from scroll arithmetic. 161 lines deleted.
 - The context gauge is the library's (`<aparte-context variant="ring">`), and it reads
   the truth: the `inputTokens` the worker actually reports, against the model's declared
   window. The hand-rolled readout estimated tokens from message text against a hardcoded
