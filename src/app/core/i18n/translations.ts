@@ -105,7 +105,7 @@ export interface Translations {
   update: { available: string; reload: string };
   search: { placeholder: string; noResults: string; hint: string };
   linkGuard: { title: string; body: string; open: string };
-  context: { label: string; tooltip: string };
+  compaction: { dropped: string; intent: string; files: string; tools: string };
   common: { cancel: string; confirm: string };
 }
 
@@ -246,10 +246,11 @@ export const FR: Translations = {
     body: 'Ce lien vient d’une réponse générée. Vérifiez l’adresse avant d’ouvrir :',
     open: 'Ouvrir',
   },
-  context: {
-    label: 'contexte',
-    tooltip:
-      'Estimation de la place occupée dans la fenêtre de contexte du modèle (≈ 4096 tokens).',
+  compaction: {
+    dropped: '%n tours antérieurs ont été retirés du contexte.',
+    intent: 'Demande initiale',
+    files: 'Fichiers produits',
+    tools: 'Outils utilisés',
   },
   common: { cancel: 'Annuler', confirm: 'Confirmer' },
 };
@@ -390,9 +391,11 @@ export const EN: Translations = {
     body: 'This link comes from a generated reply. Check the address before opening:',
     open: 'Open',
   },
-  context: {
-    label: 'context',
-    tooltip: 'Estimated share of the model context window (≈ 4096 tokens).',
+  compaction: {
+    dropped: '%n earlier turns were removed from the context.',
+    intent: 'Original request',
+    files: 'Files produced',
+    tools: 'Tools used',
   },
   common: { cancel: 'Cancel', confirm: 'Confirm' },
 };

@@ -11,42 +11,42 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
-import { AparteChatComponent, AparteElicitationDirective } from '@aparte/angular';
+import {
+  AparteChatComponent,
+  AparteContextDirective,
+  AparteScrollRailDirective,
+} from '@aparte/angular';
 import type { AparteMessageInfoEventDetail, AparteUsage } from '@aparte/core';
 import { ConversationManagerService } from '@aparte/angular';
-import { estimateTokens } from '@aparte/engine';
 import { GeneratingService } from '../../core/generating.service';
 import { TranslateService } from '../../core/i18n/translate.service';
 import { ModelStatusService } from '../../core/model-status.service';
 import { MascotteComponent } from '../../mascotte';
-import { buildSystemPrompt, fileRegistry } from '../../souffleurs';
+import { fileRegistry } from '../../souffleurs';
 import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
-import { ConversationMinimapComponent } from './conversation-minimap.component';
-
-/** Caller's practical context window (training MAX_SEQ_LEN). */
-const CONTEXT_BUDGET_TOKENS = 4096;
-const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
 
 @Component({
   selector: 'bp-chat-page',
   standalone: true,
-  // `AparteElicitationDirective` rather than CUSTOM_ELEMENTS_SCHEMA: since
-  // aparté 0.11 every core element has its Angular directive. The schema used
-  // to turn off template checking for ALL unknown tags in the file — a typo
-  // on an <aparte-chat> binding would get through.
+  // A directive per element rather than CUSTOM_ELEMENTS_SCHEMA: since aparté
+  // 0.11 every core element has its Angular directive. The schema used to turn
+  // off template checking for ALL unknown tags in the file — a typo on an
+  // <aparte-chat> binding would get through.
   imports: [
     AparteChatComponent,
-    AparteElicitationDirective,
+    AparteContextDirective,
+    AparteScrollRailDirective,
     MascotteComponent,
-    ConversationMinimapComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="chat-wrap">
       <aparte-chat
+        id="bp-chat"
         [conversationId]="conversationId()"
         [placeholder]="t().chat.placeholder"
         [centerWhenEmpty]="true"
+        [overlayComposer]="true"
         [submitOnEnter]="sendOnEnter()"
         attachments
         (conversationCreated)="onConversationCreated($event)"
@@ -59,29 +59,31 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
           <p class="tagline bp-serif">{{ t().welcome.tagline }}</p>
           <p class="sub">{{ t().welcome.sub }}</p>
         </div>
-        <!-- ask_question presenter: MANDATORY in the chat (it mounts its
-             panels in the composer via showPanel), otherwise requestUserInput
-             has no presenter. Renders nothing by itself. -->
-        <aparte-elicitation slot="above-composer"></aparte-elicitation>
+        <!-- The ask_question presenter is MANDATORY in the chat: without it
+             requestUserInput has nowhere to ask. Since aparté 0.16 the wrapper
+             renders <aparte-elicitation> itself, right before this slot — hence
+             no element here. Placing our own again would need
+             [elicitation]="false", or the question would open two panels. -->
         <!-- A single bar since aparté 0.7.0: the three slots
              footer-left / footer-center / footer-right merged into a single
              "toolbar". Placement is now decided by DOM order and by
              logical margins (see .helper below). -->
-        @if (contextTokens(); as ctx) {
-          <span
-            slot="toolbar"
-            class="context-pill"
-            [class.warn]="ctx.ratio > 0.75"
-            [class.danger]="ctx.ratio > 0.9"
-            [title]="t().context.tooltip"
-          >
-            ≈ {{ ctx.tokens }} / {{ ctx.budget }} · {{ t().context.label }}
-          </span>
-        }
+        <!-- The library's gauge, not an estimate of ours: it reads the
+             inputTokens the worker actually reports, against the model's
+             declared contextWindow (32k). It draws nothing before the first
+             turn. auto-compact makes it ask for a compaction on reaching 90 %;
+             plugin-compaction answers, wired in core/aparte.config.ts. -->
+        <aparte-context slot="toolbar" variant="ring" auto-compact></aparte-context>
         <div slot="toolbar" class="helper">{{ t().chat.helper }}</div>
       </aparte-chat>
 
-      <bp-conversation-minimap />
+      <!-- The library's rail replaces our hand-rolled minimap: one tick per user
+           turn, real buttons walked by the arrows (ours was aria-hidden and
+           tabindex=-1), and it reads which message is under the viewport from an
+           intersection observer instead of scroll arithmetic. It sits OUTSIDE
+           aparte-chat because the Angular wrapper projects only its four named
+           slots — hence the target attribute. -->
+      <aparte-scroll-rail class="scroll-rail" target="bp-chat" every="user"></aparte-scroll-rail>
 
       @if (stats(); as s) {
         <div
@@ -136,19 +138,59 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
       height: 100%;
       min-height: 0;
       overflow: hidden;
+
+      /* The scroll surface spans the whole main area, and the LIBRARY centres the
+       * content inside it: .aparte-message and .aparte-composer-shell both carry
+       * max-width: var(--aparte-message-max-width) with margin: 0 auto. So the
+       * scrollbar sits at the edge of the page instead of floating beside a centred
+       * column, and the column keeps the width it had. Making the DOCUMENT scroll
+       * instead is not an option: the layout guide is explicit that a transcript
+       * which does not scroll reports scrollHeight === clientHeight, so the follow
+       * rule, the scroll-to-bottom button and the reader-gesture detection all go
+       * quiet — silently.
+       *
+       * The vertical half is the library's since 0.16.2: [overlayComposer] lets the
+       * scroll surface span the whole column with the composer floating over it, so
+       * the bar runs edge to edge instead of stopping at the composer's top. It also
+       * publishes --aparte-bottom-inset, which is what keeps the last message from
+       * ending up hidden behind the composer — the classic trap of this layout. */
+      --aparte-message-max-width: var(--bp-content-max-width);
+
+      /* "A host page with a scrollbar of its own sets this and the track so the
+       * chat's does not read as a second, foreign scrollbar" (aparté). We had never
+       * set any of the three and were taking the defaults by accident. */
+      --aparte-scrollbar-width: 8px;
+      --aparte-scrollbar-track: transparent;
+      --aparte-scrollbar-thumb: var(--bp-border-strong, rgba(128, 128, 128, 0.35));
     }
     .chat-wrap {
       height: 100%;
-      max-width: var(--bp-content-max-width);
-      margin: 0 auto;
       width: 100%;
       /* The bottom BREATHES. This space used to come from the "padding: 4px 0 8px"
        * of the hint below the composer; the single bar of aparté 0.7.0 brings its
        * own padding, so I removed that one — and the composer ended up stuck
        * to the edge of the screen. It belongs to the layout anyway, not to
        * the hint, which disappears on touch screens. */
+      /* The 12px horizontal inset stays: COLUMN_WIDTH in corner-mascotte.ts is
+       * --bp-content-max-width PLUS this padding, and the mascot's gutter rule is
+       * tested against that number. */
       padding: 0 12px 12px;
       position: relative;
+    }
+    /* Beside the centred column, not beside the now full-width scroll surface:
+     * half the area, plus half the column, plus a gap. */
+    .scroll-rail {
+      display: none;
+      position: absolute;
+      top: 60px;
+      bottom: 120px;
+      left: calc(50% + (var(--bp-content-max-width) / 2) + 14px);
+      z-index: 5;
+    }
+    @media (min-width: 1100px) and (pointer: fine) {
+      .scroll-rail {
+        display: block;
+      }
     }
     aparte-chat {
       height: 100%;
@@ -187,19 +229,6 @@ const SYSTEM_TOKENS = estimateTokens(buildSystemPrompt(['ask_question']));
        * in right-to-left reading. The toolbar brings its own
        * padding: don't add more, or the line grows. */
       margin-inline: auto;
-    }
-    .context-pill {
-      font-family: var(--bp-mono);
-      font-size: 10.5px;
-      color: var(--aparte-text-muted);
-      cursor: default;
-      white-space: nowrap;
-    }
-    .context-pill.warn {
-      color: var(--aparte-warning);
-    }
-    .context-pill.danger {
-      color: var(--aparte-error);
     }
     @media (pointer: coarse) {
       .helper {
@@ -324,21 +353,6 @@ export class ChatPageComponent {
   protected readonly deviceLabel = computed(() =>
     this.modelStatus.state().device === 'webgpu' ? 'WebGPU' : 'WASM (CPU)',
   );
-
-  /** Context budget pill (iso context-stats aimi) — lib estimate. */
-  protected readonly contextTokens = computed(() => {
-    const conv = this.manager.activeConversation();
-    if (!conv || !conv.messages.length) return null;
-    let tokens = SYSTEM_TOKENS;
-    for (const message of conv.messages) {
-      tokens += estimateTokens(message.content ?? '') + 8;
-    }
-    return {
-      tokens,
-      budget: CONTEXT_BUDGET_TOKENS,
-      ratio: tokens / CONTEXT_BUDGET_TOKENS,
-    };
-  });
 
   protected onConversationCreated(id: string): void {
     // Attachments are registered at SEND time, so before the conversation has

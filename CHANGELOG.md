@@ -27,6 +27,45 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   binding to a missing property, or an input given the wrong type, used to compile clean
   and only fail at `ng build`.
 
+- The chat scrollbar runs the height of the column and sits at the edge of the page,
+  where a page's scrollbar belongs, instead of floating against a centred one. Two
+  halves: horizontally, we stopped imposing our own `max-width` on the scroll surface
+  and let the library centre the content it already knows how to centre
+  (`.aparte-message` and `.aparte-composer-shell` both carry
+  `max-width: var(--aparte-message-max-width); margin: 0 auto`); vertically, aparté
+  0.16.2's `overlayComposer` floats the composer over a full-height transcript. Making
+  the document scroll instead was never an option — the layout guide is explicit that
+  a transcript which does not scroll reports `scrollHeight === clientHeight`, so the
+  follow rule, the scroll-to-bottom button and the reader-gesture detection all go
+  quiet, silently. The three scrollbar tokens are set for the first time, so the chat's
+  bar no longer reads as a second, foreign one.
+- The hand-rolled conversation minimap is replaced by `<aparte-scroll-rail>`: one tick
+  per user turn, real buttons walked by the arrow keys where ours was `aria-hidden`
+  with `tabindex="-1"`, and the current message read from an intersection observer
+  rather than from scroll arithmetic. 161 lines deleted.
+- The context gauge is the library's (`<aparte-context variant="ring">`), and it reads
+  the truth: the `inputTokens` the worker actually reports, against the model's declared
+  window. The hand-rolled readout estimated tokens from message text against a hardcoded
+  4096, and did nothing when it turned red. The model now declares `contextWindow: 32768`
+  — its real maximum. Note this is a ceiling, not a comfortable size: nothing reuses a KV
+  cache between turns, so a conversation near the window re-prefills it at every send.
+- Compaction, answered by `@aparte/plugin-compaction` at 90 % of the window. The
+  selector is the library's, budget-aware; the summary is **not** written by the model.
+  Measured on souffleur-chat 0.3.0 over six generations: asked to summarise it refuses,
+  answers as if continuing the chat, or invents — one run produced a second client's
+  amounts that appeared nowhere in the transcript. So `summarize` is deterministic
+  (`core/compaction-digest.ts`): dropped-turn count, the original request, files
+  produced, tools run — read off the messages, nothing generated. It also sidesteps the
+  transport, which matters: the plugin passes its instruction as a `system` message, and
+  our provider imposed the contract's own system prompt, so that instruction never
+  reached the model at all — reported as apartejs/aparte#45 and fixed in 0.16.1, where
+  the instruction rides the final user turn. Remeasured against that fix: the model does
+  then attempt a summary, and one of three was usable — but it still invents (a decision
+  that was only ever requested), still answers in the instruction's language rather than
+  the conversation's, and loops on the longest transcript until the token budget runs
+  out. That last one is decisive: a summariser that degrades with length is no use to
+  compaction, which fires precisely when the conversation is long. Logged as F12.
+
 ### Fixed
 - The download showed `18.404171932196558 %`: the aggregator hands out whole
   percentages, but weighting them by the caller's share of the bytes made a float,
@@ -58,7 +97,13 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   light/dark pair). With 0.15.1: `ask_question` registers with `systemPrompt: false`
   instead of stripping the field, the declined sentence is the plugin's exported
   `ASK_USER_DECLINED`, and the provider's metadata is typed with core's exported
-  `AparteAIProviderMetadata`.
+  `AparteAIProviderMetadata`. With 0.16.0: `estimateTokens` left the engine for
+  `@aparte/plugin-compaction`, which takes `@aparte/engine`'s place in our
+  dependencies — we now import nothing from the engine while still running its loop
+  on every turn, since core depends on it. The wrapper renders `<aparte-elicitation>`
+  itself, so ours is gone from the chat template. The library's default density moves
+  up a step (radii 3px, font scale 1.08, buttons 24/32/40) and we take it as it comes:
+  it aligns with the kits a chat is compared against.
 - `package.json` filled in (name, licence, repository); Node 24.
 - Repository documentation switched to English.
 - The product name is spelled **Monaparté** (capital, accent) wherever it names the

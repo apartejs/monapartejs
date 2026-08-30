@@ -47,6 +47,14 @@ export const EXECUTOR_ADAPTERS = [
   'souffleur-sandbox',
 ] as const satisfies readonly AdapterName[];
 
+/**
+ * The caller's context window, in tokens — the base model's maximum.
+ * Declared on the AparteAIModel so `<aparte-context>` has something to measure
+ * against and the compaction selector can budget. Note this is the ceiling, not
+ * a comfortable size: nothing here reuses a KV cache between turns.
+ */
+export const CALLER_CONTEXT_WINDOW = 32_768;
+
 /** Contract generation bounds (256 min caller — 64 truncated the announcement+call). */
 export const CALLER_MAX_NEW_TOKENS = 256;
 export const EXECUTOR_MAX_NEW_TOKENS = 12_000;
