@@ -16,13 +16,22 @@
  * a later pass would overwrite a rename the person made by hand, and there is no flag
  * on a conversation that tells an automatic title from a chosen one.
  */
-import { Injectable, effect, inject } from '@angular/core';
+import { Injectable, effect, inject, isDevMode } from '@angular/core';
 import { ConversationManagerService } from '@aparte/angular';
 import type { AparteConversation } from '@aparte/core';
 import { firstUserTextToTitle, withoutLeadingFragment } from './conversation-text';
 // Type-only, so it is erased at compile time and the package still arrives through
 // the dynamic import below rather than in the initial bundle.
-import type { Titler } from '@aparte/titler-efigsp';
+import type { Titler } from '@aparte/titler';
+
+/**
+ * The model file copied by angular.json. Named here rather than read from the
+ * package's `modelUrl`, which cannot be imported in the browser (see `load()`). The
+ * asset glob copies `model/*.bin`, so a version that renames its model would 404 —
+ * which `load()` reports rather than swallows, so it is a visible failure, not a
+ * conversation quietly titled by truncation.
+ */
+const MODEL_FILE = 'titler-v1-efigsp-int3.bin';
 
 @Injectable({ providedIn: 'root' })
 export class TitlerService {
@@ -60,12 +69,20 @@ export class TitlerService {
    */
   private load(): Promise<Titler> {
     this.titler ??= (async () => {
-      // The bundled package re-exports the Titler class, whose constructor takes the
-      // buffer — so serving the file ourselves costs no extra dependency.
-      const { Titler, modelUrl } = await import('@aparte/titler-efigsp');
-      const file = modelUrl.pathname.split('/').pop();
-      const response = await fetch(`assets/titler/${file}`);
-      if (!response.ok) throw new Error(`titler model ${file}: HTTP ${response.status}`);
+      // From the RUNTIME package, never from `@aparte/titler-efigsp`.
+      //
+      // The bundled package re-exports the same `Titler`, and reaching for it there
+      // costs one dependency less — which is why this code did exactly that, and why
+      // the production build then failed. Its `readModelBytes()` has a Node branch
+      // (`await import("node:url")`) behind a `process.versions.node` check; the check
+      // is a runtime one, esbuild resolves imports statically, and it refuses
+      // `node:url` for a browser target. `ng serve` tolerated it, `ng build` did not.
+      //
+      // `@aparte/titler-efigsp` stays in package.json all the same: angular.json copies
+      // its `model/*.bin`. We depend on its FILE, not on its code.
+      const { Titler } = await import('@aparte/titler');
+      const response = await fetch(`assets/titler/${MODEL_FILE}`);
+      if (!response.ok) throw new Error(`titler model ${MODEL_FILE}: HTTP ${response.status}`);
       return new Titler(await response.arrayBuffer());
     })();
     return this.titler;
@@ -81,9 +98,11 @@ export class TitlerService {
     try {
       const title = withoutLeadingFragment((await this.load()).title(text));
       if (title) await this.manager.updateTitle(conversation.id, title);
-    } catch {
-      // The library's truncated title is already in place: a titler that fails to
-      // load leaves a conversation named, just less well. Nothing to report.
+    } catch (error) {
+      // The library's truncated title is already in place, so a conversation stays
+      // named — just less well. Reported in dev all the same: the failure mode here is
+      // a 404 on a renamed model file, and silence is how that survives a release.
+      if (isDevMode()) console.warn('[titler] no title generated', error);
     }
   }
 }

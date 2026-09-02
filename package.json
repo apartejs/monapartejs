@@ -22,7 +22,7 @@
     "format:check": "prettier --check .",
     "typecheck": "ngc -p tsconfig.app.json --noEmit",
     "typecheck:worker": "tsc --noEmit --strict --target ES2022 --module ES2022 --moduleResolution bundler --skipLibCheck --lib ES2022,DOM,WebWorker src/app/souffleurs/souffleurs.worker.ts",
-    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:worker && pnpm test"
+    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:worker && pnpm test && pnpm build"
   },
   "private": true,
   "dependencies": {
@@ -43,6 +43,7 @@
     "@aparte/plugin-model-selector": "0.16.9",
     "@aparte/plugin-shiki": "0.16.9",
     "@aparte/plugin-streaming-markdown": "0.16.9",
+    "@aparte/titler": "^1.0.1",
     "@aparte/titler-efigsp": "^1.0.1",
     "@faker-js/faker": "^10.5.0",
     "@huggingface/transformers": "^4.2.0",
