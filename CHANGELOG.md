@@ -93,6 +93,13 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   of weights and for a `manifest.json` fetched with `no-store`.
 
 ### Fixed
+- The titler no longer starts a title mid-word, so our guard against it is gone.
+  `@aparte/titler-efigsp` 1.0.2 scores a hyphenated or apostrophed word whole, which
+  was reported from here as apartejs/aparte-titler-model#1 and fixed the same day.
+  Remeasured on the eight probes that found it: no title begins with a fragment, and
+  "Pourrais-tu vérifier les calculs de la facture" now yields "vérifier les calculs de
+  la facture". Two cases improved beyond the report — "Rappelle-moi" and
+  "Explique-moi" keep their pronoun where 1.0.1 cut it off.
 - `pnpm verify` now builds. It ran lint, format, types, templates, the worker's types
   and the tests — everything except the one command the deployment actually runs. A
   browser-hostile import in a dependency passed all of it, was tolerated by

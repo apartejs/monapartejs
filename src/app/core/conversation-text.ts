@@ -35,21 +35,3 @@ export function firstUserTextToTitle(conversation: AparteConversation): string |
   const text = messageText(users[0]);
   return text.length ? text : null;
 }
-
-/**
- * Guard against a fragment landing first in a title.
- *
- * `@aparte/titler-efigsp` 1.0.1 can split a hyphenated French word and keep only the
- * trailing half: "Pourrais-tu vérifier les calculs" titles as "-tu vérifier calculs".
- * `-tu` is not a word, and a sidebar row starting with it reads as broken. Reported as
- * apartejs/aparte-titler-model#1; drop this when it is fixed upstream.
- *
- * Only a LEADING fragment is dropped, and only when something is left after it — a
- * hyphenated word that starts a title ("sous-traitant du chantier") is untouched,
- * because it does not begin with the hyphen.
- */
-export function withoutLeadingFragment(title: string): string {
-  const words = title.trim().split(/\s+/).filter(Boolean);
-  if (words.length > 1 && words[0].startsWith('-')) return words.slice(1).join(' ');
-  return words.join(' ');
-}
