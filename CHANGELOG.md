@@ -93,6 +93,11 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   of weights and for a `manifest.json` fetched with `no-store`.
 
 ### Fixed
+- `pnpm verify` now builds. It ran lint, format, types, templates, the worker's types
+  and the tests — everything except the one command the deployment actually runs. A
+  browser-hostile import in a dependency passed all of it, was tolerated by
+  `ng serve`, and failed in CI at `pnpm build`, which is the same lesson the `ngc`
+  note in CLAUDE.md already records for templates: what is not run is not checked.
 - The download showed `18.404171932196558 %`: the aggregator hands out whole
   percentages, but weighting them by the caller's share of the bytes made a float,
   printed as is. The service now floors, at its single point of writing.
