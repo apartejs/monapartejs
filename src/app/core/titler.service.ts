@@ -20,11 +20,9 @@ import { Injectable, effect, inject } from '@angular/core';
 import { ConversationManagerService } from '@aparte/angular';
 import type { AparteConversation } from '@aparte/core';
 import { firstUserTextToTitle, withoutLeadingFragment } from './conversation-text';
-
-/** The Titler's shape, so this module does not import the package for a type. */
-interface Titler {
-  title(message: string, budget?: number): string;
-}
+// Type-only, so it is erased at compile time and the package still arrives through
+// the dynamic import below rather than in the initial bundle.
+import type { Titler } from '@aparte/titler-efigsp';
 
 @Injectable({ providedIn: 'root' })
 export class TitlerService {
@@ -43,11 +41,33 @@ export class TitlerService {
   }
 
   /**
+   * The model file is served by us, not resolved by the package.
+   *
+   * `loadTitler()` of `@aparte/titler-efigsp` finds its `.bin` with
+   * `new URL('../model/…', import.meta.url)`. Vite pre-bundles the package into
+   * `.angular/cache/…/vite/deps/`, `import.meta.url` then points there, and the
+   * `model/` directory is not carried over — a 404 on every title, in dev and in a
+   * production build alike. The README names this case and the way out: serve the
+   * file yourself. So the `.bin` is copied to `assets/titler/` (angular.json, as the
+   * pdf.js worker already is) and handed to the runtime as a buffer.
+   *
+   * The name comes from the package's own `modelUrl` rather than a literal, so a
+   * future version that renames or requantises its model keeps working: the asset
+   * glob copies whatever `model/*.bin` holds, and this reads the same name.
+   *
    * Dynamic import: 77 KB of model has no business in the initial bundle of an app
    * whose first screen is an onboarding.
    */
   private load(): Promise<Titler> {
-    this.titler ??= import('@aparte/titler-efigsp').then((m) => m.loadTitler());
+    this.titler ??= (async () => {
+      // The bundled package re-exports the Titler class, whose constructor takes the
+      // buffer — so serving the file ourselves costs no extra dependency.
+      const { Titler, modelUrl } = await import('@aparte/titler-efigsp');
+      const file = modelUrl.pathname.split('/').pop();
+      const response = await fetch(`assets/titler/${file}`);
+      if (!response.ok) throw new Error(`titler model ${file}: HTTP ${response.status}`);
+      return new Titler(await response.arrayBuffer());
+    })();
     return this.titler;
   }
 
