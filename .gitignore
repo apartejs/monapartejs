@@ -25,3 +25,6 @@ docs/superpowers/
 
 # Retours d'audit et notes de cadrage Claude — local, jamais publiés
 .claude/
+
+# The titler model, copied from its package before every build (scripts/copy-titler-model.mjs)
+/public/assets/titler/

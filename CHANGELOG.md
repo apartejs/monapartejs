@@ -93,6 +93,14 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   of weights and for a `manifest.json` fetched with `no-store`.
 
 ### Fixed
+- The titler's model is copied by a script before every build and serve, instead of by
+  an `assets` glob. With pnpm, `node_modules/@aparte/titler-efigsp` is a symlink into
+  `node_modules/.pnpm/`: the glob followed it on Windows, where pnpm uses junctions,
+  and produced nothing on Linux — with no warning, so CI stayed green and the deployed
+  site answered 404 on the model. The titler then failed to load and titles fell back
+  to the library's truncation, which nobody would have noticed. `require.resolve`
+  follows the symlink on every platform, and the package's `"./model"` export subpath
+  is the supported way to ask for the file.
 - The titler no longer starts a title mid-word, so our guard against it is gone.
   `@aparte/titler-efigsp` 1.0.2 scores a hyphenated or apostrophed word whole, which
   was reported from here as apartejs/aparte-titler-model#1 and fixed the same day.
