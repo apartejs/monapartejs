@@ -35,11 +35,6 @@
                 "glob": "pdf.worker.min.mjs",
                 "input": "node_modules/pdfjs-dist/build",
                 "output": "/assets/"
-              },
-              {
-                "glob": "*.bin",
-                "input": "node_modules/@aparte/titler-efigsp/model",
-                "output": "/assets/titler/"
               }
             ],
             "styles": [
