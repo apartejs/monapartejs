@@ -13,6 +13,7 @@
  * the user, hence the localised labels.
  */
 import type { AparteMessage, AparteToolCallSegment } from '@aparte/core';
+import { messageText } from './conversation-text';
 
 export interface CompactionDigestLabels {
   /** "%n earlier turns were removed from the context." — `%n` is substituted. */
@@ -29,16 +30,6 @@ export interface CompactionDigestLabels {
 const INTENT_MAX = 240;
 
 const isToolCall = (s: { type: string }): s is AparteToolCallSegment => s.type === 'tool_call';
-
-/** A message's plain text, whether it streamed into segments or not. */
-function textOf(message: AparteMessage): string {
-  const fromSegments = (message.segments ?? [])
-    .filter((s) => s.type === 'text')
-    .map((s) => (s as { content?: string }).content ?? '')
-    .join(' ')
-    .trim();
-  return fromSegments || (message.content ?? '').trim();
-}
 
 /**
  * A file name a tool produced. Prefers `structuredResult` (aparté 0.16: the
@@ -74,7 +65,7 @@ export function buildCompactionDigest(
   const lines: string[] = [labels.dropped.replace('%n', String(dropped.length))];
 
   const firstUser = dropped.find((m) => m.role === 'user');
-  const intent = firstUser ? textOf(firstUser) : '';
+  const intent = firstUser ? messageText(firstUser) : '';
   if (intent) {
     const clipped = intent.length > INTENT_MAX ? `${intent.slice(0, INTENT_MAX)}…` : intent;
     lines.push(`${labels.intent} : ${clipped}`);

@@ -66,6 +66,32 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   out. That last one is decisive: a summariser that degrades with length is no use to
   compaction, which fires precisely when the conversation is long. Logged as F12.
 
+- `@aparte/*` 0.16.2 → 0.16.9. What mattered to us: 0.16.3 corrects the viewport's
+  box-sizing in the overlay-composer mode we had just adopted, and 0.16.8 consolidates
+  the token set. Every `--aparte-*` we read was checked against the 441 the package now
+  declares; two came back unknown. `--aparte-bottom-inset` is published by the viewport
+  at runtime rather than in CSS, so that one is fine. `--aparte-on-primary` never
+  existed at all — the download button on an artifact card was painting
+  `var(--aparte-on-primary, #fff)`, so it had always been the fallback doing the work.
+  It now uses `--aparte-primary-ink`, which core derives from the accent in oklch; a
+  fixed ink on a brand fill is the bug core itself documents fixing, measured at 1.11:1
+  on a navy.
+
+- Conversation titles come from `@aparte/titler-efigsp`: 77 KB, six languages, on the
+  person's machine, 6 ms. The library titles by truncating the first user message; this
+  reads the three to six words that carry it — "Fais-moi une facture pour 3 jours de
+  conseil à 400 € par jour" becomes "facture 3 jours conseil 400 jour". It is
+  extractive, which is the property that matters here: the output can only be words
+  copied from the message, so the one label we render from arbitrary user text cannot
+  be steered by instructions inside it. Loaded by dynamic import, so it stays out of the
+  initial bundle. Titled once, at the first user message, never again — nothing on a
+  conversation distinguishes an automatic title from a rename someone chose.
+
+### Changed
+- The souffleurs live at `apartejs/aparte-souffleurs` on Hugging Face. The old
+  `maxituc/…` id now answers with a 307, and we were relying on that redirect for 886 MB
+  of weights and for a `manifest.json` fetched with `no-store`.
+
 ### Fixed
 - The download showed `18.404171932196558 %`: the aggregator hands out whole
   percentages, but weighting them by the caller's share of the bytes made a float,
