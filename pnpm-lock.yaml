@@ -60,11 +60,11 @@ importers:
         specifier: 0.16.9
         version: 0.16.9(@aparte/core@0.16.9)(streaming-markdown@0.2.15)
       '@aparte/titler':
-        specifier: ^1.0.1
-        version: 1.0.1
+        specifier: ^1.0.2
+        version: 1.0.2
       '@aparte/titler-efigsp':
-        specifier: ^1.0.1
-        version: 1.0.1
+        specifier: ^1.0.2
+        version: 1.0.2
       '@faker-js/faker':
         specifier: ^10.5.0
         version: 10.5.0
@@ -486,12 +486,12 @@ packages:
       '@aparte/core': '>=0.16.9 <1.0.0'
       streaming-markdown: ^0.2.15
 
-  '@aparte/titler-efigsp@1.0.1':
-    resolution: {integrity: sha512-tAvQePo8Gx+Z+tQ5vX1RtpCNHepEY6RceVlx2A9Jl//4nEDMZ/QAl0wLfQjZLE/DRnrAZR5yyY1vV6EEW+fDbg==}
+  '@aparte/titler-efigsp@1.0.2':
+    resolution: {integrity: sha512-ob3Kc3JNuGq5xCOPBeh07c2/A+YqKyne0pEdATgrPgxBXiAq9BMv3Kefxv5SEWrsfBuOUVMnjsD15LKgBnyUNQ==}
     engines: {node: '>=18'}
 
-  '@aparte/titler@1.0.1':
-    resolution: {integrity: sha512-15qhtQT8lYdrFab/SE5aa1JEdVcxK2i6FwESvu1PU8M6yygQwNLwt7U5hafQ0dw1G6O2TOpOvHYyuNfG64mUkQ==}
+  '@aparte/titler@1.0.2':
+    resolution: {integrity: sha512-IxP8fNIkTRanTaqcERD1EtlwZP0WRHlujcKQxNbe+t77mi2vcP/6ROmd1utt05vKbuIfk4A/Vb3YeIK2vC6/Iw==}
     engines: {node: '>=18'}
 
   '@babel/code-frame@7.29.7':
@@ -7030,11 +7030,11 @@ snapshots:
       '@aparte/core': 0.16.9
       streaming-markdown: 0.2.15
 
-  '@aparte/titler-efigsp@1.0.1':
+  '@aparte/titler-efigsp@1.0.2':
     dependencies:
-      '@aparte/titler': 1.0.1
+      '@aparte/titler': 1.0.2
 
-  '@aparte/titler@1.0.1': {}
+  '@aparte/titler@1.0.2': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:

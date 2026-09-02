@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AparteConversation, AparteMessage } from '@aparte/core';
-import { firstUserTextToTitle, messageText, withoutLeadingFragment } from './conversation-text';
+import { firstUserTextToTitle, messageText } from './conversation-text';
 
 const msg = (role: string, content: string, segments?: unknown[]): AparteMessage =>
   ({ id: crypto.randomUUID(), role, content, segments, timestamp: 0 }) as AparteMessage;
@@ -51,30 +51,5 @@ describe('firstUserTextToTitle — title once, at the first user message', () =>
 
   it('says nothing for a blank user message', () => {
     expect(firstUserTextToTitle(conv([msg('user', '   ')]))).toBeNull();
-  });
-});
-
-describe('withoutLeadingFragment — the titler can start a title mid-word', () => {
-  it('drops a leading hyphen fragment (apartejs/aparte-titler-model#1)', () => {
-    expect(withoutLeadingFragment('-tu vérifier calculs de la facture')).toBe(
-      'vérifier calculs de la facture',
-    );
-  });
-
-  it('leaves a hyphenated word that merely contains a hyphen', () => {
-    expect(withoutLeadingFragment('sous-traitant sur le chantier')).toBe(
-      'sous-traitant sur le chantier',
-    );
-    expect(withoutLeadingFragment('Peux-tu me résumer document')).toBe(
-      'Peux-tu me résumer document',
-    );
-  });
-
-  it('keeps a lone fragment rather than returning nothing', () => {
-    expect(withoutLeadingFragment('-tu')).toBe('-tu');
-  });
-
-  it('normalises surrounding whitespace', () => {
-    expect(withoutLeadingFragment('  facture   3 jours  ')).toBe('facture 3 jours');
   });
 });

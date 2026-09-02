@@ -19,7 +19,7 @@
 import { Injectable, effect, inject, isDevMode } from '@angular/core';
 import { ConversationManagerService } from '@aparte/angular';
 import type { AparteConversation } from '@aparte/core';
-import { firstUserTextToTitle, withoutLeadingFragment } from './conversation-text';
+import { firstUserTextToTitle } from './conversation-text';
 // Type-only, so it is erased at compile time and the package still arrives through
 // the dynamic import below rather than in the initial bundle.
 import type { Titler } from '@aparte/titler';
@@ -96,7 +96,7 @@ export class TitlerService {
     // and two runs could otherwise both pass the guard while the model loads.
     this.titled.add(conversation.id);
     try {
-      const title = withoutLeadingFragment((await this.load()).title(text));
+      const title = (await this.load()).title(text).trim();
       if (title) await this.manager.updateTitle(conversation.id, title);
     } catch (error) {
       // The library's truncated title is already in place, so a conversation stays
