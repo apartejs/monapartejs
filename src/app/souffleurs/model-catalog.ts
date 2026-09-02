@@ -1,6 +1,6 @@
 /** souffleurs catalog — HF repo, adapters, sizes (for weighted progress). */
 
-export const SOUFFLEURS_HF_REPO = 'maxituc/aparte-souffleurs';
+export const SOUFFLEURS_HF_REPO = 'apartejs/aparte-souffleurs';
 
 export type AdapterName =
   'souffleur-chat' | 'souffleur-pdf' | 'souffleur-xlsx-docx' | 'souffleur-sandbox';

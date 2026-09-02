@@ -1,6 +1,6 @@
 /**
  * SouffleursProvider — "own-I/O" AparteAIProvider for the aparté model
- * (HF maxituc/aparte-souffleurs). Candidate @aparte/provider-souffleurs plugin.
+ * (HF apartejs/aparte-souffleurs). Candidate @aparte/provider-souffleurs plugin.
  *
  * - A single browser pipeline (dedicated worker): every operation (caller
  *   chat, prefetch, executor) goes through a single queue.
