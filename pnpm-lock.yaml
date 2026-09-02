@@ -59,6 +59,9 @@ importers:
       '@aparte/plugin-streaming-markdown':
         specifier: 0.16.9
         version: 0.16.9(@aparte/core@0.16.9)(streaming-markdown@0.2.15)
+      '@aparte/titler-efigsp':
+        specifier: ^1.0.1
+        version: 1.0.1
       '@faker-js/faker':
         specifier: ^10.5.0
         version: 10.5.0
@@ -479,6 +482,14 @@ packages:
     peerDependencies:
       '@aparte/core': '>=0.16.9 <1.0.0'
       streaming-markdown: ^0.2.15
+
+  '@aparte/titler-efigsp@1.0.1':
+    resolution: {integrity: sha512-tAvQePo8Gx+Z+tQ5vX1RtpCNHepEY6RceVlx2A9Jl//4nEDMZ/QAl0wLfQjZLE/DRnrAZR5yyY1vV6EEW+fDbg==}
+    engines: {node: '>=18'}
+
+  '@aparte/titler@1.0.1':
+    resolution: {integrity: sha512-15qhtQT8lYdrFab/SE5aa1JEdVcxK2i6FwESvu1PU8M6yygQwNLwt7U5hafQ0dw1G6O2TOpOvHYyuNfG64mUkQ==}
+    engines: {node: '>=18'}
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -7015,6 +7026,12 @@ snapshots:
     dependencies:
       '@aparte/core': 0.16.9
       streaming-markdown: 0.2.15
+
+  '@aparte/titler-efigsp@1.0.1':
+    dependencies:
+      '@aparte/titler': 1.0.1
+
+  '@aparte/titler@1.0.1': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:

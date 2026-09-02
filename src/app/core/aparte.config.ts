@@ -58,6 +58,7 @@ import { LOCAL_KEYS, SettingsService, localGet } from '../storage/settings.servi
 import { buildCompactionDigest } from './compaction-digest';
 import { TranslateService } from './i18n/translate.service';
 import { LinkGuardService } from './link-guard.service';
+import { TitlerService } from './titler.service';
 import { RichRenderService } from './rich-render.service';
 
 /** Shared adapter (conversations + settings + export/import). */
@@ -281,6 +282,9 @@ export function provideMonaparte(): EnvironmentProviders[] {
       );
 
       registerMascotteRenderers();
+      // Conversation titles: the library truncates the first user message, this
+      // reads the words that carry it — 77 KB, on the device, no network.
+      inject(TitlerService).install();
       inject(LinkGuardService).install();
       inject(RichRenderService).install();
 

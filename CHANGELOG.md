@@ -77,6 +77,16 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   fixed ink on a brand fill is the bug core itself documents fixing, measured at 1.11:1
   on a navy.
 
+- Conversation titles come from `@aparte/titler-efigsp`: 77 KB, six languages, on the
+  person's machine, 6 ms. The library titles by truncating the first user message; this
+  reads the three to six words that carry it — "Fais-moi une facture pour 3 jours de
+  conseil à 400 € par jour" becomes "facture 3 jours conseil 400 jour". It is
+  extractive, which is the property that matters here: the output can only be words
+  copied from the message, so the one label we render from arbitrary user text cannot
+  be steered by instructions inside it. Loaded by dynamic import, so it stays out of the
+  initial bundle. Titled once, at the first user message, never again — nothing on a
+  conversation distinguishes an automatic title from a rename someone chose.
+
 ### Changed
 - The souffleurs live at `apartejs/aparte-souffleurs` on Hugging Face. The old
   `maxituc/…` id now answers with a 307, and we were relying on that redirect for 886 MB
