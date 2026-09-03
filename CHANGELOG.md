@@ -93,6 +93,12 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   of weights and for a `manifest.json` fetched with `no-store`.
 
 ### Fixed
+- The deployment job says it queues, because that is all it does. It reported three
+  green deployments on 2 September while all three had failed in Coolify, and the site
+  stayed four days behind `main` with no red mark anywhere: the endpoint answers
+  "deployment queued" and returns, and nothing waited for the outcome. The step is
+  renamed and now leaves a warning on the run summary, so a green check cannot be read
+  as deployed.
 - The titler is one package again. `@aparte/titler-efigsp` 1.0.4 moves the
   file-system read behind the `node` export condition and makes the portable entry the
   default, so importing it no longer drags `node:url` into a browser build — reported

@@ -117,7 +117,15 @@ jobs:
             echo "::notice::COOLIFY_WEBHOOK_URL / COOLIFY_TOKEN missing — image published, deployment must be triggered manually."
           fi
 
-      - name: Trigger deployment
+      # NAMED "queue" because that is all it does. The endpoint answers
+      # `{"deployments":[{"message":"... deployment queued."}]}` and returns:
+      # the outcome lands minutes later and nothing here waits for it.
+      #
+      # This job reported three green deployments on 02/09 while all three had
+      # FAILED in Coolify, and the site stayed four days behind main with no red
+      # mark anywhere. A 2xx here means "Coolify accepted the request", never
+      # "the new version is serving".
+      - name: Queue the deployment
         if: steps.cfg.outputs.ready == 'true'
         env:
           WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
@@ -131,3 +139,4 @@ jobs:
           # A webhook that answers 4xx/5xx must FAIL the job: otherwise a
           # deployment that silently didn't trigger passes for a success.
           [ "$code" -ge 200 ] && [ "$code" -lt 300 ]
+          echo "::warning::Deployment QUEUED, not verified — this job cannot tell whether Coolify finished it. Check the deployment in Coolify, or the served site, before calling this shipped."
