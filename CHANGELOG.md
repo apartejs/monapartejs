@@ -93,6 +93,20 @@ follow [SemVer](https://semver.org/). Until 1.0 is tagged, the deployed version 
   of weights and for a `manifest.json` fetched with `no-store`.
 
 ### Fixed
+- The deployment job says it queues, because that is all it does. It reported three
+  green deployments on 2 September while all three had failed in Coolify, and the site
+  stayed four days behind `main` with no red mark anywhere: the endpoint answers
+  "deployment queued" and returns, and nothing waited for the outcome. The step is
+  renamed and now leaves a warning on the run summary, so a green check cannot be read
+  as deployed.
+- The titler is one package again. `@aparte/titler-efigsp` 1.0.4 moves the
+  file-system read behind the `node` export condition and makes the portable entry the
+  default, so importing it no longer drags `node:url` into a browser build — reported
+  from here as apartejs/aparte-titler-model#2. `loadTitler()` now takes the model as an
+  argument, so the `.bin` we already copy is simply handed to it, and `@aparte/titler`
+  is gone. The report also uncovered a second defect we had worked around without
+  naming: no bundler rewrites `import.meta.url`, so the no-argument `loadTitler()`
+  resolved next to the bundle and would have 404'd whatever we did.
 - The titler's model is copied by a script before every build and serve, instead of by
   an `assets` glob. With pnpm, `node_modules/@aparte/titler-efigsp` is a symlink into
   `node_modules/.pnpm/`: the glob followed it on Windows, where pnpm uses junctions,

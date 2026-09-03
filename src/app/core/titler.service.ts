@@ -22,7 +22,7 @@ import type { AparteConversation } from '@aparte/core';
 import { firstUserTextToTitle } from './conversation-text';
 // Type-only, so it is erased at compile time and the package still arrives through
 // the dynamic import below rather than in the initial bundle.
-import type { Titler } from '@aparte/titler';
+import type { Titler } from '@aparte/titler-efigsp';
 
 /**
  * The model file copied by angular.json. Named here rather than read from the
@@ -50,41 +50,26 @@ export class TitlerService {
   }
 
   /**
-   * The model file is served by us, not resolved by the package.
+   * The model file is served by us, and handed to the package.
    *
-   * `loadTitler()` of `@aparte/titler-efigsp` finds its `.bin` with
-   * `new URL('../model/…', import.meta.url)`. Vite pre-bundles the package into
-   * `.angular/cache/…/vite/deps/`, `import.meta.url` then points there, and the
-   * `model/` directory is not carried over — a 404 on every title, in dev and in a
-   * production build alike. The README names this case and the way out: serve the
-   * file yourself. So the `.bin` is copied to `assets/titler/` (angular.json, as the
-   * pdf.js worker already is) and handed to the runtime as a buffer.
+   * A bundler rewrites neither `import.meta.url` nor the package-relative path the
+   * default model URL is built from, so `loadTitler()` with no argument resolves next
+   * to the bundle and 404s in a browser. Since 1.0.4 it takes the model instead — a
+   * URL, a string, an ArrayBuffer or a Response — so the file we copy to
+   * `assets/titler/` (scripts/copy-titler-model.mjs) is simply passed in.
    *
-   * The name comes from the package's own `modelUrl` rather than a literal, so a
-   * future version that renames or requantises its model keeps working: the asset
-   * glob copies whatever `model/*.bin` holds, and this reads the same name.
+   * One package, at last: 1.0.4 moved the file-system read behind the `node` export
+   * condition and made the portable entry the default, so importing this no longer
+   * drags `node:url` into a browser build. Reported as
+   * apartejs/aparte-titler-model#2 and fixed there.
    *
    * Dynamic import: 77 KB of model has no business in the initial bundle of an app
    * whose first screen is an onboarding.
    */
   private load(): Promise<Titler> {
-    this.titler ??= (async () => {
-      // From the RUNTIME package, never from `@aparte/titler-efigsp`.
-      //
-      // The bundled package re-exports the same `Titler`, and reaching for it there
-      // costs one dependency less — which is why this code did exactly that, and why
-      // the production build then failed. Its `readModelBytes()` has a Node branch
-      // (`await import("node:url")`) behind a `process.versions.node` check; the check
-      // is a runtime one, esbuild resolves imports statically, and it refuses
-      // `node:url` for a browser target. `ng serve` tolerated it, `ng build` did not.
-      //
-      // `@aparte/titler-efigsp` stays in package.json all the same: angular.json copies
-      // its `model/*.bin`. We depend on its FILE, not on its code.
-      const { Titler } = await import('@aparte/titler');
-      const response = await fetch(`assets/titler/${MODEL_FILE}`);
-      if (!response.ok) throw new Error(`titler model ${MODEL_FILE}: HTTP ${response.status}`);
-      return new Titler(await response.arrayBuffer());
-    })();
+    this.titler ??= import('@aparte/titler-efigsp').then((m) =>
+      m.loadTitler(`assets/titler/${MODEL_FILE}`),
+    );
     return this.titler;
   }
 
