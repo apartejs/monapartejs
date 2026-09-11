@@ -65,7 +65,7 @@
     "pdfjs-dist": "^6.1.200",
     "rxjs": "~7.8.0",
     "shiki": "^4.0.0",
-    "simple-statistics": "^7.9.3",
+    "simple-statistics": "^7.12.0",
     "streaming-markdown": "^0.2.15",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
