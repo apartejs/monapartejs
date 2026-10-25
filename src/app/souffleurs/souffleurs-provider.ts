@@ -539,7 +539,23 @@ export async function warmCaller(enabledToolNames: readonly string[]): Promise<v
   );
 }
 
-/** Preloads an executor adapter (86 MB, shared base already cached). */
+/**
+ * Puts a gguf file (repo-relative, from the manifest) in the local cache WITHOUT
+ * loading it: the executors and the mmproj are prefetched this way, so the warm
+ * caller stays in memory. Not queued — a download does not touch the model.
+ */
+export function prefetchFile(
+  file: string,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<void> {
+  return getWorker().download(file, onProgress);
+}
+
+export function isFileCached(file: string): Promise<boolean> {
+  return getWorker().isCached([file]);
+}
+
+/** Loads an executor adapter into memory (downloading it first if needed). */
 export async function prepareExecutor(
   adapter: ExecutorAdapter,
   onProgress?: (p: ModelLoadProgress) => void,

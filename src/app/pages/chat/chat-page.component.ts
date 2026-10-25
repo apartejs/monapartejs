@@ -69,12 +69,15 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
              "toolbar". Placement is now decided by DOM order and by
              logical margins (see .helper below). -->
         <!-- The library's gauge, not an estimate of ours: it reads the
-             inputTokens the worker actually reports, against the model's
-             declared contextWindow (32k). It draws nothing before the first
-             turn. auto-compact makes it ask for a compaction on reaching 90 %;
-             plugin-compaction answers, wired in core/aparte.config.ts. -->
+             inputTokens the engine actually reports, against the model's
+             declared contextWindow (8k, the engine's n_ctx). It draws nothing
+             before the first turn. auto-compact makes it ask for a compaction
+             on reaching 90 %; plugin-compaction answers, wired in
+             core/aparte.config.ts. -->
         <aparte-context slot="toolbar" variant="ring" auto-compact></aparte-context>
-        <div slot="toolbar" class="helper">{{ t().chat.helper }}</div>
+        <div slot="toolbar" class="helper" [attr.role]="slowDeviceHint() ? 'status' : null">
+          {{ slowDeviceHint() ? t().modelStatus.slowDevice : t().chat.helper }}
+        </div>
       </aparte-chat>
 
       <!-- The library's rail replaces our hand-rolled minimap: one tick per user
@@ -349,6 +352,8 @@ export class ChatPageComponent {
     const nickname = this.settings.get<string>(SETTINGS_KEYS.NICKNAME, '');
     return nickname ? `${base}, ${nickname}` : base;
   });
+
+  protected readonly slowDeviceHint = this.modelStatus.slowDeviceHint;
 
   protected readonly deviceLabel = computed(() =>
     this.modelStatus.state().device === 'webgpu' ? 'WebGPU' : 'WASM (CPU)',

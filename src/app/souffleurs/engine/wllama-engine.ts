@@ -115,6 +115,19 @@ export class WllamaEngine implements EngineLike {
 
   private send: Send = (msg) => this.onmessage?.({ data: msg });
 
+  /**
+   * Puts a file in the cache without loading anything: prefetching the executors and the
+   * mmproj this way leaves the loaded caller — and its warm prompt cache — untouched.
+   */
+  async download(
+    file: string,
+    onProgress?: (loaded: number, total: number) => void,
+  ): Promise<void> {
+    await this.deps.cache.download(this.url(file), {
+      progressCallback: ({ loaded, total }) => onProgress?.(loaded, total),
+    });
+  }
+
   private url(file: string): string {
     return `${this.deps.baseUrl}/${file}`;
   }

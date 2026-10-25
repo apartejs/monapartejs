@@ -208,9 +208,16 @@ export class SouffleurManifestClient {
     return this.manifest?.vision ?? null;
   }
 
-  /** Tower weight announced by the manifest (0 if no vision). */
+  /** Vision weight announced by the manifest: the mmproj once gguf is published (0 if none). */
   visionSize(): number {
+    if (this.manifest?.gguf) return this.manifest.gguf.mmproj?.size ?? 0;
     return this.manifest?.vision?.size ?? 0;
+  }
+
+  /** The vision version in force: the mmproj's once gguf is published, the tower's before. */
+  private visionVersion(): string | undefined {
+    if (this.manifest?.gguf) return this.manifest.gguf.mmproj?.version;
+    return this.manifest?.vision?.version;
   }
 
   /** Absolute URLs of the tower's two files, or null. */
@@ -227,12 +234,12 @@ export class SouffleurManifestClient {
    * would never have been offered anything.
    */
   visionHasUpdate(): boolean {
-    const version = this.manifest?.vision?.version;
+    const version = this.visionVersion();
     return !!version && this.seen[VISION_SEEN_KEY] !== version;
   }
 
   markSeenVision(): void {
-    const version = this.manifest?.vision?.version;
+    const version = this.visionVersion();
     if (!version) return;
     this.seen[VISION_SEEN_KEY] = version;
     lsSet(SEEN_KEY, JSON.stringify(this.seen));
@@ -271,7 +278,7 @@ export class SouffleurManifestClient {
     if (role) this.seen[role] = this.version(role) ?? '';
     else for (const r of this.roles()) this.seen[r] = this.version(r) ?? '';
     this.seen['__base'] = this.baseRev();
-    const visionVersion = this.manifest?.vision?.version;
+    const visionVersion = this.visionVersion();
     if (!role && visionVersion) this.seen[VISION_SEEN_KEY] = visionVersion;
     lsSet(SEEN_KEY, JSON.stringify(this.seen));
   }

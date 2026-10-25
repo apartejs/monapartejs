@@ -81,4 +81,6 @@ export interface WorkerLike {
 export interface EngineLike extends WorkerLike {
   /** true when every file (repo-relative) is already in the local cache. */
   isCached(files: readonly string[]): Promise<boolean>;
+  /** Puts a file (repo-relative) in the local cache without loading any model. */
+  download(file: string, onProgress?: (loaded: number, total: number) => void): Promise<void>;
 }

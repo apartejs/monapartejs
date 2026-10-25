@@ -283,3 +283,14 @@ describe('WllamaEngine', () => {
     expect(await engine.isCached([BASE, CHAT])).toBe(true);
   });
 });
+
+describe('WllamaEngine.download', () => {
+  it('stores a file in the cache without loading any model', async () => {
+    const { engine, instances, cache } = setup();
+    const seen: number[] = [];
+    await engine.download(PDF, (loaded) => seen.push(loaded));
+    expect(cache.downloads).toEqual([`${BASE_URL}/${PDF}`]);
+    expect(seen).toEqual([1]);
+    expect(instances).toHaveLength(0);
+  });
+});

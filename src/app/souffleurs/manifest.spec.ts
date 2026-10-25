@@ -302,3 +302,26 @@ describe('SouffleurManifestClient — gguf block', () => {
     expect(() => m.ggufAdapterFile('pdf')).toThrow('souffleur gguf inconnu: pdf');
   });
 });
+
+describe('SouffleurManifestClient — vision is the mmproj once gguf is published', () => {
+  it('size and version come from gguf.mmproj', async () => {
+    const vision = {
+      version: '0.1.0',
+      graph: 'onnx/model_vision_q4.onnx',
+      tower: 'onnx/vision-tower-0.1.0.onnx',
+      tower_data: 'onnx/vision-tower-0.1.0.onnx_data',
+      tower_internal_data: 'embed_images_q4.onnx_data',
+      size: 269390206,
+    };
+    store.set('bp.souffleurs.seen', JSON.stringify({ __vision: '0.1.0' }));
+    const m = await loaded({
+      ...MANIFEST,
+      vision,
+      gguf: { ...GGUF, mmproj: { ...GGUF.mmproj, version: '0.2.0' } },
+    });
+    expect(m.visionSize()).toBe(244046400);
+    expect(m.visionHasUpdate()).toBe(true);
+    m.markSeenVision();
+    expect(m.visionHasUpdate()).toBe(false);
+  });
+});

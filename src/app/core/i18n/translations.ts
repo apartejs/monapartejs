@@ -38,6 +38,8 @@ export interface Translations {
     error: string;
     notDownloaded: string;
     unknown: string;
+    /** Shown in the composer while a CPU-only device writes its first answer. */
+    slowDevice: string;
   };
   settings: {
     title: string;
@@ -152,6 +154,8 @@ export const FR: Translations = {
     error: 'erreur',
     notDownloaded: 'non téléchargé',
     unknown: '—',
+    slowDevice:
+      'Pas de carte graphique disponible : la première réponse sera plus lente sur cet appareil.',
   },
   settings: {
     title: 'Paramètres',
@@ -298,6 +302,7 @@ export const EN: Translations = {
     error: 'error',
     notDownloaded: 'not downloaded',
     unknown: '—',
+    slowDevice: 'No graphics card available: the first answer will be slower on this device.',
   },
   settings: {
     title: 'Settings',

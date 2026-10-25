@@ -57,6 +57,8 @@ class FakeWorker {
     return false;
   }
 
+  async download(): Promise<void> {}
+
   sentIds(type: string): number[] {
     return this.posted.filter((m) => m.type === type).map((m) => m.id as number);
   }

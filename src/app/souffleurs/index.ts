@@ -1,5 +1,5 @@
 /**
- * souffleurs module — aparté's local AI provider (candidate @aparte/provider-souffleurs).
+ * souffleurs module — aparté's local AI provider, run by wllama (ADR-014).
  * Framework-agnostic: no Angular dependency here.
  */
 export {
@@ -7,10 +7,13 @@ export {
   describeImage,
   detectComputeDevice,
   getLastWire,
+  isFileCached,
+  prefetchFile,
   prepareCaller,
   prepareExecutor,
   runExecutor,
   setSouffleurDebug,
+  warmCaller,
   type ExecutorAdapter,
   type ExecutorResult,
 } from './souffleurs-provider';
@@ -20,6 +23,7 @@ export {
   EXECUTOR_ADAPTERS,
   SIZE_ADAPTER_BYTES,
   SIZE_BASE_BYTES,
+  SIZE_MMPROJ_BYTES,
   SOUFFLEURS_HF_REPO,
   TOTAL_DOWNLOAD_BYTES,
   type AdapterName,
@@ -37,12 +41,7 @@ export {
   type SouffleurRole,
   type SouffleursManifest,
 } from './manifest';
-export {
-  isTowerCached,
-  prefetchTower,
-  TOWER_CACHE,
-  type TowerProgress,
-} from './vision/tower-cache';
+export { pendingUpdateBytes } from './update-bytes';
 export { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
 export { SOUFFLEUR_TOOL_NAMES } from './wire/tool-defs';
 export {
