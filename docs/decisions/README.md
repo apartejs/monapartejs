@@ -18,5 +18,7 @@ is not rewritten.
 | [010](010-bp-prefixes-kept.md) | The `bp-`/`bp.` prefixes are kept, not migrated | proposed |
 | [011](011-scope-of-1-0.md) | Scope of 1.0: prove what exists, do not extend it | proposed |
 | [012](012-product-colour-and-mark.md) | Monaparté carries its own colour (Angular magenta-violet) and its own mark (the mascot at home) | accepted |
+| [013](013-the-mark-is-a-house-shaped-speech-bubble.md) | The mark is a house-shaped speech bubble, and the mascot keeps its brass | accepted |
+| [014](014-in-browser-engine-is-wllama.md) | The in-browser engine is wllama, with LoRA adapters as GGUF | accepted |
 
 Format: [000-template.md](000-template.md).
