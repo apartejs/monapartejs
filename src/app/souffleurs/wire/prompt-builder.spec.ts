@@ -24,17 +24,17 @@ describe('renderToolCallBlock', () => {
 });
 
 describe('buildWirePrompt — golden training format (lfm25-chat-1.0.0)', () => {
-  it('reproduces the exact wire structure: multi-turn with tool_call and tool_result', () => {
+  it('reproduces the exact wire structure: multi-turn with a tool call and its result', () => {
     const toolResult = JSON.stringify({ ok: true, type: 'read_file', mime: 'xlsx' }, null, 2);
     const messages: AparteChatMessage[] = [
       { role: 'user', content: 'Résume ce fichier' },
+      // aparté ≥ 0.17: the call rides on the assistant message, `content` is what it said first.
       {
-        role: 'tool_call',
-        content: '',
-        precedingText: 'Je consulte votre fichier.',
+        role: 'assistant',
+        content: 'Je consulte votre fichier.',
         toolCalls: [{ id: 't1', name: 'read_file', input: { file_id: 'file_m_4' } }],
       },
-      { role: 'tool_result', content: toolResult, toolCallId: 't1' },
+      { role: 'tool', content: toolResult, toolCallId: 't1', toolName: 'read_file' },
       { role: 'assistant', content: 'Voici le résumé.\n\nAutre chose ?' },
       { role: 'user', content: 'Non merci !' },
     ];
@@ -55,10 +55,10 @@ describe('buildWirePrompt — golden training format (lfm25-chat-1.0.0)', () => 
     expect(buildWirePrompt('SYS', messages)).toBe(expected);
   });
 
-  it('tool_call with no intro text: block alone in the assistant turn', () => {
+  it('a tool call with no intro text: block alone in the assistant turn', () => {
     const wire = buildWirePrompt('SYS', [
       {
-        role: 'tool_call',
+        role: 'assistant',
         content: '',
         toolCalls: [{ id: '1', name: 'compute', input: { task: '2+2' } }],
       },

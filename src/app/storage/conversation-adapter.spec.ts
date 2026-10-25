@@ -68,6 +68,12 @@ describe('DexieConversationAdapter', () => {
     expect((meta[0] as Record<string, unknown>)['messages']).toBeUndefined();
   });
 
+  it('keeps autoTitle — without it every automatic title reads as typed after a reload', async () => {
+    const conv = makeConv({ autoTitle: true });
+    await adapter.save(conv);
+    expect((await adapter.loadFull(conv.id))?.autoTitle).toBe(true);
+  });
+
   it('delete: cascades messages', async () => {
     const conv = makeConv();
     await adapter.save(conv);

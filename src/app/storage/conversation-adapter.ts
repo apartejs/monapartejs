@@ -34,7 +34,7 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
       updatedAt: conv.updatedAt,
       archivedAt: conv.archivedAt,
       pinnedAt: conv.pinnedAt,
-      folderId: conv.folderId,
+      autoTitle: conv.autoTitle,
       lastMessagePreview: last ? previewOf(last) : undefined,
       messageCount: messages.length,
       schemaVersion: conv.schemaVersion ?? APARTE_CONVERSATION_SCHEMA_VERSION,
@@ -188,7 +188,7 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
     const messages = await this.db.messages.where('convId').equals(row.id).sortBy('timestamp');
     const attachmentRows = await this.db.attachments.where('convId').equals(row.id).toArray();
     const fresh = freshAttachmentsByMsg(attachmentRows);
-    const { tree, lastMessagePreview: _p, messageCount: _c, ...meta } = row;
+    const { tree, lastMessagePreview: _p, messageCount: _c, folderId: _f, ...meta } = row;
     return {
       ...meta,
       messages: messages.map((m) => withAttachments(m.data, fresh)),
