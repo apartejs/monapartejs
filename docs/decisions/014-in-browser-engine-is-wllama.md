@@ -19,8 +19,9 @@
   llama.cpp with the same files. Vision moves to wllama's `mmproj` path — the current ONNX
   tower feeds the ONNX decoder and cannot serve a GGUF base — so the switch waits until vision
   is measured correct on the M5. The no-WebGPU path becomes supported, with a "first answer is
-  slow" hint. `@aparte/provider-wllama` is a separate library track; monaparté does not wait
-  for it.
+  slow" hint. The engine lives in the app (`src/app/souffleurs/`); moving it into aparté as a
+  provider is not decided here — it gets its own spec later, written from what the app has
+  proven.
 - **Evidence / references**: measured on the M5, headless Chromium with the real iGPU, the
   app's 1,745-token prompt, `souffleur-chat` 0.3.0 —
 
