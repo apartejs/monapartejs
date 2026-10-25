@@ -43,7 +43,7 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
     <div class="chat-wrap">
       <!-- $any: null deselects (aparté reads conversationId() ?? null, and its source
            declares string | null | undefined), but @aparte/angular 0.25's published
-           types narrow the input to string. -->
+           types narrow the input to string — apartejs/aparte#124. -->
       <aparte-chat
         id="bp-chat"
         [conversationId]="$any(conversationId())"
