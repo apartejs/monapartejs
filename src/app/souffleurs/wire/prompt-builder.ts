@@ -42,8 +42,10 @@ export function wirePrefix(systemPrompt: string): string {
 }
 
 /**
- * messages = the AparteChatMessage history as provided by AparteClient
- * (user/assistant/tool_call/tool_result roles). The system prompt is provided
+ * messages = the AparteChatMessage history as provided by AparteClient: a tool
+ * round trip is an `assistant` message carrying `toolCalls` (its `content` is what
+ * was said before them) followed by one `tool` message per result — earlier turns'
+ * included, as the training template renders them. The system prompt is provided
  * separately — any 'system' role in the history is ignored.
  * Ends with the generation prompt `<|im_start|>assistant\n`.
  */
@@ -60,16 +62,17 @@ export function buildWirePrompt(
       case 'user':
         out += wireTurn('user', contentToText(m.content));
         break;
-      case 'assistant':
-        out += wireTurn('assistant', contentToText(m.content));
-        break;
-      case 'tool_call': {
-        const intro = (m.precedingText ?? contentToText(m.content)).trim();
-        const block = renderToolCallBlock(m.toolCalls ?? []);
+      case 'assistant': {
+        if (!m.toolCalls?.length) {
+          out += wireTurn('assistant', contentToText(m.content));
+          break;
+        }
+        const intro = contentToText(m.content).trim();
+        const block = renderToolCallBlock(m.toolCalls);
         out += wireTurn('assistant', intro ? `${intro}\n${block}` : block);
         break;
       }
-      case 'tool_result':
+      case 'tool':
         out += wireTurn('tool', contentToText(m.content));
         break;
     }

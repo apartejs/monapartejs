@@ -320,11 +320,6 @@ export const readFileRenderer: AparteToolRenderer = {
   getStyles: () => CARD_STYLES,
 };
 
-/** compute: invisible (the result feeds the model's text answer). */
-export const invisibleRenderer: AparteToolRenderer = {
-  render: () => '',
-};
-
 /**
  * WARNING: the lib only injects a tool renderer's getStyles() on the
  * `tool-start` event (live generation) — on a conversation reload, no

@@ -67,7 +67,12 @@ export class AppComponent {
   protected readonly privacyOpen = signal(false);
   protected readonly searchOpen = signal(false);
 
-  protected readonly topbarTitle = computed(() => this.manager.activeConversation()?.title ?? '');
+  // aparté ≥ 0.17 leaves a conversation's title empty until it has text, and the
+  // store never carries a UI string: the empty title is ours to name.
+  protected readonly topbarTitle = computed(() => {
+    const conversation = this.manager.activeConversation();
+    return conversation ? conversation.title || this.t().sidebar.newChat : '';
+  });
 
   /** Corner mascot wired to the model's REAL cycle (souffleurs provider):
    *  downloading/loading (including executor swap ~3.8 s) → thinking;

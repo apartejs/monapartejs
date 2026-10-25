@@ -196,11 +196,20 @@ export class SearchPaletteComponent implements AfterViewInit {
           break;
         }
       }
-      if (matched) out.push({ convId: conv.id, title: conv.title, snippet });
+      if (matched)
+        out.push({ convId: conv.id, title: conv.title || this.t().sidebar.newChat, snippet });
       if (out.length >= 12) break;
     }
     return out;
   });
+
+  constructor() {
+    // aparté ≥ 0.17 lists conversations from their metadata: one not opened since the
+    // reload has no messages in memory, and the search would only match its title.
+    // Fetched here, on demand, as 0.16 used to load everything at boot.
+    const core = this.manager.manager;
+    if (core) for (const conv of this.manager.conversations()) void core.ensureFull(conv.id);
+  }
 
   ngAfterViewInit(): void {
     this.input().nativeElement.focus();

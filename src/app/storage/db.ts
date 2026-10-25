@@ -46,6 +46,13 @@ export interface ArtifactRow {
 export interface ConversationRow extends AparteConversationMeta {
   /** Full branch tree (exportTree) — null if the conversation is linear. */
   tree: unknown | null;
+  /** The title is the manager's decision, not typed by the user (aparté ≥ 0.17). */
+  autoTitle?: boolean;
+  // The store's own fields: aparté 0.17 dropped them from its conversation types.
+  lastMessagePreview?: string;
+  messageCount?: number;
+  /** Written by versions before aparté 0.17; never set any more, still indexed. */
+  folderId?: string;
 }
 
 export interface MessageRow {

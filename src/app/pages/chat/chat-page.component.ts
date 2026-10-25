@@ -41,9 +41,12 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="chat-wrap">
+      <!-- $any: null deselects (aparté reads conversationId() ?? null, and its source
+           declares string | null | undefined), but @aparte/angular 0.25's published
+           types narrow the input to string. -->
       <aparte-chat
         id="bp-chat"
-        [conversationId]="conversationId()"
+        [conversationId]="$any(conversationId())"
         [placeholder]="t().chat.placeholder"
         [centerWhenEmpty]="true"
         [overlayComposer]="true"

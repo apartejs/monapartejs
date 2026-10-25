@@ -32,7 +32,6 @@ import {
   extType,
   fileRegistry,
   installToolRendererStyles,
-  invisibleRenderer,
   readFileHandler,
   readFileTool,
   readFileRenderer,
@@ -196,7 +195,9 @@ export function provideMonaparte(): EnvironmentProviders[] {
       aparteGlobalConfig.registerToolRenderer('write_file', artifactCardRenderer);
       aparteGlobalConfig.registerToolRenderer('transform_file', artifactCardRenderer);
       aparteGlobalConfig.registerToolRenderer('create_widget', widgetRenderer);
-      aparteGlobalConfig.registerToolRenderer('compute', invisibleRenderer);
+      // compute draws nothing: its result feeds the model's answer. Since aparté 0.23 a
+      // hidden call stays in the message and the history; only its row is empty.
+      aparteGlobalConfig.registerToolDisplay('compute', { hidden: true });
       // The lib only injects tool renderer styles on tool-start (live) —
       // on reload there is none: inject at registration instead.
       installToolRendererStyles();

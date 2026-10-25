@@ -44,7 +44,9 @@ interface ConvGroup {
           <p class="group-label">{{ group.label }}</p>
           @for (conv of group.items; track conv.id) {
             <div class="item" [class.active]="conv.id === manager.activeId()">
-              <button class="title" (click)="open(conv.id)">{{ conv.title }}</button>
+              <button class="title" (click)="open(conv.id)">
+                {{ conv.title || t().sidebar.newChat }}
+              </button>
               <span class="actions">
                 <button
                   class="icon"
@@ -77,7 +79,9 @@ interface ConvGroup {
           @if (showArchived()) {
             @for (conv of manager.archivedConversations(); track conv.id) {
               <div class="item archived">
-                <button class="title" (click)="open(conv.id)">{{ conv.title }}</button>
+                <button class="title" (click)="open(conv.id)">
+                  {{ conv.title || t().sidebar.newChat }}
+                </button>
                 <span class="actions">
                   <button class="icon" [title]="t().sidebar.unarchive" (click)="unarchive(conv.id)">
                     ▵

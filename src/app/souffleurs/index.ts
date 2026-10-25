@@ -74,7 +74,6 @@ export {
 export {
   artifactCardRenderer,
   installToolRendererStyles,
-  invisibleRenderer,
   readFileRenderer,
   widgetRenderer,
 } from './tools/tool-renderers';
