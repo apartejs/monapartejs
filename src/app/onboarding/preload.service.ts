@@ -25,6 +25,8 @@ export class OnboardingPreloadService {
   readonly state = signal<PreloadState>('idle');
   readonly progress = signal(0);
   readonly errorMessage = signal<string | null>(null);
+  /** The caller's prompt has been sent to the prompt cache this session. */
+  private warmed = false;
 
   async start(): Promise<void> {
     if (this.state() === 'running') return;
@@ -115,8 +117,27 @@ export class OnboardingPreloadService {
     }
   }
 
+  /**
+   * A returning user skips the onboarding, so nothing has prefilled the caller's
+   * system prompt: their first message would pay for it whole (27 s on the M5's
+   * GPU, 89 s on its CPU). Called once the weights are known to be here; at most
+   * one warm-up per session, the onboarding's included. Best-effort.
+   */
+  warmAtBoot(): void {
+    if (this.warmed) return;
+    this.warmed = true;
+    void warmCaller(this.toolNames()).catch((err) => {
+      console.warn('[boot] caller warm-up failed (the first message pays the prefill)', err);
+    });
+  }
+
+  private toolNames(): string[] {
+    return aparteGlobalConfig.getTools().map((tool) => tool.name);
+  }
+
   private async warmThenPrefetchExecutors(): Promise<void> {
-    await warmCaller(aparteGlobalConfig.getTools().map((tool) => tool.name));
+    this.warmed = true;
+    await warmCaller(this.toolNames());
     const manifest = await getSouffleurManifest();
     for (const adapter of EXECUTOR_ADAPTERS) {
       const role = adapterRole(adapter);

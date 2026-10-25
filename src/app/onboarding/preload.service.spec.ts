@@ -175,6 +175,38 @@ describe('OnboardingPreloadService — wllama: warm the caller, download the res
     expect(markSeen).toHaveBeenCalledWith('pdf');
   });
 
+  it('at boot with the weights already here, warms the caller once', async () => {
+    service.warmAtBoot();
+    service.warmAtBoot();
+    await settle();
+
+    expect(warmCaller).toHaveBeenCalledTimes(1);
+    expect(warmCaller).toHaveBeenCalledWith(['read_file', 'compute']);
+  });
+
+  it('a boot warm-up after the onboarding one does not run again', async () => {
+    await service.start();
+    await settle();
+    await settle();
+    service.warmAtBoot();
+    await settle();
+
+    expect(warmCaller).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed boot warm-up is swallowed — the first message just pays the prefill', async () => {
+    warmCaller.mockImplementationOnce(async () => {
+      throw new Error('moteur absent');
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    service.warmAtBoot();
+    await settle();
+
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('an already-cached mmproj is not downloaded again', async () => {
     isFileCached.mockImplementation(async (file) => file === 'gguf/mmproj.gguf');
     await service.start();
