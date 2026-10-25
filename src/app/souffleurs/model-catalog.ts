@@ -8,14 +8,10 @@ export type AdapterName =
 export const CALLER_ADAPTER: AdapterName = 'souffleur-chat';
 
 /**
- * Vision (ADR-001) — SAME repo, SAME weights, SAME graph as text.
- * The published graph (`onnx/model_vision_q4.onnx`) is our base with an
- * `image_features`/`image_indices` input gate grafted on: bit-identical in
- * text (measured logits gap 0.000e+00), so it's used for everything. The
- * only extra artifact is the TOWER (`vision-tower-<ver>`, ~269 MB), described
- * by the manifest's `vision` block and attached in a separate session on the
- * 1st image.
- * Produced by `aparte-repetitions/export/graft_image_embeds.py`.
+ * Vision (ADR-014) — the SAME base GGUF, loaded without adapter, plus the vision
+ * encoder (mmproj): Liquid's F16 encoder requantized to Q4_0 with its 4304-wide FFN
+ * padded to 4320 (exact), ~244 MB. Described by the manifest's `gguf.mmproj`.
+ * Produced by `aparte-repetitions/export/build_gguf.py`.
  */
 
 /**
@@ -32,11 +28,16 @@ export const CALLER_MODEL_ID = 'souffleur-chat';
 // File paths (base + versioned adapters) are resolved by the HF repo's
 // manifest.json — see ./manifest.ts. No more hardcoded path here.
 
-/** Approximate sizes (progress + generated onboarding text, never hardcoded elsewhere). */
-export const SIZE_BASE_BYTES = 795_000_000;
-export const SIZE_ADAPTER_BYTES = 86_000_000;
-/** config + tokenizer + graph (~5 MB) */
-export const SIZE_OVERHEAD_BYTES = 5_000_000;
+/**
+ * Approximate sizes (progress + generated onboarding text, never hardcoded elsewhere);
+ * the manifest's sizes win when it publishes them. The executors' rank-128 adapters are
+ * the largest (q8_0), the chat one is ~89 MB (f16).
+ */
+export const SIZE_BASE_BYTES = 731_000_000;
+export const SIZE_ADAPTER_BYTES = 94_000_000;
+export const SIZE_MMPROJ_BYTES = 244_000_000;
+/** wllama's .wasm, served by the app (~9 MB) */
+export const SIZE_OVERHEAD_BYTES = 9_000_000;
 export const CALLER_DOWNLOAD_BYTES = SIZE_BASE_BYTES + SIZE_ADAPTER_BYTES + SIZE_OVERHEAD_BYTES;
 /** Base + the 4 souffleurs (caller + 3 executors) — announced at onboarding. */
 export const TOTAL_DOWNLOAD_BYTES = SIZE_BASE_BYTES + SIZE_ADAPTER_BYTES * 4 + SIZE_OVERHEAD_BYTES;
@@ -48,16 +49,20 @@ export const EXECUTOR_ADAPTERS = [
 ] as const satisfies readonly AdapterName[];
 
 /**
- * The caller's context window, in tokens — the base model's maximum.
- * Declared on the AparteAIModel so `<aparte-context>` has something to measure
- * against and the compaction selector can budget. Note this is the ceiling, not
- * a comfortable size: nothing here reuses a KV cache between turns.
+ * The caller's context window, in tokens: the engine's n_ctx (`N_CTX` in
+ * engine/wllama-engine.ts), a hard limit since wllama allocates it. Declared on
+ * the AparteAIModel so `<aparte-context>` has something to measure against and
+ * the compaction selector can budget.
  */
-export const CALLER_CONTEXT_WINDOW = 32_768;
+export const CALLER_CONTEXT_WINDOW = 8_192;
 
 /** Contract generation bounds (256 min caller — 64 truncated the announcement+call). */
 export const CALLER_MAX_NEW_TOKENS = 256;
-export const EXECUTOR_MAX_NEW_TOKENS = 12_000;
+/**
+ * An executor's prompt plus its output must fit the 8,192-token context. The old
+ * 12,000 was only ever reached by a loop (F8), which the repetition guard now stops.
+ */
+export const EXECUTOR_MAX_NEW_TOKENS = 6_144;
 
 // Weight versioning is carried by manifest.json (immutable versioned files)
 // — publishing a new version = new name + manifest bump,
