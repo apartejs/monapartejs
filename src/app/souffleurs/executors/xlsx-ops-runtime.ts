@@ -12,7 +12,7 @@
  * offline-first bundle lean.
  */
 import type { Row } from 'exceljs';
-// ExcelJS is loaded dynamically (deferred chunk — never in the initial bundle).
+import { loadWorkbook } from './exceljs';
 
 export type XlsxOp = Record<string, unknown>;
 
@@ -287,7 +287,7 @@ function workbookPreview(wb: any): string {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function buildWorkbook(ops: XlsxOp[], original?: ArrayBuffer | null): Promise<any> {
-  const { Workbook } = await import('exceljs');
+  const Workbook = await loadWorkbook();
   const wb = new Workbook();
   if (original) {
     try {

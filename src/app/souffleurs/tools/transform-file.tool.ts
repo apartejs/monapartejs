@@ -5,6 +5,7 @@
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { fileRegistry } from '../files/file-registry';
 import { notifyArtifact } from './artifact-store';
+import { loadWorkbook } from '../executors/exceljs';
 
 export const transformFileTool: AparteTool = {
   name: 'transform_file',
@@ -99,7 +100,7 @@ export const transformFileHandler: AparteToolHandler = async (call) => {
 };
 
 async function xlsxToCsv(blob: Blob): Promise<Blob> {
-  const { Workbook } = await import('exceljs');
+  const Workbook = await loadWorkbook();
   const wb = new Workbook();
   await wb.xlsx.load(await blob.arrayBuffer());
   const sheet = wb.worksheets[0];
@@ -119,7 +120,7 @@ async function xlsxToCsv(blob: Blob): Promise<Blob> {
 }
 
 async function csvToXlsx(blob: Blob): Promise<Blob> {
-  const { Workbook } = await import('exceljs');
+  const Workbook = await loadWorkbook();
   const text = await blob.text();
   const wb = new Workbook();
   const sheet = wb.addWorksheet('Feuille1');

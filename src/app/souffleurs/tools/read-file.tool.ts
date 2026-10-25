@@ -9,6 +9,7 @@
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { fileRegistry } from '../files/file-registry';
 import { describeImage } from '../souffleurs-provider';
+import { loadWorkbook } from '../executors/exceljs';
 
 export const readFileTool: AparteTool = {
   name: 'read_file',
@@ -80,7 +81,7 @@ export const readFileHandler: AparteToolHandler = async (call) => {
 
 /** Xlsx survey (schema/preview shape iso training). Reused by write_file (edit). */
 export async function surveyXlsx(blob: Blob): Promise<Record<string, unknown>> {
-  const { Workbook } = await import('exceljs');
+  const Workbook = await loadWorkbook();
   const workbook = new Workbook();
   await workbook.xlsx.load(await blob.arrayBuffer());
 
