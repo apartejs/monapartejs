@@ -31,5 +31,12 @@
   | first token, next turns | 20.3 s | 1.3 s | 2.8 s |
   | without WebGPU | does not load | — | works |
 
-  The LoRA changes wllama's answers to the souffleur's own, as in transformers.js. Design:
-  `docs/superpowers/specs/2026-10-25-model-rework-design.md` §6.5.
+  The LoRA changes wllama's answers to the souffleur's own, as in transformers.js. The decode
+  row was measured on a 181-token prompt; at the app's own context (~1,900 tokens) the same
+  bench gives 11.1–11.3 t/s on the CPU.
+
+  **In the app itself** (production image, same M5, 2026-10-25): after the boot warm-up, the
+  first message's first token comes in 0.92 s on the GPU and 1.65 s on the CPU, follow-ups in
+  0.91–1.08 s and 1.52–2.17 s; decode is 12.8–14.1 t/s on the GPU and 10.3–10.6 t/s on the
+  CPU. An offline reload loads the model from the cache and answers. Design:
+  `docs/superpowers/specs/2026-10-25-model-rework-design.md` §6.5 and §6.5.1.
