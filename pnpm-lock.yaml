@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@wllama/wllama@3.8.1':
-    hash: 6b4c36c5af6901edcfc194c8b302699d2a26a4139edad23d67f2d2b6f25a398d
+    hash: 86f8c8101f6f8e9751952b3d84e0c746c3c1ef95673a7db5ef027d4f42c34da3
     path: patches/@wllama__wllama@3.8.1.patch
 
 importers:
@@ -72,7 +72,10 @@ importers:
         version: 10.5.0
       '@wllama/wllama':
         specifier: 3.8.1
-        version: 3.8.1(patch_hash=6b4c36c5af6901edcfc194c8b302699d2a26a4139edad23d67f2d2b6f25a398d)
+        version: 3.8.1(patch_hash=86f8c8101f6f8e9751952b3d84e0c746c3c1ef95673a7db5ef027d4f42c34da3)
+      '@wllama/wllama-compat':
+        specifier: 3.8.1
+        version: 3.8.1
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
@@ -2967,6 +2970,9 @@ packages:
 
   '@webassemblyjs/wast-printer@1.14.1':
     resolution: {integrity: sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw==}
+
+  '@wllama/wllama-compat@3.8.1':
+    resolution: {integrity: sha512-IvmjrJ+JzDbt3w1FQq1yAmnFEiLGCceowK2Q80zW+k9ChFkPBM1ByX/9xm2xVxyd8MHC50VpuDo6SDE83k9kIQ==}
 
   '@wllama/wllama@3.8.1':
     resolution: {integrity: sha512-Pl7BEJhPU8OHnV/yhn3DFZYhLLOdSHh+4TND79WCftHnlUAdQPAsyc/CfIOY+4mVxvf5VW3Xw3Uf7BBfotS1gw==}
@@ -9115,7 +9121,9 @@ snapshots:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
 
-  '@wllama/wllama@3.8.1(patch_hash=6b4c36c5af6901edcfc194c8b302699d2a26a4139edad23d67f2d2b6f25a398d)': {}
+  '@wllama/wllama-compat@3.8.1': {}
+
+  '@wllama/wllama@3.8.1(patch_hash=86f8c8101f6f8e9751952b3d84e0c746c3c1ef95673a7db5ef027d4f42c34da3)': {}
 
   '@xtuc/ieee754@1.2.0': {}
 

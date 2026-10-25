@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import type { CacheManager } from '@wllama/wllama';
 import type { MainToWorker, WorkerToMain } from '../worker-protocol';
 import type { LlamaTimings } from './llama-wire';
 import {
   TOOL_CALL_MARKERS,
   WllamaEngine,
+  cacheManagerBlobCache,
   type BlobCache,
   type CompletionChunk,
   type CompletionOptions,
@@ -24,6 +26,11 @@ const TIMINGS: LlamaTimings = {
 };
 
 class FakeWllama implements WllamaLike {
+  /** Knobs for the failure tests, reset before each test. */
+  static loadError: Error | null = null;
+  static completionError: Error | null = null;
+  static finishReason: 'stop' | 'length' = 'stop';
+
   loads: { blobs: Blob[]; params: Record<string, unknown> }[] = [];
   completions: CompletionOptions[] = [];
   chats: Record<string, unknown>[] = [];
@@ -36,19 +43,22 @@ class FakeWllama implements WllamaLike {
 
   async loadModel(blobs: Blob[], params: Record<string, unknown>): Promise<void> {
     this.loads.push({ blobs, params });
+    if (FakeWllama.loadError) throw FakeWllama.loadError;
   }
 
   async createCompletion(opts: CompletionOptions): Promise<AsyncIterable<CompletionChunk>> {
     this.completions.push(opts);
+    if (FakeWllama.completionError) throw FakeWllama.completionError;
     const chunks = this.chunks();
     const gate = this.gate;
+    const finish = FakeWllama.finishReason;
     return (async function* () {
       for (const [i, text] of chunks.entries()) {
         if (i === 1 && gate) await gate;
         if (opts.abortSignal?.aborted) throw new DOMException('aborted', 'AbortError');
         yield { choices: [{ text }] };
       }
-      yield { choices: [{ text: '' }], timings: TIMINGS };
+      yield { choices: [{ text: '', finish_reason: finish }], timings: TIMINGS };
     })();
   }
 
@@ -292,5 +302,121 @@ describe('WllamaEngine.download', () => {
     expect(cache.downloads).toEqual([`${BASE_URL}/${PDF}`]);
     expect(seen).toEqual([1]);
     expect(instances).toHaveLength(0);
+  });
+});
+
+describe('WllamaEngine — failures and Stop', () => {
+  beforeEach(() => {
+    FakeWllama.loadError = null;
+    FakeWllama.completionError = null;
+    FakeWllama.finishReason = 'stop';
+  });
+
+  it('a Stop during the load skips the generation', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const instances: FakeWllama[] = [];
+    const cache = new MemoryCache();
+    const download = cache.download.bind(cache);
+    cache.download = async (url, opts) => {
+      await gate;
+      return download(url, opts);
+    };
+    const engine = new WllamaEngine({
+      createWllama: () => {
+        const w = new FakeWllama(() => ['un', 'deux']);
+        instances.push(w);
+        return w;
+      },
+      cache,
+      baseUrl: BASE_URL,
+    });
+    const messages: WorkerToMain[] = [];
+    engine.onmessage = (e) => messages.push(e.data);
+    engine.postMessage(generate(1));
+    await new Promise((r) => setTimeout(r, 5));
+    engine.postMessage({ type: 'abort' });
+    release();
+    for (let i = 0; i < 100 && !messages.some((m) => m.type === 'done'); i++) {
+      await new Promise((r) => setTimeout(r, 0));
+    }
+
+    expect(messages.find((m) => m.type === 'done')).toMatchObject({ id: 1 });
+    expect(instances[0].completions).toHaveLength(0);
+  });
+
+  it('a prompt over the context fails with a clear message', async () => {
+    FakeWllama.completionError = new Error(
+      'the request exceeds the available context size (9104 tokens), try increasing it',
+    );
+    const { settled, send } = setup();
+    send(generate(1));
+    const err = await settled(1, 'error');
+    expect((err as { message: string }).message).toMatch(/^conversation trop longue/);
+  });
+
+  it('an executor cut by its token limit is an error, not a file', async () => {
+    FakeWllama.finishReason = 'length';
+    const { settled, send } = setup();
+    send({ ...generate(1), adapter: 'souffleur-pdf', adapterFile: PDF });
+    const err = await settled(1, 'error');
+    expect((err as { message: string }).message).toMatch(/tronquée/);
+  });
+
+  it('the caller reaching its own cap still ends normally', async () => {
+    FakeWllama.finishReason = 'length';
+    const { settled, send } = setup();
+    send(generate(1));
+    await settled(1, 'done');
+  });
+
+  it('a failed adapter download keeps the loaded model', async () => {
+    const { instances, cache, messages, settled, send } = setup();
+    send(prepare(1));
+    await settled(1, 'ready');
+    const download = cache.download.bind(cache);
+    cache.download = async (url, opts) => {
+      if (url.endsWith(PDF)) throw new Error('réseau coupé');
+      return download(url, opts);
+    };
+    send(prepare(2, PDF));
+    await settled(2, 'error');
+    send(generate(3));
+    await settled(3, 'done');
+
+    expect(instances).toHaveLength(1);
+    expect(instances[0].exits).toBe(0);
+    expect(messages.find((m) => 'id' in m && m.id === 3 && m.type === 'ready')).toMatchObject({
+      ms: 0,
+    });
+  });
+
+  it('a failed load releases the new instance', async () => {
+    FakeWllama.loadError = new Error('gguf invalide');
+    const { instances, settled, send } = setup();
+    send(prepare(1));
+    await settled(1, 'error');
+    expect(instances[0].exits).toBe(1);
+  });
+});
+
+describe('cacheManagerBlobCache.has', () => {
+  const manager = (meta: { originalURL: string; originalSize: number } | null, size: number) =>
+    ({
+      getNameFromURL: async () => 'name',
+      getSize: async () => size,
+      getMetadata: async () => meta,
+    }) as unknown as CacheManager;
+
+  it('a file whose download was cut (no metadata of its own) is not complete', async () => {
+    const cache = cacheManagerBlobCache(manager({ originalURL: '', originalSize: 100 }, 100));
+    expect(await cache.has('https://hf/x.gguf')).toBe(false);
+  });
+
+  it('a file with its own URL and full size is complete', async () => {
+    const cache = cacheManagerBlobCache(
+      manager({ originalURL: 'https://hf/x.gguf', originalSize: 100 }, 100),
+    );
+    expect(await cache.has('https://hf/x.gguf')).toBe(true);
   });
 });

@@ -39,3 +39,47 @@ index 0f185d6d24845f8fbee500d2c422d9c23b1aa820..086d89afa4d4496fdafbab0d1f7c1997
          scale?: number;
      }[];
      lora_init_without_apply?: boolean;
+diff --git a/src/types/types.ts b/src/types/types.ts
+index de086363e5d2eaae396004decc57201d7a212524..2f60a485bba5898314b4f0a3d1b13657c3d29b29 100644
+--- a/src/types/types.ts
++++ b/src/types/types.ts
+@@ -59,7 +59,8 @@ export interface LoadModelParams {
+   ctx_shift?: boolean;
+   cache_idle_slots?: boolean;
+   n_cache_reuse?: number;
+-  lora_adapters?: { path: string; scale?: number }[];
++  /** patch: ngxson/wllama#265 (adapter staging) — a file path, or a Blob the loader mounts */
++  lora_adapters?: { path?: string; blob?: Blob; scale?: number }[];
+   lora_init_without_apply?: boolean;
+   spec_draft_model?: string;
+   spec_draft_ngl?: number;
+diff --git a/src/wllama.ts b/src/wllama.ts
+index 6ecbb68bebed16085bab341b96e3f7b67887a2c8..f035241e584cfc442821d7fa5ec623fa7400e9b7 100644
+--- a/src/wllama.ts
++++ b/src/wllama.ts
+@@ -507,7 +507,12 @@ export class Wllama {
+     }
+ 
+     const modelFiles = await prepareBlobs(blobs);
+-    await this.proxy.moduleInit(modelFiles.all);
++    // patch: ngxson/wllama#265 (adapter staging) — a lora_adapters entry may carry a Blob,
++    // mounted next to the model as /models/lora-N.gguf (N = its 1-based index).
++    const loraFiles = (params.lora_adapters ?? []).flatMap((a, i) =>
++      a.blob ? [{ blob: a.blob, name: `lora-${i + 1}.gguf` }] : []
++    );
++    await this.proxy.moduleInit([...modelFiles.all, ...loraFiles]);
+ 
+     // run it
+     this.logger().debug('Calling wllamaStart...');
+@@ -567,7 +572,10 @@ export class Wllama {
+       ctx_shift: params.ctx_shift,
+       cache_idle_slots: params.cache_idle_slots,
+       n_cache_reuse: params.n_cache_reuse,
+-      lora_paths: params.lora_adapters?.map((a) => a.path),
++      // patch: ngxson/wllama#265 (adapter staging) — a Blob entry points at its mounted file
++      lora_paths: params.lora_adapters?.map((a, i) =>
++        a.blob ? `/models/lora-${i + 1}.gguf` : (a.path as string)
++      ),
+       lora_scales: params.lora_adapters?.map((a) => a.scale ?? 1.0),
+       lora_init_without_apply: params.lora_init_without_apply,
+       spec_draft_model: params.spec_draft_model,

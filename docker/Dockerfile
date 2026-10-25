@@ -19,8 +19,11 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
 
 # Dependencies first: this layer only rebuilds when the manifests change,
-# not on every source change.
-COPY package.json pnpm-lock.yaml ./
+# not on every source change. pnpm-workspace.yaml and patches/ belong to the
+# manifests: they carry the wllama patch (adapter staging, ngxson/wllama#265);
+# without them the install fails on the lockfile, or ships wllama unpatched.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 
 COPY . .

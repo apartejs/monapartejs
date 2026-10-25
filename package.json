@@ -12,9 +12,9 @@
   "bugs": "https://github.com/apartejs/monapartejs/issues",
   "scripts": {
     "ng": "ng",
-    "prestart": "node scripts/copy-titler-model.mjs",
+    "prestart": "node scripts/copy-titler-model.mjs && node scripts/copy-wllama-assets.mjs",
     "start": "ng serve",
-    "prebuild": "node scripts/copy-titler-model.mjs",
+    "prebuild": "node scripts/copy-titler-model.mjs && node scripts/copy-wllama-assets.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "vitest run",
@@ -24,7 +24,7 @@
     "format:check": "prettier --check .",
     "typecheck": "ngc -p tsconfig.app.json --noEmit",
     "typecheck:worker": "tsc --noEmit --strict --target ES2022 --module ES2022 --moduleResolution bundler --skipLibCheck --lib ES2022,DOM,WebWorker src/app/souffleurs/executors/sandbox.worker.ts",
-    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:worker && pnpm test && pnpm build"
+    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:worker && pnpm test && pnpm build && node scripts/check-build.mjs"
   },
   "private": true,
   "dependencies": {
@@ -48,6 +48,7 @@
     "@aparte/titler-efigsp": "^1.0.4",
     "@faker-js/faker": "^10.5.0",
     "@wllama/wllama": "3.8.1",
+    "@wllama/wllama-compat": "3.8.1",
     "chart.js": "^4.5.1",
     "date-fns": "^4.4.0",
     "dexie": "^4.0.10",

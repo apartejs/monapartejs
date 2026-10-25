@@ -332,3 +332,28 @@ describe('provider on the wllama engine', () => {
     );
   });
 });
+
+describe('Stop before the turn starts', () => {
+  it('a chat cancelled while still queued never reaches the engine', async () => {
+    const { SouffleursProvider } = await load();
+    const first = ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    await tick();
+    const worker = FakeWorker.last!;
+    const [firstId] = worker.sentIds('generate');
+
+    const second = ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    await tick();
+    await second.cancel(); // Stop while the first turn still holds the queue
+
+    worker.reply({
+      type: 'done',
+      id: firstId,
+      usage: { inputTokens: 1, outputTokens: 1, ttftMs: 1, durationMs: 1 },
+    });
+    await tick();
+    await tick();
+    void first;
+
+    expect(worker.sentIds('generate')).toHaveLength(1);
+  });
+});

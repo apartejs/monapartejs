@@ -45,7 +45,7 @@ export interface CompletionOptions {
 }
 
 export interface CompletionChunk {
-  choices: { text: string }[];
+  choices: { text: string; finish_reason?: string | null }[];
   timings?: LlamaTimings;
 }
 
@@ -94,13 +94,17 @@ export class WllamaEngine implements EngineLike {
   private loaded: Loaded | null = null;
   private chain: Promise<void> = Promise.resolve();
   private running: AbortController | null = null;
+  /** The message being handled, and whether a Stop reached it before its tokens started. */
+  private current: { type: MainToWorker['type']; aborted: boolean } | null = null;
 
   constructor(private readonly deps: EngineDeps) {}
 
   postMessage(msg: MainToWorker): void {
-    // Stop must reach the generation running now, not wait behind it.
+    // Stop must reach the generation running now, not wait behind it — and a Stop that
+    // lands while that generation is still downloading or loading must not be lost.
     if (msg.type === 'abort') {
       this.running?.abort();
+      if (this.current?.type === 'generate') this.current.aborted = true;
       return;
     }
     this.chain = this.chain.then(() => this.handle(msg));
@@ -133,6 +137,7 @@ export class WllamaEngine implements EngineLike {
   }
 
   private async handle(msg: Exclude<MainToWorker, { type: 'abort' }>): Promise<void> {
+    this.current = { type: msg.type, aborted: false };
     try {
       switch (msg.type) {
         case 'prepare':
@@ -162,6 +167,8 @@ export class WllamaEngine implements EngineLike {
           message: err instanceof Error ? err.message : String(err),
         });
       }
+    } finally {
+      this.current = null;
     }
   }
 
@@ -186,19 +193,27 @@ export class WllamaEngine implements EngineLike {
       return;
     }
     const t0 = performance.now();
-    await this.release();
 
+    // Every file first: a download that fails (offline, 404) must leave the model in
+    // memory — and its warm prompt cache — where it was.
     const base = await this.fetch(id, baseFile);
     const mmproj = mmprojFile ? await this.fetch(id, mmprojFile) : null;
     const adapter = adapterFile ? await this.fetch(id, adapterFile) : null;
 
+    await this.release();
     const wllama = this.deps.createWllama();
-    await wllama.loadModel(mmproj ? [base, mmproj] : [base], {
-      n_ctx: N_CTX,
-      n_gpu_layers: gpuLayers(device),
-      ...(adapter ? { lora_adapters: [{ blob: adapter, scale: 1 }] } : {}),
-      ...(mmproj ? { image_max_tokens: IMAGE_MAX_TOKENS } : {}),
-    });
+    try {
+      await wllama.loadModel(mmproj ? [base, mmproj] : [base], {
+        n_ctx: N_CTX,
+        n_gpu_layers: gpuLayers(device),
+        ...(adapter ? { lora_adapters: [{ blob: adapter, scale: 1 }] } : {}),
+        ...(mmproj ? { image_max_tokens: IMAGE_MAX_TOKENS } : {}),
+      });
+    } catch (err) {
+      // Its worker and WASM heap would otherwise stay alive, and retries pile them up.
+      await wllama.exit().catch(() => undefined);
+      throw err;
+    }
     this.loaded = { key, wllama };
     this.send({ type: 'ready', id, adapter: role, ms: Math.round(performance.now() - t0) });
   }
@@ -228,13 +243,19 @@ export class WllamaEngine implements EngineLike {
     maxNewTokens: number,
     debug?: boolean,
   ): Promise<void> {
+    const t0 = performance.now();
+    // Stopped while its model was downloading or loading: nothing to generate.
+    if (this.current?.aborted) {
+      this.send({ type: 'done', id, usage: usageFromTimings(undefined, 0, 0) });
+      return;
+    }
     const controller = new AbortController();
     this.running = controller;
     const guard = new RepetitionGuard();
-    const t0 = performance.now();
     let tFirst = 0;
     let outputTokens = 0;
     let timings: LlamaTimings | undefined;
+    let finish: string | null | undefined;
     let raw = '';
     try {
       const stream = await this.model().createCompletion({
@@ -248,6 +269,7 @@ export class WllamaEngine implements EngineLike {
       });
       for await (const chunk of stream) {
         if (chunk.timings) timings = chunk.timings;
+        finish = chunk.choices[0]?.finish_reason ?? finish;
         const text = chunk.choices[0]?.text ?? '';
         if (!text) continue;
         if (!tFirst) tFirst = performance.now();
@@ -262,7 +284,7 @@ export class WllamaEngine implements EngineLike {
       }
     } catch (err) {
       // A Stop is not a failure: the turn ends with what was produced, like the old worker.
-      if (!controller.signal.aborted) throw err;
+      if (!controller.signal.aborted) throw contextError(err) ?? err;
     } finally {
       this.running = null;
     }
@@ -273,6 +295,17 @@ export class WllamaEngine implements EngineLike {
         type: 'error',
         id,
         message: `generation looped (${adapter} repeated the same line 4 times) — stopped after ${outputTokens} tokens`,
+      });
+      return;
+    }
+    // An executor's output is a whole program or document: cut by its token limit (or by
+    // the context), it would be materialized broken. The caller's reply is short by
+    // contract and simply ends at its cap.
+    if (finish === 'length' && adapter !== 'souffleur-chat' && !controller.signal.aborted) {
+      this.send({
+        type: 'error',
+        id,
+        message: `sortie de ${adapter} tronquée à ${outputTokens} tokens (limite de génération ou de contexte atteinte)`,
       });
       return;
     }
@@ -335,18 +368,43 @@ export function cacheManagerBlobCache(manager: CacheManager = new CacheManager()
       const name = await manager.getNameFromURL(url);
       const size = await manager.getSize(name);
       const meta = await manager.getMetadata(name);
-      // A download stopped mid-way leaves a shorter file: only a complete one counts.
-      return size > 0 && (!meta?.originalSize || meta.originalSize === size);
+      // A download cut mid-way is committed by OPFS without its metadata, and
+      // getMetadata then polyfills `originalSize = size` with an empty URL: only a file
+      // whose own metadata names this URL and its full size is complete.
+      return size > 0 && meta?.originalURL === url && meta.originalSize === size;
     },
   };
 }
 
-/** The engine the app runs: wllama's wasm served from our own origin, never a CDN. */
-export function createDefaultEngine(baseUrl: string): WllamaEngine {
-  return new WllamaEngine({
-    createWllama: () =>
-      new Wllama({ default: '/assets/wllama/wllama.wasm' }) as unknown as WllamaLike,
-    cache: cacheManagerBlobCache(),
-    baseUrl,
+/**
+ * llama.cpp refuses a prompt longer than the context with a technical message; the user
+ * gets one that says what to do. Anything else is left as it is.
+ */
+function contextError(err: unknown): Error | null {
+  const message = err instanceof Error ? err.message : String(err);
+  if (!/exceeds? the available context|context size|n_ctx/i.test(message)) return null;
+  return new Error(
+    `conversation trop longue pour le contexte du modèle (${N_CTX} tokens) — compactez-la ou commencez-en une nouvelle`,
+  );
+}
+
+/**
+ * A wllama instance whose code all comes from our own origin. Its constructor selects
+ * the compat build for browsers without JSPI or Memory64 (Safari) and, left to that
+ * default, fetches it from jsDelivr: overridden with the copies served under
+ * /assets/ (scripts/copy-wllama-assets.mjs) — nothing leaves the device, and it works
+ * offline.
+ */
+export function createWllama(): WllamaLike {
+  const wllama = new Wllama({ default: '/assets/wllama/wllama.wasm' });
+  wllama.setCompat({
+    wasm: '/assets/wllama-compat/wllama.wasm',
+    worker: '/assets/wllama-compat/wllama.js',
   });
+  return wllama as unknown as WllamaLike;
+}
+
+/** The engine the app runs. */
+export function createDefaultEngine(baseUrl: string): WllamaEngine {
+  return new WllamaEngine({ createWllama, cache: cacheManagerBlobCache(), baseUrl });
 }

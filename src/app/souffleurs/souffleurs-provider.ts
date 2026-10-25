@@ -288,6 +288,14 @@ export const SouffleursProvider: AparteAIProvider = {
         void enqueue(
           () =>
             new Promise<void>((resolve) => {
+              // Stopped while still queued (behind the warm-up, another turn, an
+              // executor): the engine never sees it. Posting it anyway would
+              // generate a reply nobody reads, and the abort sent at cancel time
+              // could not reach a message the engine did not have yet.
+              if (closed) {
+                resolve();
+                return;
+              }
               const id = _nextId++;
               _pending.set(id, {
                 onReady: () => resolved.markSeen(),
