@@ -28,3 +28,7 @@ docs/superpowers/
 
 # The titler model, copied from its package before every build (scripts/copy-titler-model.mjs)
 /public/assets/titler/
+
+# wllama .wasm and its compat build, copied from their packages before every build (scripts/copy-wllama-assets.mjs)
+/public/assets/wllama/
+/public/assets/wllama-compat/

@@ -44,11 +44,31 @@ export interface ManifestVision {
   size: number;
 }
 
+/** One file of the `gguf` block (ADR-014): base, mmproj or a souffleur's LoRA. */
+export interface ManifestGgufFile {
+  file: string;
+  size?: number;
+  sha256?: string;
+  version?: string;
+}
+
+/**
+ * `gguf` block — the wllama set. Additive: the ONNX app in production ignores it, so
+ * the same manifest serves both until the ONNX blocks are retired.
+ */
+export interface ManifestGguf {
+  rev: string;
+  base: ManifestGgufFile;
+  mmproj?: ManifestGgufFile;
+  souffleurs: Record<string, ManifestGgufFile>;
+}
+
 export interface SouffleursManifest {
   schema: string;
   base: { rev: string; graph: string; weights: string; [k: string]: unknown };
   souffleurs: Record<string, ManifestSouffleur>;
   vision?: ManifestVision;
+  gguf?: ManifestGguf;
 }
 
 /** Legacy manifest (before the first versioned push to HF): historical names. */
@@ -118,27 +138,61 @@ export class SouffleurManifestClient {
     return this.manifest;
   }
 
+  /** The souffleur entries in force: the `gguf` block when published, the ONNX ones otherwise. */
+  private souffleurEntries(): Record<string, ManifestGgufFile> {
+    return this.manifest?.gguf?.souffleurs ?? this.manifest?.souffleurs ?? {};
+  }
+
   roles(): string[] {
-    return Object.keys(this.manifest?.souffleurs ?? {});
+    return Object.keys(this.souffleurEntries());
   }
 
   version(role: string): string | null {
-    return this.manifest?.souffleurs?.[role]?.version ?? null;
+    return this.souffleurEntries()[role]?.version ?? null;
   }
 
   size(role: string): number | null {
-    return this.manifest?.souffleurs?.[role]?.size ?? null;
+    return this.souffleurEntries()[role]?.size ?? null;
   }
 
   sha256(role: string): string | null {
-    return this.manifest?.souffleurs?.[role]?.sha256 ?? null;
+    return this.souffleurEntries()[role]?.sha256 ?? null;
   }
 
-  /** Relative path of the current `.data` (to pass to the worker via externalData). */
+  /** Relative path of the current adapter file of a role. */
   file(role: string): string {
-    const entry = this.manifest?.souffleurs?.[role];
+    const entry = this.souffleurEntries()[role];
     if (!entry) throw new Error(`souffleur inconnu: ${role}`);
     return entry.file;
+  }
+
+  hasGguf(): boolean {
+    return !!this.manifest?.gguf;
+  }
+
+  ggufBaseFile(): string {
+    const gguf = this.manifest?.gguf;
+    if (!gguf) throw new Error('gguf absent du manifest');
+    return gguf.base.file;
+  }
+
+  ggufAdapterFile(role: SouffleurRole): string {
+    const entry = this.manifest?.gguf?.souffleurs?.[role];
+    if (!entry) throw new Error(`souffleur gguf inconnu: ${role}`);
+    return entry.file;
+  }
+
+  /** The vision encoder (mmproj), or null when the gguf set publishes none. */
+  ggufMmprojFile(): string | null {
+    return this.manifest?.gguf?.mmproj?.file ?? null;
+  }
+
+  ggufSize(part: 'base' | 'mmproj' | SouffleurRole): number | null {
+    const gguf = this.manifest?.gguf;
+    if (!gguf) return null;
+    if (part === 'base') return gguf.base.size ?? null;
+    if (part === 'mmproj') return gguf.mmproj?.size ?? null;
+    return gguf.souffleurs?.[part]?.size ?? null;
   }
 
   baseWeightsFile(): string {
@@ -146,7 +200,7 @@ export class SouffleurManifestClient {
   }
 
   baseRev(): string {
-    return this.manifest?.base?.rev ?? 'legacy';
+    return this.manifest?.gguf?.rev ?? this.manifest?.base?.rev ?? 'legacy';
   }
 
   /** vision block, or null if the tower isn't published. */
@@ -154,9 +208,16 @@ export class SouffleurManifestClient {
     return this.manifest?.vision ?? null;
   }
 
-  /** Tower weight announced by the manifest (0 if no vision). */
+  /** Vision weight announced by the manifest: the mmproj once gguf is published (0 if none). */
   visionSize(): number {
+    if (this.manifest?.gguf) return this.manifest.gguf.mmproj?.size ?? 0;
     return this.manifest?.vision?.size ?? 0;
+  }
+
+  /** The vision version in force: the mmproj's once gguf is published, the tower's before. */
+  private visionVersion(): string | undefined {
+    if (this.manifest?.gguf) return this.manifest.gguf.mmproj?.version;
+    return this.manifest?.vision?.version;
   }
 
   /** Absolute URLs of the tower's two files, or null. */
@@ -173,12 +234,12 @@ export class SouffleurManifestClient {
    * would never have been offered anything.
    */
   visionHasUpdate(): boolean {
-    const version = this.manifest?.vision?.version;
+    const version = this.visionVersion();
     return !!version && this.seen[VISION_SEEN_KEY] !== version;
   }
 
   markSeenVision(): void {
-    const version = this.manifest?.vision?.version;
+    const version = this.visionVersion();
     if (!version) return;
     this.seen[VISION_SEEN_KEY] = version;
     lsSet(SEEN_KEY, JSON.stringify(this.seen));
@@ -217,7 +278,7 @@ export class SouffleurManifestClient {
     if (role) this.seen[role] = this.version(role) ?? '';
     else for (const r of this.roles()) this.seen[r] = this.version(r) ?? '';
     this.seen['__base'] = this.baseRev();
-    const visionVersion = this.manifest?.vision?.version;
+    const visionVersion = this.visionVersion();
     if (!role && visionVersion) this.seen[VISION_SEEN_KEY] = visionVersion;
     lsSet(SEEN_KEY, JSON.stringify(this.seen));
   }
@@ -243,16 +304,16 @@ export function getSouffleurManifest(): Promise<SouffleurManifestClient> {
         `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`,
       );
       await client.load();
-      // base.rev changed (rare): the base files keep the SAME name → the
-      // cache must be purged to re-download. The versioned .data files
-      // never need this.
-      if (client.baseHasUpdate()) {
+      // The engine switch (ADR-014) leaves the ONNX era's files behind: base,
+      // adapters and vision tower, ~1.4 GB in two caches nothing reads any more.
+      // GGUF files have versioned names in wllama's own cache, so no purge by
+      // name is needed after this. Deleting a missing cache is a no-op.
+      if (client.hasGguf()) {
         try {
-          const cache = await caches.open('transformers-cache');
-          const keys = await cache.keys();
-          await Promise.all(
-            keys.filter((req) => req.url.includes('model_q4.onnx')).map((req) => cache.delete(req)),
-          );
+          await Promise.all([
+            caches.delete('transformers-cache'),
+            caches.delete('aparte-vision-cache'),
+          ]);
         } catch {
           /* cache unavailable */
         }

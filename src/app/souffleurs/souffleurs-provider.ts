@@ -1,9 +1,9 @@
 /**
  * SouffleursProvider — "own-I/O" AparteAIProvider for the aparté model
- * (HF apartejs/aparte-souffleurs). Candidate @aparte/provider-souffleurs plugin.
+ * (HF apartejs/aparte-souffleurs).
  *
- * - A single browser pipeline (dedicated worker): every operation (caller
- *   chat, prefetch, executor) goes through a single queue.
+ * - A single model in memory, run by the wllama engine (ADR-014): every
+ *   operation (caller chat, prefetch, executor, image) goes through one queue.
  * - Declares `function_calling`: AparteClient then sends the registered
  *   AparteTool — used here as an ACTIVATION LIST by name; the schema
  *   serialized on the wire comes from SOUFFLEUR_TOOL_DEFS (training contract).
@@ -21,6 +21,7 @@ import type {
   ModelStatus,
 } from '@aparte/core';
 
+import { CacheManager } from '@wllama/wllama';
 import {
   CALLER_ADAPTER,
   CALLER_DOWNLOAD_BYTES,
@@ -29,23 +30,28 @@ import {
   CALLER_MODEL_ID,
   EXECUTOR_MAX_NEW_TOKENS,
   SIZE_ADAPTER_BYTES,
+  SIZE_MMPROJ_BYTES,
   SOUFFLEURS_HF_REPO,
   VISION_MAX_NEW_TOKENS,
   type AdapterName,
 } from './model-catalog';
+import { createDefaultEngine } from './engine/wllama-engine';
 import { adapterRole, getSouffleurManifest } from './manifest';
 import { ProgressAggregator } from './progress-aggregator';
-import { setSouffleurStatus } from './status';
+import { getSouffleurStatus, setSouffleurStatus, type SouffleurStatusState } from './status';
 import { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
-import { buildWirePrompt } from './wire/prompt-builder';
+import { buildWirePrompt, wirePrefix } from './wire/prompt-builder';
 import { UNPARSEABLE, parsePythonicOutput } from './wire/pythonic-parser';
 import { WireStreamDemux } from './wire/stream-demux';
 import type {
   ComputeDevice,
+  EngineLike,
   MainToWorker,
   WorkerFileProgress,
   WorkerToMain,
 } from './worker-protocol';
+
+const HF_BASE_URL = `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`;
 
 /**
  * Files channel: the app sets `request._meta['souffleurFiles']` (via a
@@ -81,44 +87,51 @@ interface PendingHandlers {
   onError?: (message: string) => void;
 }
 
-let _worker: Worker | null = null;
+let _worker: EngineLike | null = null;
 let _nextId = 1;
 let _chain: Promise<unknown> = Promise.resolve();
 let _device: ComputeDevice | null = null;
 let _loadedAdapter: AdapterName | null = null;
 const _pending = new Map<number, PendingHandlers>();
 
-function getWorker(): Worker {
-  if (!_worker) {
-    _worker = new Worker(new URL('./souffleurs.worker', import.meta.url), { type: 'module' });
-    _worker.onmessage = (event: MessageEvent<WorkerToMain>) => {
-      const msg = event.data;
-      const handlers = _pending.get(msg.id);
-      switch (msg.type) {
-        case 'progress':
-          handlers?.onProgress?.(msg);
-          break;
-        case 'ready':
-          // 'vision' is not an adapter: the VL trio has taken the place of the
-          // text pipe, so no adapter is loaded anymore.
-          _loadedAdapter = msg.adapter === 'vision' ? null : msg.adapter;
-          handlers?.onReady?.(msg.adapter, msg.ms);
-          break;
-        case 'chunk':
-          handlers?.onChunk?.(msg.delta);
-          break;
-        case 'done':
-          handlers?.onDone?.(msg.usage);
-          _pending.delete(msg.id);
-          break;
-        case 'error':
-          handlers?.onError?.(msg.message);
-          _pending.delete(msg.id);
-          break;
-      }
-    };
-  }
+function attach(engine: EngineLike): EngineLike {
+  engine.onmessage = (event: { data: WorkerToMain }) => {
+    const msg = event.data;
+    const handlers = _pending.get(msg.id);
+    switch (msg.type) {
+      case 'progress':
+        handlers?.onProgress?.(msg);
+        break;
+      case 'ready':
+        // 'vision' is not an adapter: the base without adapter (+ mmproj) has
+        // taken the place of the souffleur, so no adapter is loaded anymore.
+        _loadedAdapter = msg.adapter === 'vision' ? null : msg.adapter;
+        handlers?.onReady?.(msg.adapter, msg.ms);
+        break;
+      case 'chunk':
+        handlers?.onChunk?.(msg.delta);
+        break;
+      case 'done':
+        handlers?.onDone?.(msg.usage);
+        _pending.delete(msg.id);
+        break;
+      case 'error':
+        handlers?.onError?.(msg.message);
+        _pending.delete(msg.id);
+        break;
+    }
+  };
+  return engine;
+}
+
+function getWorker(): EngineLike {
+  if (!_worker) _worker = attach(createDefaultEngine(HF_BASE_URL));
   return _worker;
+}
+
+/** Test seam: the engine behind getWorker(). */
+export function __setEngineForTests(engine: EngineLike | null): void {
+  _worker = engine ? attach(engine) : null;
 }
 
 /** ACTUAL WebGPU detection (requestAdapter, not just `'gpu' in navigator`). */
@@ -175,14 +188,10 @@ async function resolveAdapterFiles(adapter: AdapterName) {
   const role = adapterRole(adapter);
   return {
     files: {
-      baseWeightsFile: manifest.baseWeightsFile(),
-      adapterFile: manifest.file(role),
-      // The grafted graph is bit-identical in text (measured logits gap: 0)
-      // — so it's used for EVERYTHING once published, and text/vision then
-      // only differ by `adapter.data`, like a souffleur swap.
-      modelFileName: manifest.modelFileName(),
+      baseFile: manifest.ggufBaseFile(),
+      adapterFile: manifest.ggufAdapterFile(role),
     },
-    size: manifest.size(role) ?? SIZE_ADAPTER_BYTES,
+    size: manifest.ggufSize(role) ?? SIZE_ADAPTER_BYTES,
     markSeen: () => manifest.markSeen(role),
   };
 }
@@ -198,12 +207,11 @@ const MODELS: AparteAIModel[] = [
     id: CALLER_MODEL_ID,
     name: 'aparté (local)',
     capabilities: ['streaming', 'function_calling'],
-    // The base model's window. Declared because <aparte-context> draws nothing
-    // without one, and the compaction selector budgets against it. It is the
-    // model's MAXIMUM, not a comfortable size in a browser: we rebuild the whole
-    // wire prompt every turn and reuse no KV cache, so a conversation near this
-    // window re-prefills it at every send — on WASM for anyone without WebGPU.
-    // The gauge exists to make that cost visible before it is paid.
+    // The engine's n_ctx — a hard limit now (wllama allocates it), declared
+    // because <aparte-context> draws nothing without one and the compaction
+    // selector budgets against it. The wire prompt is rebuilt every turn, but
+    // llama.cpp reuses the KV cache of its unchanged prefix, so only the new
+    // turn is prefilled.
     contextWindow: CALLER_CONTEXT_WINDOW,
     description:
       'Souffleur-chat — tourne entièrement dans votre navigateur, rien ne sort de votre appareil.',
@@ -280,6 +288,14 @@ export const SouffleursProvider: AparteAIProvider = {
         void enqueue(
           () =>
             new Promise<void>((resolve) => {
+              // Stopped while still queued (behind the warm-up, another turn, an
+              // executor): the engine never sees it. Posting it anyway would
+              // generate a reply nobody reads, and the abort sent at cancel time
+              // could not reach a message the engine did not have yet.
+              if (closed) {
+                resolve();
+                return;
+              }
               const id = _nextId++;
               _pending.set(id, {
                 onReady: () => resolved.markSeen(),
@@ -354,15 +370,13 @@ export const SouffleursProvider: AparteAIProvider = {
   async getModelStatus(_modelId: string): Promise<ModelStatus> {
     if (_loadedAdapter === CALLER_ADAPTER) return 'ready';
     try {
-      if (typeof caches === 'undefined') return 'not-downloaded';
       const manifest = await getSouffleurManifest();
-      const basename = (path: string) => path.split('/').pop() ?? path;
-      const cache = await caches.open('transformers-cache');
-      const keys = await cache.keys();
-      const has = (fragment: string) => keys.some((req) => req.url.includes(fragment));
       // Files of the manifest's CURRENT version: a bumped version shows up as
       // not-downloaded (the onboarding/modal re-downloads).
-      return has(basename(manifest.baseWeightsFile())) && has(basename(manifest.file('chat')))
+      return (await getWorker().isCached([
+        manifest.ggufBaseFile(),
+        manifest.ggufAdapterFile('chat'),
+      ]))
         ? 'cached'
         : 'not-downloaded';
     } catch {
@@ -412,10 +426,8 @@ export const SouffleursProvider: AparteAIProvider = {
     getWorker().postMessage({ type: 'dispose' } satisfies MainToWorker);
     _loadedAdapter = null;
     try {
-      const cache = await caches.open('transformers-cache');
-      const keys = await cache.keys();
-      await Promise.all(
-        keys.filter((req) => req.url.includes(SOUFFLEURS_HF_REPO)).map((req) => cache.delete(req)),
+      await new CacheManager().deleteMany(
+        (entry) => !!entry.metadata?.originalURL?.includes(SOUFFLEURS_HF_REPO),
       );
     } catch {
       // cache unavailable: nothing to erase
@@ -433,45 +445,37 @@ export interface ExecutorResult {
   usage: { inputTokens: number; outputTokens: number; ttftMs: number; durationMs: number };
 }
 
-/* ── Vision: encoder hot-swap ─────────────────────────────────────────────── */
+/* ── Vision: the base without adapter + the mmproj ────────────────────────── */
 
 /**
- * read_file(image) — attaches the ENCODER and queries the image.
+ * read_file(image) — loads the base WITHOUT adapter plus the vision encoder
+ * (mmproj) and asks it about the image.
  *
- * Goes through the SAME queue as the souffleurs: mechanically this is a role
- * swap (same graph, same weights, neutral `adapter.data`) plus a tower
- * session. The rendered text goes back as a tool result and souffleur-chat
- * continues — it stays text-only and never sees pixels (contract rule).
+ * Goes through the SAME queue as the souffleurs: mechanically a souffleur swap.
+ * The rendered text goes back as a tool result and souffleur-chat continues —
+ * it stays text-only and never sees pixels (contract rule).
  *
- * Throws if the `vision` block isn't in the manifest: the read_file handler
- * turns this into `ok:false` with the message, now shown to the user.
+ * Throws if the gguf block publishes no mmproj: the read_file handler turns
+ * this into `ok:false` with the message, now shown to the user.
  */
-/**
- * Tile cap for image preprocessing — default 1 (mono-tile, ≤ 256 tokens).
- * Multi-tile is the reference's path for fine text but was measured
- * unusable in the browser (see PreprocessOptions.maxTiles). Switch to
- * measure it: `localStorage.setItem('bp.vision.tiles', '4')` then reload.
- */
-function visionMaxTiles(): number {
-  try {
-    const raw = Number(localStorage.getItem('bp.vision.tiles'));
-    return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
-  } catch {
-    return 1;
-  }
-}
-
 export async function describeImage(blob: Blob, question: string): Promise<string> {
   const device = await detectComputeDevice();
   const manifest = await getSouffleurManifest();
-  const vision = manifest.vision();
-  if (!vision) {
+  const mmprojFile = manifest.ggufMmprojFile();
+  if (!mmprojFile) {
     throw new Error(
       "analyse d'image indisponible : l'encodeur vision n'est pas publié pour cette version du modèle",
     );
   }
-  const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
-  const base = `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`;
+  // Measured on the M5 without WebGPU: the encoder gave nothing in 25 minutes (and
+  // wrong descriptions when only the encoder ran on the CPU). Waiting would end in
+  // aparté's 5-minute tool abort, a silent turn and a queue blocked behind it.
+  if (device === 'wasm') {
+    throw new Error(
+      "analyse d'image indisponible sur cet appareil : sans carte graphique (WebGPU), la lecture d'image ne fonctionne pas",
+    );
+  }
+  const baseFile = manifest.ggufBaseFile();
   const debug = isDebug();
 
   setSouffleurStatus({ status: 'loading', device });
@@ -479,7 +483,7 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
     () =>
       new Promise<string>((resolve, reject) => {
         const id = _nextId++;
-        const aggregator = new ProgressAggregator(vision.size);
+        const aggregator = new ProgressAggregator(manifest.ggufSize('mmproj') ?? SIZE_MMPROJ_BYTES);
         let text = '';
         _pending.set(id, {
           onProgress: (p) =>
@@ -490,7 +494,7 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
           },
           onDone: () => {
             _pending.delete(id);
-            // The vision role occupies the slot: the souffleur will reload on
+            // The vision load occupies the slot: the souffleur will reload on
             // the next turn (same invariant as an executor swap).
             _loadedAdapter = null;
             setSouffleurStatus({ status: 'ready', device });
@@ -510,23 +514,73 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
           blob,
           question,
           maxNewTokens: VISION_MAX_NEW_TOKENS,
-          maxTiles: visionMaxTiles(),
-          tower: {
-            graphUrl: `${base}/${vision.tower}`,
-            dataUrl: `${base}/${vision.tower_data}`,
-            internalDataName: vision.tower_internal_data,
-            // Template for the neutral adapter: exactly the size of a
-            // souffleur `.data`, allocated on the worker side (zero network bytes).
-            adapterByteLength: manifest.size(adapterRole(CALLER_ADAPTER)) ?? SIZE_ADAPTER_BYTES,
-          },
+          baseFile,
+          mmprojFile,
           debug,
+        } satisfies MainToWorker);
+      }),
+  );
+}
+
+/**
+ * Prefills the caller's system prompt into llama.cpp's prompt cache, so the
+ * first message of a session does not pay for the whole tool block. Any chat
+ * prompt built with the same tools starts with this prefix (`wirePrefix`).
+ * A failed warm-up costs nothing but speed: it never rejects.
+ */
+export async function warmCaller(enabledToolNames: readonly string[]): Promise<void> {
+  const device = await detectComputeDevice();
+  const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
+  const prefix = wirePrefix(buildSystemPrompt(enabledToolNames));
+  return enqueue(
+    () =>
+      new Promise<void>((resolve) => {
+        // Said out loud: on a CPU the prefill takes a minute and a half, and the
+        // status carries the device the slow-device hint needs. Back to 'ready'
+        // only if no chat turn has taken the status over in the meantime.
+        const preparing: SouffleurStatusState = { status: 'loading', device };
+        setSouffleurStatus(preparing);
+        const settle = () => {
+          if (getSouffleurStatus() === preparing) setSouffleurStatus({ status: 'ready', device });
+          resolve();
+        };
+        const id = _nextId++;
+        _pending.set(id, {
+          onDone: settle,
+          onError: (message) => {
+            console.warn('[souffleurs] warm-up failed:', message);
+            settle();
+          },
+        });
+        getWorker().postMessage({
+          type: 'warm',
+          id,
+          adapter: CALLER_ADAPTER,
+          device,
+          prefix,
           ...resolved.files,
         } satisfies MainToWorker);
       }),
   );
 }
 
-/** Preloads an executor adapter (86 MB, shared base already cached). */
+/**
+ * Puts a gguf file (repo-relative, from the manifest) in the local cache WITHOUT
+ * loading it: the executors and the mmproj are prefetched this way, so the warm
+ * caller stays in memory. Not queued — a download does not touch the model.
+ */
+export function prefetchFile(
+  file: string,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<void> {
+  return getWorker().download(file, onProgress);
+}
+
+export function isFileCached(file: string): Promise<boolean> {
+  return getWorker().isCached([file]);
+}
+
+/** Loads an executor adapter into memory (downloading it first if needed). */
 export async function prepareExecutor(
   adapter: ExecutorAdapter,
   onProgress?: (p: ModelLoadProgress) => void,

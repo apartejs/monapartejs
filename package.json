@@ -12,9 +12,9 @@
   "bugs": "https://github.com/apartejs/monapartejs/issues",
   "scripts": {
     "ng": "ng",
-    "prestart": "node scripts/copy-titler-model.mjs",
+    "prestart": "node scripts/copy-titler-model.mjs && node scripts/copy-wllama-assets.mjs",
     "start": "ng serve",
-    "prebuild": "node scripts/copy-titler-model.mjs",
+    "prebuild": "node scripts/copy-titler-model.mjs && node scripts/copy-wllama-assets.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "vitest run",
@@ -23,8 +23,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "ngc -p tsconfig.app.json --noEmit",
-    "typecheck:worker": "tsc --noEmit --strict --target ES2022 --module ES2022 --moduleResolution bundler --skipLibCheck --lib ES2022,DOM,WebWorker src/app/souffleurs/souffleurs.worker.ts",
-    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:worker && pnpm test && pnpm build"
+    "typecheck:worker": "tsc --noEmit --strict --target ES2022 --module ES2022 --moduleResolution bundler --skipLibCheck --lib ES2022,DOM,WebWorker src/app/souffleurs/executors/sandbox.worker.ts",
+    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm typecheck:worker && pnpm test && pnpm build && node scripts/check-build.mjs"
   },
   "private": true,
   "dependencies": {
@@ -47,7 +47,8 @@
     "@aparte/plugin-streaming-markdown": "0.16.9",
     "@aparte/titler-efigsp": "^1.0.4",
     "@faker-js/faker": "^10.5.0",
-    "@huggingface/transformers": "^4.2.0",
+    "@wllama/wllama": "3.8.1",
+    "@wllama/wllama-compat": "3.8.1",
     "chart.js": "^4.5.1",
     "date-fns": "^4.4.0",
     "dexie": "^4.0.10",
@@ -60,7 +61,6 @@
     "marked": "^18.0.0",
     "mathjs": "^15.2.0",
     "mermaid": "^11.16.0",
-    "onnxruntime-web": "1.26.0-dev.20260416-b7804b056c",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.1.200",
     "rxjs": "~7.8.0",

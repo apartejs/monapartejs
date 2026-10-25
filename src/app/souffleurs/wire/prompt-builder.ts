@@ -32,6 +32,16 @@ export function renderToolCallBlock(calls: readonly AparteToolCall[]): string {
 }
 
 /**
+ * The exact start of every `buildWirePrompt(systemPrompt, …)`, through the end of the
+ * system text. A "Files available" block only appends to the system text, so this prefix
+ * holds with or without attached files: it is what the engine prefills ahead of time and
+ * what llama.cpp's prompt cache then reuses.
+ */
+export function wirePrefix(systemPrompt: string): string {
+  return `<|startoftext|>${IM_START}system\n${systemPrompt}`;
+}
+
+/**
  * messages = the AparteChatMessage history as provided by AparteClient
  * (user/assistant/tool_call/tool_result roles). The system prompt is provided
  * separately — any 'system' role in the history is ignored.

@@ -17,32 +17,48 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const markSeenVision = vi.fn();
-type TowerProgress = (loaded: number, total: number) => void;
+const markSeen = vi.fn();
+type FileProgress = (loaded: number, total: number) => void;
 const prefetchTower = vi.fn(
-  async (_urls?: unknown, _onProgress?: TowerProgress): Promise<void> => undefined,
+  async (_file?: string, _onProgress?: FileProgress): Promise<void> => undefined,
 );
+const isFileCached = vi.fn(async (_file?: string) => false);
+const calls: string[] = [];
+const warmCaller = vi.fn(async (_tools?: readonly string[]) => {
+  calls.push('warm');
+});
 const prepareModel = vi.fn(async (_id: string, onProgress: (p: { progress: number }) => void) => {
   onProgress({ progress: 100 });
 });
 
+vi.mock('@aparte/core', () => ({
+  aparteGlobalConfig: { getTools: () => [{ name: 'read_file' }, { name: 'compute' }] },
+}));
+
 vi.mock('../souffleurs', () => ({
   CALLER_DOWNLOAD_BYTES: 886_000_000,
   CALLER_MODEL_ID: 'souffleur-chat',
-  EXECUTOR_ADAPTERS: [] as string[],
+  EXECUTOR_ADAPTERS: ['souffleur-pdf'],
   SouffleursProvider: {
     get prepareModel() {
       return prepareModel;
     },
   },
+  adapterRole: (adapter: string) => adapter.replace(/^souffleur-/, ''),
   getSouffleurManifest: async () => ({
-    visionUrls: () => ({ graphUrl: 'https://hf/x.onnx', dataUrl: 'https://hf/x.onnx_data' }),
+    ggufMmprojFile: () => 'gguf/mmproj.gguf',
+    ggufAdapterFile: (role: string) => `gguf/souffleur-${role}.gguf`,
     visionSize: () => 269_390_206,
     markSeenVision,
+    markSeen,
   }),
-  isTowerCached: async () => false,
-  prefetchTower: (...args: unknown[]) => prefetchTower(...(args as [])),
-  prepareExecutor: async () => undefined,
-  prepareCaller: async () => undefined,
+  isFileCached: (file: string) => isFileCached(file),
+  // One spy for every prefetched file: the mmproj (the old tower's place) and executors.
+  prefetchFile: (file: string, onProgress?: FileProgress) => {
+    calls.push(file);
+    return prefetchTower(file, onProgress);
+  },
+  warmCaller: (tools: readonly string[]) => warmCaller(tools),
 }));
 
 const { OnboardingPreloadService } = await import('./preload.service');
@@ -52,6 +68,11 @@ describe('OnboardingPreloadService — tower update cycle', () => {
 
   beforeEach(() => {
     markSeenVision.mockClear();
+    markSeen.mockClear();
+    warmCaller.mockClear();
+    isFileCached.mockClear();
+    isFileCached.mockImplementation(async () => false);
+    calls.length = 0;
     prefetchTower.mockClear();
     prefetchTower.mockImplementation(async () => undefined);
     service = new OnboardingPreloadService();
@@ -106,7 +127,7 @@ describe('OnboardingPreloadService — tower update cycle', () => {
       seen.push(service.progress());
       onProgress({ progress: 100 });
     });
-    prefetchTower.mockImplementation(async (_urls, onProgress) => {
+    prefetchTower.mockImplementation(async (_file, onProgress) => {
       onProgress?.(1000, 3000);
       seen.push(service.progress());
     });
@@ -128,5 +149,70 @@ describe('OnboardingPreloadService — tower update cycle', () => {
     expect(service.state()).toBe('error');
     expect(service.errorMessage()).toContain('poids introuvables');
     expect(markSeenVision).not.toHaveBeenCalled();
+  });
+});
+
+describe('OnboardingPreloadService — wllama: warm the caller, download the rest', () => {
+  let service: InstanceType<typeof OnboardingPreloadService>;
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  beforeEach(() => {
+    markSeen.mockClear();
+    warmCaller.mockClear();
+    isFileCached.mockImplementation(async () => false);
+    calls.length = 0;
+    prefetchTower.mockImplementation(async () => undefined);
+    service = new OnboardingPreloadService();
+  });
+
+  it('after the mmproj, warms the caller with the registered tools, then only downloads the executors', async () => {
+    await service.start();
+    await settle();
+    await settle();
+
+    expect(warmCaller).toHaveBeenCalledWith(['read_file', 'compute']);
+    expect(calls).toEqual(['gguf/mmproj.gguf', 'warm', 'gguf/souffleur-pdf.gguf']);
+    expect(markSeen).toHaveBeenCalledWith('pdf');
+  });
+
+  it('at boot with the weights already here, warms the caller once', async () => {
+    service.warmAtBoot();
+    service.warmAtBoot();
+    await settle();
+
+    expect(warmCaller).toHaveBeenCalledTimes(1);
+    expect(warmCaller).toHaveBeenCalledWith(['read_file', 'compute']);
+  });
+
+  it('a boot warm-up after the onboarding one does not run again', async () => {
+    await service.start();
+    await settle();
+    await settle();
+    service.warmAtBoot();
+    await settle();
+
+    expect(warmCaller).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed boot warm-up is swallowed — the first message just pays the prefill', async () => {
+    warmCaller.mockImplementationOnce(async () => {
+      throw new Error('moteur absent');
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    service.warmAtBoot();
+    await settle();
+
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('an already-cached mmproj is not downloaded again', async () => {
+    isFileCached.mockImplementation(async (file) => file === 'gguf/mmproj.gguf');
+    await service.start();
+
+    expect(calls).not.toContain('gguf/mmproj.gguf');
+    expect(markSeenVision).toHaveBeenCalled();
+    expect(service.progress()).toBe(100);
   });
 });

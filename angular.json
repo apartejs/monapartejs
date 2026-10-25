@@ -75,9 +75,6 @@
             "headers": {
               "Cross-Origin-Opener-Policy": "same-origin",
               "Cross-Origin-Embedder-Policy": "credentialless"
-            },
-            "prebundle": {
-              "exclude": ["@huggingface/transformers", "onnxruntime-common", "onnxruntime-web"]
             }
           },
           "configurations": {

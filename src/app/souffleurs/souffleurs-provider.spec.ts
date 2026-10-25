@@ -17,6 +17,17 @@ const MANIFEST = {
     'xlsx-docx': { version: '0.1.0', file: 'adapters/souffleur-xlsx-docx-0.1.0.data' },
     sandbox: { version: '0.1.0', file: 'adapters/souffleur-sandbox-0.1.0.data' },
   },
+  gguf: {
+    rev: '2026-10-25',
+    base: { file: 'gguf/lfm25-vl-1.6b-Q4_K_M.gguf', size: 730896256 },
+    mmproj: { version: '0.1.0', file: 'gguf/mmproj-lfm25-vl-1.6b-pad-Q4_0.gguf', size: 244046400 },
+    souffleurs: {
+      chat: { version: '0.3.0', file: 'gguf/souffleur-chat-0.3.0-lora-f16.gguf' },
+      pdf: { version: '0.1.0', file: 'gguf/souffleur-pdf-0.1.0-lora-q8_0.gguf' },
+      'xlsx-docx': { version: '0.1.0', file: 'gguf/souffleur-xlsx-docx-0.1.0-lora-q8_0.gguf' },
+      sandbox: { version: '0.1.0', file: 'gguf/souffleur-sandbox-0.1.0-lora-q8_0.gguf' },
+    },
+  },
 };
 
 interface Posted {
@@ -42,6 +53,12 @@ class FakeWorker {
     this.onmessage?.({ data });
   }
 
+  async isCached(): Promise<boolean> {
+    return false;
+  }
+
+  async download(): Promise<void> {}
+
   sentIds(type: string): number[] {
     return this.posted.filter((m) => m.type === type).map((m) => m.id as number);
   }
@@ -50,6 +67,13 @@ class FakeWorker {
 const REQUEST = {
   messages: [{ role: 'user', content: 'bonjour' }],
 } as unknown as AparteChatRequest;
+
+/** The provider module with a fake engine behind getWorker(). */
+async function load() {
+  const mod = await import('./souffleurs-provider');
+  mod.__setEngineForTests(new FakeWorker());
+  return mod;
+}
 
 /** Lets the queue's microtasks run (`_chain.then(op)`). */
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -71,14 +95,13 @@ beforeEach(() => {
     vi.fn(async () => ({ ok: true, json: async () => MANIFEST })),
   );
   vi.stubGlobal('navigator', { gpu: undefined, language: 'fr' });
-  vi.stubGlobal('Worker', FakeWorker);
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('SouffleursProvider.chat — cancellation', () => {
   it('the late `done` after cancel does not throw and releases the queue', async () => {
-    const { SouffleursProvider } = await import('./souffleurs-provider');
+    const { SouffleursProvider } = await load();
 
     const stream = (await SouffleursProvider.chat(REQUEST)) as ReadableStream;
     const reader = stream.getReader();
@@ -111,7 +134,7 @@ describe('SouffleursProvider.chat — cancellation', () => {
   });
 
   it('without cancellation, the stream emits text then done', async () => {
-    const { SouffleursProvider } = await import('./souffleurs-provider');
+    const { SouffleursProvider } = await load();
 
     const stream = (await SouffleursProvider.chat(REQUEST)) as ReadableStream;
     const reader = stream.getReader();
@@ -142,7 +165,7 @@ describe('SouffleursProvider.chat — cancellation', () => {
  */
 describe('runExecutor — user turn format', () => {
   it('prefixes the task with `intent: ` as at training time', async () => {
-    const { runExecutor } = await import('./souffleurs-provider');
+    const { runExecutor } = await load();
     const pending = runExecutor('souffleur-sandbox', 'SYSTEM', 'somme de 1 à 10');
     await tick();
     await tick();
@@ -167,7 +190,7 @@ describe('runExecutor — user turn format', () => {
  */
 describe('runExecutor — abort', () => {
   it('posts `abort` to the worker and rejects with AbortError', async () => {
-    const { runExecutor } = await import('./souffleurs-provider');
+    const { runExecutor } = await load();
     const controller = new AbortController();
     const pending = runExecutor('souffleur-pdf', 'SYSTEM', 'facture', {
       signal: controller.signal,
@@ -193,7 +216,7 @@ describe('runExecutor — abort', () => {
   });
 
   it('rejects immediately when the signal is already aborted', async () => {
-    const { runExecutor } = await import('./souffleurs-provider');
+    const { runExecutor } = await load();
     const controller = new AbortController();
     controller.abort();
     await expect(
@@ -212,7 +235,7 @@ describe('provider verbosity', () => {
     spy.mock.calls.some((c) => String(c[0]).includes('PROMPT WIRE'));
 
   async function runTurn(configure: (m: typeof import('./souffleurs-provider')) => void) {
-    const mod = await import('./souffleurs-provider');
+    const mod = await load();
     configure(mod);
     const log = vi.fn();
     vi.stubGlobal('console', { ...console, log, warn: vi.fn() });
@@ -251,5 +274,162 @@ describe('provider verbosity', () => {
     lsStore.set('bp.debug', '1');
     const log = await runTurn((m) => m.setSouffleurDebug(false));
     expect(wireLogged(log)).toBe(true);
+  });
+});
+
+describe('provider on the wllama engine', () => {
+  it('files come from the gguf block', async () => {
+    const { SouffleursProvider } = await load();
+    void SouffleursProvider.prepareModel?.('souffleur-chat', () => undefined);
+    await tick();
+    await tick();
+    const prepare = FakeWorker.last!.posted.find((m) => m.type === 'prepare') as
+      (Posted & { baseFile: string; adapterFile: string }) | undefined;
+    expect(prepare).toMatchObject({
+      baseFile: 'gguf/lfm25-vl-1.6b-Q4_K_M.gguf',
+      adapterFile: 'gguf/souffleur-chat-0.3.0-lora-f16.gguf',
+    });
+  });
+
+  it('warmCaller warms the exact prefix of the next chat prompt', async () => {
+    const { SouffleursProvider, warmCaller } = await load();
+    const warmed = warmCaller(['read_file', 'write_file']);
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    const warm = worker.posted.find((m) => m.type === 'warm') as
+      (Posted & { prefix: string }) | undefined;
+    expect(warm).toBeDefined();
+    worker.reply({
+      type: 'done',
+      id: warm!.id,
+      usage: { inputTokens: 1, outputTokens: 0, ttftMs: 1, durationMs: 1 },
+    });
+    await warmed;
+
+    const request = {
+      ...REQUEST,
+      tools: [{ name: 'read_file' }, { name: 'write_file' }],
+    } as unknown as AparteChatRequest;
+    void ((await SouffleursProvider.chat(request)) as ReadableStream).getReader();
+    await tick();
+    const generate = worker.posted.find((m) => m.type === 'generate') as
+      (Posted & { prompt: string }) | undefined;
+    expect(generate!.prompt.startsWith(warm!.prefix)).toBe(true);
+  });
+
+  it('the warm-up reports that it is preparing the model, on its device, then that it is ready', async () => {
+    const { warmCaller } = await load();
+    const { subscribeSouffleurStatus } = await import('./status');
+    const seen: { status: string; device?: string }[] = [];
+    const off = subscribeSouffleurStatus((s) => seen.push({ status: s.status, device: s.device }));
+    const warmed = warmCaller(['read_file']);
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    const warm = worker.posted.find((m) => m.type === 'warm') as
+      (Posted & { device: string }) | undefined;
+    worker.reply({
+      type: 'done',
+      id: warm!.id,
+      usage: { inputTokens: 1, outputTokens: 0, ttftMs: 1, durationMs: 1 },
+    });
+    await warmed;
+    off();
+
+    // seen[0] is the state at subscription time.
+    expect(seen.slice(1)).toEqual([
+      { status: 'loading', device: warm!.device },
+      { status: 'ready', device: warm!.device },
+    ]);
+  });
+
+  it('a chat turn started during the warm-up keeps its status when the warm-up ends', async () => {
+    const { SouffleursProvider, warmCaller } = await load();
+    const { getSouffleurStatus } = await import('./status');
+    const warmed = warmCaller(['read_file']);
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    const warm = worker.posted.find((m) => m.type === 'warm');
+    void ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    const duringChat = getSouffleurStatus();
+
+    worker.reply({
+      type: 'done',
+      id: warm!.id,
+      usage: { inputTokens: 1, outputTokens: 0, ttftMs: 1, durationMs: 1 },
+    });
+    await warmed;
+
+    expect(getSouffleurStatus()).toBe(duringChat);
+  });
+
+  it('a manifest without mmproj makes image reading fail clearly', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ ...MANIFEST, gguf: { ...MANIFEST.gguf, mmproj: undefined } }),
+      })),
+    );
+    const { describeImage } = await load();
+    await expect(describeImage(new Blob(['x']), 'Describe.')).rejects.toThrow(
+      /^analyse d'image indisponible/,
+    );
+  });
+
+  it('without WebGPU, image reading fails at once and says why — the engine is never asked', async () => {
+    // Measured on the M5's CPU: the vision encoder gave nothing in 25 minutes, and
+    // aparté aborted the tool after 5 with a silent turn and a blocked queue.
+    const { describeImage } = await load();
+    await expect(describeImage(new Blob(['x']), 'Describe.')).rejects.toThrow(
+      /^analyse d'image indisponible sur cet appareil/,
+    );
+    expect(FakeWorker.last?.posted.some((m) => m.type === 'describe-image') ?? false).toBe(false);
+  });
+
+  it('with WebGPU, an image goes to the engine with the mmproj', async () => {
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: async () => ({}) }, language: 'fr' });
+    const { describeImage } = await load();
+    const described = describeImage(new Blob(['x']), 'Describe.');
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    const request = worker.posted.find((m) => m.type === 'describe-image') as
+      (Posted & { mmprojFile: string }) | undefined;
+    expect(request?.mmprojFile).toBe(MANIFEST.gguf.mmproj.file);
+    worker.reply({ type: 'chunk', id: request!.id, delta: 'A logo.' });
+    worker.reply({
+      type: 'done',
+      id: request!.id,
+      usage: { inputTokens: 1, outputTokens: 2, ttftMs: 1, durationMs: 1 },
+    });
+    await expect(described).resolves.toBe('A logo.');
+  });
+});
+
+describe('Stop before the turn starts', () => {
+  it('a chat cancelled while still queued never reaches the engine', async () => {
+    const { SouffleursProvider } = await load();
+    const first = ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    await tick();
+    const worker = FakeWorker.last!;
+    const [firstId] = worker.sentIds('generate');
+
+    const second = ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    await tick();
+    await second.cancel(); // Stop while the first turn still holds the queue
+
+    worker.reply({
+      type: 'done',
+      id: firstId,
+      usage: { inputTokens: 1, outputTokens: 1, ttftMs: 1, durationMs: 1 },
+    });
+    await tick();
+    await tick();
+    void first;
+
+    expect(worker.sentIds('generate')).toHaveLength(1);
   });
 });

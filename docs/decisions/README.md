@@ -9,7 +9,7 @@ is not rewritten.
 | [001](001-consume-the-library-from-npm.md) | Consume `@aparte/*` from npm; Angular 19 standalone, no nx | accepted |
 | [002](002-persistence-in-the-app.md) | Persistence lives in the app (Dexie), not in the library | accepted |
 | [003](003-contract-verbatim.md) | The training contract is ported verbatim and regenerated, never rephrased | accepted |
-| [004](004-one-model-hot-swapped-lora-manifest.md) | One model, hot-swapped LoRA adapters, versioned by `manifest.json` | accepted |
+| [004](004-one-model-hot-swapped-lora-manifest.md) | One model, hot-swapped LoRA adapters, versioned by `manifest.json` | accepted; engine part superseded by 014 |
 | [005](005-routing-inside-the-model.md) | Routing lives in the model; tools without data stay out of the list | accepted |
 | [006](006-coop-coep-credentialless.md) | COOP `same-origin` + COEP `credentialless` everywhere | accepted |
 | [007](007-build-on-github-coolify-pulls.md) | The build runs on GitHub; Coolify only pulls the image | accepted |
@@ -18,5 +18,7 @@ is not rewritten.
 | [010](010-bp-prefixes-kept.md) | The `bp-`/`bp.` prefixes are kept, not migrated | proposed |
 | [011](011-scope-of-1-0.md) | Scope of 1.0: prove what exists, do not extend it | proposed |
 | [012](012-product-colour-and-mark.md) | Monaparté carries its own colour (Angular magenta-violet) and its own mark (the mascot at home) | accepted |
+| [013](013-the-mark-is-a-house-shaped-speech-bubble.md) | The mark is a house-shaped speech bubble, and the mascot keeps its brass | accepted |
+| [014](014-in-browser-engine-is-wllama.md) | The in-browser engine is wllama, with LoRA adapters as GGUF | accepted |
 
 Format: [000-template.md](000-template.md).

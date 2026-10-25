@@ -130,6 +130,10 @@ export class AppComponent {
         this.onboardingOpen.set(true);
       } else if (status === 'ready' && this.callerUpdate() === true) {
         this.modelUpdateOpen.set(true);
+      } else if (status === 'ready' && this.callerUpdate() === false) {
+        // Weights here and current: prefill the system prompt now, so the first
+        // message does not pay for it (once per session).
+        this.preload.warmAtBoot();
       }
     });
   }

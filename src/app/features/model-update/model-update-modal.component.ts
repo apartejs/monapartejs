@@ -15,7 +15,12 @@ import {
 import { MascotteComponent } from '../../mascotte';
 import { TranslateService } from '../../core/i18n/translate.service';
 import { OnboardingPreloadService } from '../../onboarding/preload.service';
-import { SIZE_ADAPTER_BYTES, getSouffleurManifest, isTowerCached } from '../../souffleurs';
+import {
+  SIZE_ADAPTER_BYTES,
+  getSouffleurManifest,
+  isFileCached,
+  pendingUpdateBytes,
+} from '../../souffleurs';
 
 @Component({
   selector: 'bp-model-update-modal',
@@ -120,10 +125,9 @@ export class ModelUpdateModalComponent {
   protected readonly t = this.i18n.t;
 
   /**
-   * Actual weight of the update. Immutable versioned files: the base stays
-   * cached, only the adapter changes (~86 MB) — PLUS the vision tower
-   * (~269 MB) when it's published and not yet downloaded. Announcing 86 MB
-   * while actually pulling 355 would be lying to the user.
+   * Actual weight of the update (see `pendingUpdateBytes`): the adapter, plus
+   * the base when its revision changed, plus the vision encoder when it's new
+   * and not yet downloaded.
    */
   private readonly pendingBytes = signal(SIZE_ADAPTER_BYTES);
 
@@ -134,15 +138,7 @@ export class ModelUpdateModalComponent {
   private async computePendingBytes(): Promise<void> {
     try {
       const manifest = await getSouffleurManifest();
-      const urls = manifest.visionUrls();
-      let bytes = manifest.hasUpdate('chat') ? SIZE_ADAPTER_BYTES : 0;
-      if (
-        urls &&
-        manifest.visionHasUpdate() &&
-        !(await isTowerCached([urls.graphUrl, urls.dataUrl]))
-      ) {
-        bytes += manifest.visionSize();
-      }
+      const bytes = await pendingUpdateBytes(manifest, isFileCached);
       this.pendingBytes.set(bytes || SIZE_ADAPTER_BYTES);
     } catch {
       /* offline: keep the default estimate */
