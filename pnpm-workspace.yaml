@@ -1,0 +1,2 @@
+patchedDependencies:
+  '@wllama/wllama@3.8.1': patches/@wllama__wllama@3.8.1.patch

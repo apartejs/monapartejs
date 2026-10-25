@@ -35,6 +35,11 @@
                 "glob": "pdf.worker.min.mjs",
                 "input": "node_modules/pdfjs-dist/build",
                 "output": "/assets/"
+              },
+              {
+                "glob": "wllama.wasm",
+                "input": "node_modules/@wllama/wllama/esm/wasm",
+                "output": "/assets/wllama/"
               }
             ],
             "styles": [
