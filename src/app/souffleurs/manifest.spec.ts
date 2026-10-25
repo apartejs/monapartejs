@@ -239,3 +239,66 @@ describe('SouffleurManifestClient — tower update', () => {
     expect(m.visionSize()).toBe(0);
   });
 });
+
+const GGUF = {
+  rev: '2026-10-25',
+  base: { file: 'gguf/lfm25-vl-1.6b-Q4_K_M.gguf', size: 730896256, sha256: 'aefc' },
+  mmproj: { version: '0.1.0', file: 'gguf/mmproj-lfm25-vl-1.6b-pad-Q4_0.gguf', size: 244046400 },
+  souffleurs: {
+    chat: { version: '0.4.0', file: 'gguf/souffleur-chat-0.4.0-lora-f16.gguf', size: 88880480 },
+    pdf: { version: '0.1.0', file: 'gguf/souffleur-pdf-0.1.0-lora-q8_0.gguf', size: 94434176 },
+    'xlsx-docx': { version: '0.1.0', file: 'gguf/souffleur-xlsx-docx-0.1.0-lora-q8_0.gguf' },
+    sandbox: { version: '0.1.0', file: 'gguf/souffleur-sandbox-0.1.0-lora-q8_0.gguf' },
+  },
+};
+
+async function loaded(manifest: unknown): Promise<SouffleurManifestClient> {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(JSON.stringify(manifest), { status: 200 })),
+  );
+  const m = new SouffleurManifestClient('https://hf.example/r');
+  await m.load();
+  return m;
+}
+
+describe('SouffleurManifestClient — gguf block', () => {
+  it('reads the gguf block when present', async () => {
+    const m = await loaded({ ...MANIFEST, gguf: GGUF });
+    expect(m.hasGguf()).toBe(true);
+    expect(m.ggufBaseFile()).toBe('gguf/lfm25-vl-1.6b-Q4_K_M.gguf');
+    expect(m.ggufAdapterFile('chat')).toBe('gguf/souffleur-chat-0.4.0-lora-f16.gguf');
+    expect(m.ggufMmprojFile()).toBe('gguf/mmproj-lfm25-vl-1.6b-pad-Q4_0.gguf');
+    expect(m.ggufSize('base')).toBe(730896256);
+    expect(m.ggufSize('mmproj')).toBe(244046400);
+    expect(m.ggufSize('pdf')).toBe(94434176);
+    expect(m.ggufSize('sandbox')).toBeNull();
+    expect(m.baseRev()).toBe('2026-10-25');
+  });
+
+  it('versions come from the gguf block', async () => {
+    store.set('bp.souffleurs.seen', JSON.stringify({ chat: '0.2.0' }));
+    const m = await loaded({ ...MANIFEST, gguf: GGUF });
+    expect(m.version('chat')).toBe('0.4.0');
+    expect(m.size('chat')).toBe(88880480);
+    expect(m.hasUpdate('chat')).toBe(true);
+    m.markSeen('chat');
+    expect(m.hasUpdate('chat')).toBe(false);
+  });
+
+  it('a manifest without gguf keeps the ONNX behaviour', async () => {
+    const m = await loaded(MANIFEST);
+    expect(m.hasGguf()).toBe(false);
+    expect(m.version('chat')).toBe('0.2.0');
+    expect(m.ggufMmprojFile()).toBeNull();
+    expect(() => m.ggufBaseFile()).toThrow('gguf absent du manifest');
+  });
+
+  it('an unknown role in the gguf block fails loudly', async () => {
+    const m = await loaded({
+      ...MANIFEST,
+      gguf: { ...GGUF, souffleurs: { chat: GGUF.souffleurs.chat } },
+    });
+    expect(() => m.ggufAdapterFile('pdf')).toThrow('souffleur gguf inconnu: pdf');
+  });
+});
