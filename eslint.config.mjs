@@ -48,7 +48,21 @@ export default tseslint.config(
         'error',
         { allowInterfaces: 'with-single-extends' },
       ],
+      // In the production build `import('exceljs')` has only a `default` export, so a
+      // destructured `{ Workbook }` is undefined there and nowhere else (dev, tests).
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "ImportExpression[source.value='exceljs']",
+          message:
+            "Use loadWorkbook() from souffleurs/executors/exceljs — in production, import('exceljs') exports only `default`.",
+        },
+      ],
     },
+  },
+  {
+    files: ['src/app/souffleurs/executors/exceljs.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
   {
     files: ['**/*.html'],
