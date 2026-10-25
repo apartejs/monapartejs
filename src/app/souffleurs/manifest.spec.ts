@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SouffleurManifestClient, adapterRole } from './manifest';
+import {
+  SouffleurManifestClient,
+  adapterRole,
+  getSouffleurManifest,
+  resetSouffleurManifestSingleton,
+} from './manifest';
 
 const MANIFEST = {
   schema: 'aparte-souffleurs/1',
@@ -323,5 +328,21 @@ describe('SouffleurManifestClient — vision is the mmproj once gguf is publishe
     expect(m.visionHasUpdate()).toBe(true);
     m.markSeenVision();
     expect(m.visionHasUpdate()).toBe(false);
+  });
+});
+
+describe('getSouffleurManifest — the ONNX era leaves nothing behind', () => {
+  it('deletes the transformers.js and vision tower caches once gguf is published', async () => {
+    const del = vi.fn(async () => true);
+    vi.stubGlobal('caches', { delete: del, open: vi.fn() });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ ...MANIFEST, gguf: GGUF }))),
+    );
+    resetSouffleurManifestSingleton();
+    await getSouffleurManifest();
+    expect(del).toHaveBeenCalledWith('transformers-cache');
+    expect(del).toHaveBeenCalledWith('aparte-vision-cache');
+    resetSouffleurManifestSingleton();
   });
 });

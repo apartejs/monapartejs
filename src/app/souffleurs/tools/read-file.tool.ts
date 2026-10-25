@@ -3,8 +3,8 @@
  * structured survey of the attached file. The reinjected JSON result (tool
  * role, indent 2) reproduces the shapes seen during training:
  *   xlsx → { ok, type:'read_file', file_id, mime, schema:{sheets…}, preview }
- * The image path goes through the hot-swap of the vision ENCODER (separate
- * describe call, no LoRA) — see surveyImage.
+ * The image path loads the base without adapter plus the vision encoder (mmproj,
+ * a separate describe call, no LoRA) — see surveyImage.
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
 import { fileRegistry } from '../files/file-registry';
@@ -116,7 +116,7 @@ export async function surveyXlsx(blob: Blob): Promise<Record<string, unknown>> {
 }
 
 /**
- * IMAGE path = hot-swap of the vision ENCODER + separate describe call
+ * IMAGE path = the base without adapter + the vision encoder (mmproj), in a separate describe call
  * (CONTRACT-HANDOFF §4: "architecture, not LoRA"). The rendered text goes into
  * `description` in the reinjected JSON — souffleur-chat itself stays text-only
  * and NEVER sees pixels.
@@ -160,9 +160,9 @@ async function surveyImage(blob: Blob, query: string): Promise<Record<string, un
  *
  * The model translates the description while answering, and loses or invents things along the way.
  *
- * The UPSTREAM half is NOT measured: does the tower describe just as well in
+ * The UPSTREAM half is NOT measured: does the encoder describe just as well in
  * French? It is likely dominated by English, and a poorer French description
- * would cancel out the gain. That measurement needs the browser — the tower
+ * would cancel out the gain. That measurement needs the browser — the encoder
  * doesn't exist on the bench side — hence this switch rather than a blind
  * flip:
  *

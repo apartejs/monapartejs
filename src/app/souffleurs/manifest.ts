@@ -304,16 +304,16 @@ export function getSouffleurManifest(): Promise<SouffleurManifestClient> {
         `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`,
       );
       await client.load();
-      // base.rev changed (rare): the base files keep the SAME name → the
-      // cache must be purged to re-download. The versioned .data files
-      // never need this.
-      if (client.baseHasUpdate()) {
+      // The engine switch (ADR-014) leaves the ONNX era's files behind: base,
+      // adapters and vision tower, ~1.4 GB in two caches nothing reads any more.
+      // GGUF files have versioned names in wllama's own cache, so no purge by
+      // name is needed after this. Deleting a missing cache is a no-op.
+      if (client.hasGguf()) {
         try {
-          const cache = await caches.open('transformers-cache');
-          const keys = await cache.keys();
-          await Promise.all(
-            keys.filter((req) => req.url.includes('model_q4.onnx')).map((req) => cache.delete(req)),
-          );
+          await Promise.all([
+            caches.delete('transformers-cache'),
+            caches.delete('aparte-vision-cache'),
+          ]);
         } catch {
           /* cache unavailable */
         }

@@ -1,7 +1,7 @@
 # ADR-004 — One model, hot-swapped LoRA adapters, versioned by `manifest.json`
 
 - **Date**: 2026-07-25
-- **Status**: accepted
+- **Status**: accepted — engine part (ONNX graph, `externalData` remap) superseded by ADR-014; the manifest versioning stands
 - **Context**: several specialisations (chat, pdf, xlsx/docx, sandbox, vision) without
   multiplying downloads or touching code every time weights are published.
 - **Decision**: one frozen LFM2.5-VL-1.6B base (lab ADR-001), int8 LoRA adapters swapped
