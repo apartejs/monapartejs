@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { AparteChatMessage } from '@aparte/core';
-import { buildWirePrompt, renderToolCallBlock } from './prompt-builder';
+import { buildWirePrompt, renderToolCallBlock, wirePrefix } from './prompt-builder';
+import { buildSystemPrompt } from './system-prompt';
+import { SOUFFLEUR_TOOL_NAMES } from './tool-defs';
 
 describe('renderToolCallBlock', () => {
   it('serializes kwargs as JSON, pythonic syntax', () => {
@@ -80,5 +82,28 @@ describe('buildWirePrompt — golden training format (lfm25-chat-1.0.0)', () => 
       { role: 'user', content: [{ type: 'text', text: 'Bonjour' }] },
     ]);
     expect(wire).toContain('<|im_start|>user\nBonjour\n<|im_end|>\n');
+  });
+});
+
+describe('wirePrefix', () => {
+  const tools = [...SOUFFLEUR_TOOL_NAMES];
+  const system = buildSystemPrompt(tools);
+  const withFile = buildSystemPrompt(tools, [{ id: 'file_a_1', name: 'a.xlsx', type: 'xlsx' }]);
+  const one: AparteChatMessage[] = [{ role: 'user', content: 'Bonjour' }];
+  const three: AparteChatMessage[] = [
+    { role: 'user', content: 'Bonjour' },
+    { role: 'assistant', content: 'Bonjour !' },
+    { role: 'user', content: 'Et ce fichier ?' },
+  ];
+
+  it('is a prefix of every wire prompt for that system, with or without files', () => {
+    for (const messages of [one, three]) {
+      expect(buildWirePrompt(system, messages).startsWith(wirePrefix(system))).toBe(true);
+      expect(buildWirePrompt(withFile, messages).startsWith(wirePrefix(system))).toBe(true);
+    }
+  });
+
+  it('ends with the system text itself, before any closing marker', () => {
+    expect(wirePrefix(system).endsWith(system)).toBe(true);
   });
 });
