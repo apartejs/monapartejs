@@ -467,6 +467,14 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
       "analyse d'image indisponible : l'encodeur vision n'est pas publié pour cette version du modèle",
     );
   }
+  // Measured on the M5 without WebGPU: the encoder gave nothing in 25 minutes (and
+  // wrong descriptions when only the encoder ran on the CPU). Waiting would end in
+  // aparté's 5-minute tool abort, a silent turn and a queue blocked behind it.
+  if (device === 'wasm') {
+    throw new Error(
+      "analyse d'image indisponible sur cet appareil : sans carte graphique (WebGPU), la lecture d'image ne fonctionne pas",
+    );
+  }
   const baseFile = manifest.ggufBaseFile();
   const debug = isDebug();
 

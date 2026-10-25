@@ -378,6 +378,35 @@ describe('provider on the wllama engine', () => {
       /^analyse d'image indisponible/,
     );
   });
+
+  it('without WebGPU, image reading fails at once and says why — the engine is never asked', async () => {
+    // Measured on the M5's CPU: the vision encoder gave nothing in 25 minutes, and
+    // aparté aborted the tool after 5 with a silent turn and a blocked queue.
+    const { describeImage } = await load();
+    await expect(describeImage(new Blob(['x']), 'Describe.')).rejects.toThrow(
+      /^analyse d'image indisponible sur cet appareil/,
+    );
+    expect(FakeWorker.last?.posted.some((m) => m.type === 'describe-image') ?? false).toBe(false);
+  });
+
+  it('with WebGPU, an image goes to the engine with the mmproj', async () => {
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: async () => ({}) }, language: 'fr' });
+    const { describeImage } = await load();
+    const described = describeImage(new Blob(['x']), 'Describe.');
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    const request = worker.posted.find((m) => m.type === 'describe-image') as
+      (Posted & { mmprojFile: string }) | undefined;
+    expect(request?.mmprojFile).toBe(MANIFEST.gguf.mmproj.file);
+    worker.reply({ type: 'chunk', id: request!.id, delta: 'A logo.' });
+    worker.reply({
+      type: 'done',
+      id: request!.id,
+      usage: { inputTokens: 1, outputTokens: 2, ttftMs: 1, durationMs: 1 },
+    });
+    await expect(described).resolves.toBe('A logo.');
+  });
 });
 
 describe('Stop before the turn starts', () => {
