@@ -318,6 +318,53 @@ describe('provider on the wllama engine', () => {
     expect(generate!.prompt.startsWith(warm!.prefix)).toBe(true);
   });
 
+  it('the warm-up reports that it is preparing the model, on its device, then that it is ready', async () => {
+    const { warmCaller } = await load();
+    const { subscribeSouffleurStatus } = await import('./status');
+    const seen: { status: string; device?: string }[] = [];
+    const off = subscribeSouffleurStatus((s) => seen.push({ status: s.status, device: s.device }));
+    const warmed = warmCaller(['read_file']);
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    const warm = worker.posted.find((m) => m.type === 'warm') as
+      (Posted & { device: string }) | undefined;
+    worker.reply({
+      type: 'done',
+      id: warm!.id,
+      usage: { inputTokens: 1, outputTokens: 0, ttftMs: 1, durationMs: 1 },
+    });
+    await warmed;
+    off();
+
+    // seen[0] is the state at subscription time.
+    expect(seen.slice(1)).toEqual([
+      { status: 'loading', device: warm!.device },
+      { status: 'ready', device: warm!.device },
+    ]);
+  });
+
+  it('a chat turn started during the warm-up keeps its status when the warm-up ends', async () => {
+    const { SouffleursProvider, warmCaller } = await load();
+    const { getSouffleurStatus } = await import('./status');
+    const warmed = warmCaller(['read_file']);
+    await tick();
+    await tick();
+    const worker = FakeWorker.last!;
+    const warm = worker.posted.find((m) => m.type === 'warm');
+    void ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    const duringChat = getSouffleurStatus();
+
+    worker.reply({
+      type: 'done',
+      id: warm!.id,
+      usage: { inputTokens: 1, outputTokens: 0, ttftMs: 1, durationMs: 1 },
+    });
+    await warmed;
+
+    expect(getSouffleurStatus()).toBe(duringChat);
+  });
+
   it('a manifest without mmproj makes image reading fail clearly', async () => {
     vi.stubGlobal(
       'fetch',

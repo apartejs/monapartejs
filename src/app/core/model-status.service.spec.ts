@@ -27,6 +27,14 @@ describe('ModelStatusService.slowDeviceHint', () => {
     expect(service.slowDeviceHint()).toBe(false);
   });
 
+  it('shows while the boot warm-up prefills the prompt, and ends with it (loading → ready)', () => {
+    const service = new ModelStatusService();
+    emit({ status: 'loading', device: 'wasm' });
+    expect(service.slowDeviceHint()).toBe(true);
+    emit({ status: 'ready', device: 'wasm' });
+    expect(service.slowDeviceHint()).toBe(false);
+  });
+
   it('never on WebGPU', () => {
     const service = new ModelStatusService();
     emit({ status: 'loading', device: 'webgpu' });

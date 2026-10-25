@@ -38,7 +38,7 @@ import {
 import { createDefaultEngine } from './engine/wllama-engine';
 import { adapterRole, getSouffleurManifest } from './manifest';
 import { ProgressAggregator } from './progress-aggregator';
-import { setSouffleurStatus } from './status';
+import { getSouffleurStatus, setSouffleurStatus, type SouffleurStatusState } from './status';
 import { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
 import { buildWirePrompt, wirePrefix } from './wire/prompt-builder';
 import { UNPARSEABLE, parsePythonicOutput } from './wire/pythonic-parser';
@@ -527,12 +527,21 @@ export async function warmCaller(enabledToolNames: readonly string[]): Promise<v
   return enqueue(
     () =>
       new Promise<void>((resolve) => {
+        // Said out loud: on a CPU the prefill takes a minute and a half, and the
+        // status carries the device the slow-device hint needs. Back to 'ready'
+        // only if no chat turn has taken the status over in the meantime.
+        const preparing: SouffleurStatusState = { status: 'loading', device };
+        setSouffleurStatus(preparing);
+        const settle = () => {
+          if (getSouffleurStatus() === preparing) setSouffleurStatus({ status: 'ready', device });
+          resolve();
+        };
         const id = _nextId++;
         _pending.set(id, {
-          onDone: () => resolve(),
+          onDone: settle,
           onError: (message) => {
             console.warn('[souffleurs] warm-up failed:', message);
-            resolve();
+            settle();
           },
         });
         getWorker().postMessage({

@@ -12,19 +12,25 @@ export class ModelStatusService {
   private readonly _state = signal<SouffleurStatusState>({ status: 'unknown' });
   readonly state = this._state.asReadonly();
 
-  /** A generation of this session has run to its end (generating → ready). */
+  /**
+   * The caller's prompt has been through the model once this session: the boot
+   * warm-up or a first answer ran to its end (loading or generating → ready).
+   */
   private readonly answered = signal(false);
 
   /**
-   * Without WebGPU the model runs on the CPU, and the first answer pays for the
-   * whole prompt (75–89 s on the M5 before the first word): say so while it is
-   * coming, then stop — the following turns reuse the prompt cache.
+   * Without WebGPU the model runs on the CPU, and prefilling the prompt takes
+   * 75–89 s on the M5: say so while the boot warm-up (or, failing it, the first
+   * answer) pays for it, then stop — the following turns reuse the prompt cache.
    */
   readonly slowDeviceHint = computed(() => this._state().device === 'wasm' && !this.answered());
 
   constructor() {
     subscribeSouffleurStatus((s) => {
-      if (this._state().status === 'generating' && s.status === 'ready') this.answered.set(true);
+      const previous = this._state().status;
+      if ((previous === 'generating' || previous === 'loading') && s.status === 'ready') {
+        this.answered.set(true);
+      }
       this._state.set(s);
     });
     // Resolves the initial state (cached / not-downloaded) without loading the model.
