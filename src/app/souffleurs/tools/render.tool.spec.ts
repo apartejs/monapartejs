@@ -6,6 +6,7 @@ vi.mock('../souffleurs-provider', () => ({ runExecutor: (...a: unknown[]) => run
 
 const { renderHandler } = await import('./render.tool');
 const { artifactsByCall } = await import('./artifact-store');
+const { fileRegistry } = await import('../files/file-registry');
 
 const INVOICE = [
   '```yaml-spec',
@@ -56,9 +57,33 @@ describe('renderHandler', () => {
     expect(preview).toContain('Facture 42');
   });
 
-  it('still refuses to edit an existing file', async () => {
-    const res = await renderHandler(call({ kind: 'docx', task: 'x', file_ids: ['file_a1'] }));
+  it('still refuses to edit a file the user attached', async () => {
+    const attached = fileRegistry.register(
+      new File(['x'], 'devis.docx', { type: 'application/msword' }),
+    );
+    const res = await renderHandler(call({ kind: 'docx', task: 'x', file_ids: [attached.id] }));
     expect(JSON.parse(String(res.content)).ok).toBe(false);
     expect(runExecutor).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds a document it produced from the joined intent, under the same file id and name', async () => {
+    const produced = fileRegistry.registerBlob(
+      new Blob(['old']),
+      'facture.pdf',
+      'application/pdf',
+      'render',
+    );
+    const res = await renderHandler(
+      call({ kind: 'pdf', task: 'Facture 42 : 5 heures', file_ids: [produced.id] }),
+    );
+    expect(JSON.parse(String(res.content))).toMatchObject({
+      ok: true,
+      type: 'pdf',
+      filename: 'facture.pdf',
+    });
+    expect(runExecutor.mock.calls[0]?.[2]).toBe('Facture 42 : 5 heures');
+    const after = fileRegistry.get(produced.id);
+    expect(after?.blob.size).toBeGreaterThan(3);
+    expect(after?.producedBy).toBe('render');
   });
 });

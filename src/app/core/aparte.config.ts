@@ -198,6 +198,7 @@ export function provideMonaparte(): EnvironmentProviders[] {
             blob: entry.blob,
             addedAt: entry.addedAt,
             convId: entry.convId ?? null,
+            ...(entry.producedBy ? { producedBy: entry.producedBy } : {}),
           }),
         loadAll: async () => {
           const rows = await conversationAdapter.db.souffleurFiles.orderBy('addedAt').toArray();
@@ -213,6 +214,7 @@ export function provideMonaparte(): EnvironmentProviders[] {
               // `undefined` keeps it as-is: it's a row from before the
               // attachment feature, to be distinguished from `null` (pending adoption).
               convId: row.convId,
+              ...(row.producedBy ? { producedBy: row.producedBy } : {}),
             }));
         },
         remove: (id) => conversationAdapter.db.souffleurFiles.delete(id),

@@ -2,6 +2,9 @@
  * render (ADR-003) — the caller's one tool for what is drawn: the json-render expert turns the call's `task` into a
  * spec, and the app draws it — a PDF, Word or Excel file through the json-render exporters, a chart in the
  * conversation through ECharts. The same spec serves every kind: only the exporter changes.
+ * An edit (file_ids) of a document render produced is rebuilt from the call's task — the joined intent, the whole
+ * document as it must now be (the lab's rule, json-render-expert README "An edit in a second turn") — and keeps its
+ * file id and name. A file the user attached cannot be edited yet: the expert never sees its content.
  * Tool summary = CONFIRMATION ONLY, as write_file's (anti-hallucination lesson from the lab).
  */
 import type { AparteTool, AparteToolHandler } from '@aparte/core';
@@ -57,8 +60,12 @@ export const renderHandler: AparteToolHandler = async (call, signal) => {
 
   if (!KINDS.includes(kind)) return fail(`kind invalide: ${kind}`);
   if (!task) return fail('task manquante');
-  if (fileIds.length)
+  const edited = fileIds.map((id) => fileRegistry.get(id));
+  if (fileIds.length && (fileIds.length > 1 || edited.some((f) => f?.producedBy !== 'render')))
     return fail("la modification d'un fichier existant n'est pas encore disponible");
+  // the edited document keeps its name (another kind keeps the stem: facture.pdf -> facture.docx)
+  const keep = edited[0]?.name.replace(/\.[^.]+$/, '');
+  const filename = name ?? keep;
 
   try {
     // LIVE: the spec builds up in front of the user while the expert streams, as the PDF executor's code did.
@@ -89,10 +96,12 @@ export const renderHandler: AparteToolHandler = async (call, signal) => {
     const exportFile = await EXPORTERS[kind]();
     const file = await exportFile(
       spec,
-      name ? { filename: defaultFilename(kind, name) } : undefined,
+      filename ? { filename: defaultFilename(kind, filename) } : undefined,
     );
     const blob = new Blob([file.buffer], { type: file.mime });
-    const registered = fileRegistry.registerBlob(blob, file.filename, file.mime);
+    const registered = edited[0]
+      ? fileRegistry.replace(edited[0].id, blob, file.filename, file.mime)!
+      : fileRegistry.registerBlob(blob, file.filename, file.mime, 'render');
     // Word and Excel are drawn from the same spec in the card (escaped, inline styles only); the PDF card
     // draws its own pages.
     const preview =
