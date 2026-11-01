@@ -428,9 +428,17 @@ export const SouffleursProvider: AparteAIProvider = {
     _loadedAdapter = null;
     try {
       const base = souffleursBaseUrl();
-      await new CacheManager().deleteMany(
-        (entry) => !!entry.metadata?.originalURL?.startsWith(base),
+      // the manifest's absolute files too: Liquid AI's base and mmproj are fetched from their repository
+      const manifest = await getSouffleurManifest().catch(() => null);
+      const elsewhere = new Set(
+        [manifest?.hasGguf() ? manifest.ggufBaseFile() : null, manifest?.ggufMmprojFile()].filter(
+          (f): f is string => !!f && /^https?:\/\//.test(f),
+        ),
       );
+      await new CacheManager().deleteMany((entry) => {
+        const url = entry.metadata?.originalURL ?? '';
+        return url.startsWith(base) || elsewhere.has(url);
+      });
     } catch {
       // cache unavailable: nothing to erase
     }

@@ -68,7 +68,14 @@ export interface SouffleursManifest {
   base: { rev: string; graph: string; weights: string; [k: string]: unknown };
   souffleurs: Record<string, ManifestSouffleur>;
   vision?: ManifestVision;
+  /** The LFM2.5 wllama set — what the app in production reads until the LFM3 app replaces it. */
   gguf?: ManifestGguf;
+  /**
+   * The LFM3 set (ADR-003), the one this app reads. Additive, as `gguf` was: the LFM2.5 app in production ignores
+   * it, so one manifest serves both until it goes. A file may be an absolute URL: the base and the mmproj are
+   * Liquid AI's own files, pinned to a revision of their repository, not copies.
+   */
+  lfm3?: ManifestGguf;
 }
 
 /** Legacy manifest (before the first versioned push to HF): historical names. */
@@ -103,6 +110,11 @@ export class SouffleurManifestClient {
   readonly baseUrl: string;
   manifest: SouffleursManifest | null = null;
   private seen: Record<string, string>;
+
+  /** The wllama set this app reads: the LFM3 block (the `gguf` block is the LFM2.5 app's). */
+  private get set(): ManifestGguf | undefined {
+    return this.manifest?.lfm3;
+  }
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
@@ -140,7 +152,7 @@ export class SouffleurManifestClient {
 
   /** The souffleur entries in force: the `gguf` block when published, the ONNX ones otherwise. */
   private souffleurEntries(): Record<string, ManifestGgufFile> {
-    return this.manifest?.gguf?.souffleurs ?? this.manifest?.souffleurs ?? {};
+    return this.set?.souffleurs ?? this.manifest?.souffleurs ?? {};
   }
 
   roles(): string[] {
@@ -167,28 +179,28 @@ export class SouffleurManifestClient {
   }
 
   hasGguf(): boolean {
-    return !!this.manifest?.gguf;
+    return !!this.set;
   }
 
   ggufBaseFile(): string {
-    const gguf = this.manifest?.gguf;
+    const gguf = this.set;
     if (!gguf) throw new Error('gguf absent du manifest');
     return gguf.base.file;
   }
 
   ggufAdapterFile(role: SouffleurRole): string {
-    const entry = this.manifest?.gguf?.souffleurs?.[role];
+    const entry = this.set?.souffleurs?.[role];
     if (!entry) throw new Error(`souffleur gguf inconnu: ${role}`);
     return entry.file;
   }
 
   /** The vision encoder (mmproj), or null when the gguf set publishes none. */
   ggufMmprojFile(): string | null {
-    return this.manifest?.gguf?.mmproj?.file ?? null;
+    return this.set?.mmproj?.file ?? null;
   }
 
   ggufSize(part: 'base' | 'mmproj' | SouffleurRole): number | null {
-    const gguf = this.manifest?.gguf;
+    const gguf = this.set;
     if (!gguf) return null;
     if (part === 'base') return gguf.base.size ?? null;
     if (part === 'mmproj') return gguf.mmproj?.size ?? null;
@@ -200,7 +212,7 @@ export class SouffleurManifestClient {
   }
 
   baseRev(): string {
-    return this.manifest?.gguf?.rev ?? this.manifest?.base?.rev ?? 'legacy';
+    return this.set?.rev ?? this.manifest?.base?.rev ?? 'legacy';
   }
 
   /** vision block, or null if the tower isn't published. */
@@ -210,13 +222,13 @@ export class SouffleurManifestClient {
 
   /** Vision weight announced by the manifest: the mmproj once gguf is published (0 if none). */
   visionSize(): number {
-    if (this.manifest?.gguf) return this.manifest.gguf.mmproj?.size ?? 0;
+    if (this.set) return this.set.mmproj?.size ?? 0;
     return this.manifest?.vision?.size ?? 0;
   }
 
   /** The vision version in force: the mmproj's once gguf is published, the tower's before. */
   private visionVersion(): string | undefined {
-    if (this.manifest?.gguf) return this.manifest.gguf.mmproj?.version;
+    if (this.set) return this.set.mmproj?.version;
     return this.manifest?.vision?.version;
   }
 

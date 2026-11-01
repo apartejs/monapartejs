@@ -401,6 +401,16 @@ describe('WllamaEngine.download', () => {
     expect(seen).toEqual([1]);
     expect(instances).toHaveLength(0);
   });
+
+  it('fetches a file given as an absolute URL (the base from Liquid AI) as it is', async () => {
+    const { engine, cache } = setup();
+    const liquid =
+      'https://huggingface.co/LiquidAI/LFM3-Omni-2B-GGUF/resolve/3d29af2/LFM3-Omni-2B-Q4_K_M.gguf';
+    await engine.download(liquid);
+    expect(cache.downloads).toEqual([liquid]);
+    cache.blobs.set(liquid, new Blob(['b']));
+    expect(await engine.isCached([liquid])).toBe(true);
+  });
 });
 
 describe('WllamaEngine — failures and Stop', () => {

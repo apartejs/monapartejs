@@ -1,5 +1,5 @@
 /**
- * Serve unpublished souffleurs to the app, the way the HF repo does: a `manifest.json` (gguf block) and the GGUF
+ * Serve unpublished souffleurs to the app, the way the HF repo does: a `manifest.json` (lfm3 block) and the GGUF
  * files, from wherever they are on disk — the lab's runs, not copies. For testing a model before it is published
  * (ADR-003's LFM3 souffleurs); the app reads it once `localStorage['bp.souffleurs.baseUrl']` points here.
  *
@@ -40,7 +40,8 @@ const files = {
 const size = (role) => statSync(files[role].path).size;
 const manifest = {
   schema: 'aparte-souffleurs/1',
-  gguf: {
+  // the LFM3 block, the one this app reads (the `gguf` block is the LFM2.5 app's in production)
+  lfm3: {
     rev: args.rev,
     base: { file: files.base.url, size: size('base') },
     ...(files.mmproj

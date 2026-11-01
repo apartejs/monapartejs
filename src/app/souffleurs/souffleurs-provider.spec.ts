@@ -17,7 +17,7 @@ const MANIFEST = {
     'xlsx-docx': { version: '0.1.0', file: 'adapters/souffleur-xlsx-docx-0.1.0.data' },
     sandbox: { version: '0.1.0', file: 'adapters/souffleur-sandbox-0.1.0.data' },
   },
-  gguf: {
+  lfm3: {
     rev: '2026-10-25',
     base: { file: 'gguf/lfm25-vl-1.6b-Q4_K_M.gguf', size: 730896256 },
     mmproj: { version: '0.1.0', file: 'gguf/mmproj-lfm25-vl-1.6b-pad-Q4_0.gguf', size: 244046400 },
@@ -375,7 +375,7 @@ describe('provider on the wllama engine', () => {
       'fetch',
       vi.fn(async () => ({
         ok: true,
-        json: async () => ({ ...MANIFEST, gguf: { ...MANIFEST.gguf, mmproj: undefined } }),
+        json: async () => ({ ...MANIFEST, lfm3: { ...MANIFEST.lfm3, mmproj: undefined } }),
       })),
     );
     const { describeImage } = await load();
@@ -403,7 +403,7 @@ describe('provider on the wllama engine', () => {
     const worker = FakeWorker.last!;
     const request = worker.posted.find((m) => m.type === 'describe-image') as
       (Posted & { mmprojFile: string }) | undefined;
-    expect(request?.mmprojFile).toBe(MANIFEST.gguf.mmproj.file);
+    expect(request?.mmprojFile).toBe(MANIFEST.lfm3.mmproj.file);
     worker.reply({ type: 'chunk', id: request!.id, delta: 'A logo.' });
     worker.reply({
       type: 'done',

@@ -147,8 +147,9 @@ export class WllamaEngine implements EngineLike {
     });
   }
 
+  /** A manifest path under the souffleurs repo, or an absolute URL kept as it is (Liquid AI's base and mmproj). */
   private url(file: string): string {
-    return `${this.deps.baseUrl}/${file}`;
+    return /^https?:\/\//.test(file) ? file : `${this.deps.baseUrl}/${file}`;
   }
 
   private async handle(msg: Exclude<MainToWorker, { type: 'abort' }>): Promise<void> {
