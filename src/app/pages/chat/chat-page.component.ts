@@ -3,8 +3,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   HostListener,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -305,8 +307,15 @@ export class ChatPageComponent {
   private readonly modelStatus = inject(ModelStatusService);
   private readonly manager = inject(ConversationManagerService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
 
   constructor() {
+    // A call being written (its arguments stream after the reply's text, with nothing to show): aparté's
+    // waiting dots under the reply — the indicator core leaves to the app — until the call's card appears.
+    effect(() => {
+      const writing = Boolean(this.modelStatus.state().tool);
+      this.host.querySelector('aparte-chat-status')?.toggleAttribute('visible', writing);
+    });
     // The popover is `position: fixed`: as soon as the thread scrolls it would
     // detach from its button. The lib's viewport scrolls INTERNALLY, so
     // `window:scroll` doesn't see it — the CAPTURE phase on the document is

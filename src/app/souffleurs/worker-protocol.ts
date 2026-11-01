@@ -1,4 +1,6 @@
 import type { AdapterName } from './model-catalog';
+import type { ChatMessage } from './wire/chat-wire';
+import type { Lfm3Tool } from './wire/contract-lfm3';
 
 /**
  * main ↔ engine protocol: one model in memory, the souffleur chosen by its LoRA adapter.
@@ -26,6 +28,20 @@ export type MainToWorker =
       prompt: string;
       maxNewTokens: number;
       /** Console trace of the raw output. */
+      debug?: boolean;
+    } & AdapterFiles)
+  | ({
+      /**
+       * LFM3 (ADR-003): chat messages and tools, rendered by the model's own template (jinja) in the engine;
+       * the calls come back parsed, in `done`.
+       */
+      type: 'chat';
+      id: number;
+      adapter: AdapterName;
+      device: ComputeDevice;
+      messages: ChatMessage[];
+      tools?: readonly Lfm3Tool[];
+      maxNewTokens: number;
       debug?: boolean;
     } & AdapterFiles)
   | ({
@@ -65,10 +81,14 @@ export type WorkerToMain =
   | ({ type: 'progress'; id: number } & WorkerFileProgress)
   | { type: 'ready'; id: number; adapter: AdapterName | 'vision'; ms: number }
   | { type: 'chunk'; id: number; delta: string }
+  /** `chat` only: a call has its name and its arguments are still being written — the wait the user sees. */
+  | { type: 'tool-start'; id: number; name: string }
   | {
       type: 'done';
       id: number;
       usage: { inputTokens: number; outputTokens: number; ttftMs: number; durationMs: number };
+      /** `chat` only: the calls the template's parser found, arguments as streamed (a JSON string). */
+      toolCalls?: { name: string; arguments: string }[];
     }
   | { type: 'error'; id: number; message: string };
 

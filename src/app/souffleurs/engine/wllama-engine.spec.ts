@@ -7,6 +7,7 @@ import {
   WllamaEngine,
   cacheManagerBlobCache,
   type BlobCache,
+  type ChatStreamChunk,
   type CompletionChunk,
   type CompletionOptions,
   type WllamaLike,
@@ -62,8 +63,17 @@ class FakeWllama implements WllamaLike {
     })();
   }
 
+  /** The streamed chat (LFM3) a test plays; the non-streamed call is the image description. */
+  static chatStream: ChatStreamChunk[] = [];
+
   async createChatCompletion(opts: Record<string, unknown>) {
     this.chats.push(opts);
+    if (opts['stream']) {
+      const chunks = FakeWllama.chatStream;
+      return (async function* () {
+        yield* chunks;
+      })() as never;
+    }
     return { choices: [{ message: { content: ' A logo on a dark card. ' } }], timings: TIMINGS };
   }
 
@@ -291,6 +301,94 @@ describe('WllamaEngine', () => {
     cache.blobs.set(`${BASE_URL}/${BASE}`, new Blob(['b']));
     cache.blobs.set(`${BASE_URL}/${CHAT}`, new Blob(['c']));
     expect(await engine.isCached([BASE, CHAT])).toBe(true);
+  });
+});
+
+describe('WllamaEngine — chat (LFM3)', () => {
+  const chat = (id: number): MainToWorker => ({
+    type: 'chat',
+    id,
+    adapter: 'souffleur-chat',
+    device: 'webgpu',
+    messages: [
+      { role: 'system', content: 'S' },
+      { role: 'user', content: 'Combien font 17 % de 2 340 € ?' },
+    ],
+    tools: [],
+    maxNewTokens: 64,
+    baseFile: BASE,
+    adapterFile: CHAT,
+  });
+
+  it('streams the text and sends the calls whole, gathered by index, in done', async () => {
+    FakeWllama.chatStream = [
+      { choices: [{ delta: { content: 'Je calcule' } }] },
+      { choices: [{ delta: { content: ' ça.' } }] },
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [{ index: 0, function: { name: 'compute', arguments: '{"expr' } }],
+            },
+          },
+        ],
+      },
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [{ index: 0, function: { arguments: 'ession":"2340*17/100"}' } }],
+            },
+          },
+        ],
+      },
+      { choices: [{ delta: {}, finish_reason: 'tool_calls' }], timings: TIMINGS },
+    ];
+    const { send, settled, messages, instances } = setup();
+    send(chat(1));
+    const done = await settled(1, 'done');
+    const text = messages
+      .flatMap((m) => (m.type === 'chunk' && m.id === 1 ? [m.delta] : []))
+      .join('');
+    expect(text).toBe('Je calcule ça.');
+    expect(done).toMatchObject({
+      toolCalls: [{ name: 'compute', arguments: '{"expression":"2340*17/100"}' }],
+    });
+    expect(instances[0].chats[0]).toMatchObject({
+      stream: true,
+      temperature: 0,
+      cache_prompt: true,
+      chat_template_kwargs: { enable_thinking: false },
+    });
+    expect(instances[0].chats[0]).not.toHaveProperty('tools'); // none enabled: none sent
+    expect(instances[0].loads[0].params).toMatchObject({ jinja: true });
+  });
+
+  it('announces a call once, as soon as its name arrives, before done', async () => {
+    FakeWllama.chatStream = [
+      { choices: [{ delta: { content: 'Je calcule ça.' } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, function: { name: 'compute' } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '{}' } }] } }] },
+      { choices: [{ delta: {}, finish_reason: 'tool_calls' }], timings: TIMINGS },
+    ];
+    const { send, settled, messages } = setup();
+    send(chat(3));
+    await settled(3, 'done');
+    const order = messages.filter((m) => m.id === 3).map((m) => m.type);
+    expect(messages.filter((m) => m.type === 'tool-start')).toEqual([
+      { type: 'tool-start', id: 3, name: 'compute' },
+    ]);
+    expect(order.indexOf('tool-start')).toBeLessThan(order.indexOf('done'));
+  });
+
+  it('sends no toolCalls for a plain answer', async () => {
+    FakeWllama.chatStream = [
+      { choices: [{ delta: { content: 'Bonjour !' } }] },
+      { choices: [{ delta: {}, finish_reason: 'stop' }], timings: TIMINGS },
+    ];
+    const { send, settled } = setup();
+    send(chat(2));
+    expect(await settled(2, 'done')).not.toHaveProperty('toolCalls');
   });
 });
 

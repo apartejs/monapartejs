@@ -109,7 +109,7 @@ describe('SouffleursProvider.chat — cancellation', () => {
 
     const worker = FakeWorker.last;
     expect(worker).not.toBeNull();
-    const [firstId] = worker!.sentIds('generate');
+    const [firstId] = worker!.sentIds('chat');
     expect(firstId).toBeTypeOf('number');
 
     await reader.cancel();
@@ -130,7 +130,7 @@ describe('SouffleursProvider.chat — cancellation', () => {
     const second = (await SouffleursProvider.chat(REQUEST)) as ReadableStream;
     void second.getReader();
     await tick();
-    expect(worker!.sentIds('generate').length).toBe(2);
+    expect(worker!.sentIds('chat').length).toBe(2);
   });
 
   it('without cancellation, the stream emits text then done', async () => {
@@ -141,7 +141,7 @@ describe('SouffleursProvider.chat — cancellation', () => {
     await tick();
 
     const worker = FakeWorker.last!;
-    const [id] = worker.sentIds('generate');
+    const [id] = worker.sentIds('chat');
     worker.reply({ type: 'chunk', id, delta: 'salut' });
     worker.reply({
       type: 'done',
@@ -170,17 +170,21 @@ describe('runExecutor — user turn format', () => {
     await tick();
     await tick();
     const worker = FakeWorker.last!;
-    const generate = worker.posted.find((m) => m.type === 'generate') as
-      (Posted & { prompt: string }) | undefined;
-    expect(generate).toBeDefined();
-    expect(generate!.prompt).toContain('user\nintent: somme de 1 à 10');
-    expect(generate!.prompt).not.toContain('user\nsomme de 1 à 10');
+    const chat = worker.posted.find((m) => m.type === 'chat') as
+      (Posted & { messages: { role: string; content: string }[]; tools?: unknown }) | undefined;
+    expect(chat).toBeDefined();
+    expect(chat!.messages).toEqual([
+      { role: 'system', content: 'SYSTEM' },
+      { role: 'user', content: 'intent: somme de 1 à 10' },
+    ]);
+    expect(chat!.tools).toBeUndefined(); // an executor writes, it calls nothing
+    worker.reply({ type: 'chunk', id: chat!.id, delta: '```yaml-spec\nroot: doc\n```' });
     worker.reply({
       type: 'done',
-      id: generate!.id,
+      id: chat!.id,
       usage: { inputTokens: 5, outputTokens: 1, ttftMs: 1, durationMs: 2 },
     });
-    await pending;
+    await expect(pending).resolves.toMatchObject({ raw: '```yaml-spec\nroot: doc\n```' });
   });
 });
 
@@ -198,14 +202,14 @@ describe('runExecutor — abort', () => {
     await tick();
     await tick();
     const worker = FakeWorker.last!;
-    expect(worker.sentIds('generate').length).toBe(1);
+    expect(worker.sentIds('chat').length).toBe(1);
 
     controller.abort();
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
     expect(worker.posted.some((m) => m.type === 'abort')).toBe(true);
 
     // The worker still answers `done` after the interrupt: must not throw.
-    const [id] = worker.sentIds('generate');
+    const [id] = worker.sentIds('chat');
     expect(() =>
       worker.reply({
         type: 'done',
@@ -222,7 +226,7 @@ describe('runExecutor — abort', () => {
     await expect(
       runExecutor('souffleur-pdf', 'SYSTEM', 'facture', { signal: controller.signal }),
     ).rejects.toMatchObject({ name: 'AbortError' });
-    expect(FakeWorker.last?.sentIds('generate') ?? []).toEqual([]);
+    expect(FakeWorker.last?.sentIds('chat') ?? []).toEqual([]);
   });
 });
 
@@ -232,7 +236,7 @@ describe('runExecutor — abort', () => {
  */
 describe('provider verbosity', () => {
   const wireLogged = (spy: ReturnType<typeof vi.fn>) =>
-    spy.mock.calls.some((c) => String(c[0]).includes('PROMPT WIRE'));
+    spy.mock.calls.some((c) => String(c[0]).includes('MESSAGES'));
 
   async function runTurn(configure: (m: typeof import('./souffleurs-provider')) => void) {
     const mod = await load();
@@ -243,7 +247,7 @@ describe('provider verbosity', () => {
     void stream.getReader();
     await tick();
     const worker = FakeWorker.last!;
-    const [id] = worker.sentIds('generate');
+    const [id] = worker.sentIds('chat');
     worker.reply({ type: 'chunk', id, delta: 'bonjour' });
     worker.reply({
       type: 'done',
@@ -291,15 +295,15 @@ describe('provider on the wllama engine', () => {
     });
   });
 
-  it('warmCaller warms the exact prefix of the next chat prompt', async () => {
+  it('warmCaller warms the system and tools the next chat turn starts with', async () => {
     const { SouffleursProvider, warmCaller } = await load();
-    const warmed = warmCaller(['read_file', 'write_file']);
+    const warmed = warmCaller(['read_file', 'render']);
     await tick();
     await tick();
     const worker = FakeWorker.last!;
-    const warm = worker.posted.find((m) => m.type === 'warm') as
-      (Posted & { prefix: string }) | undefined;
-    expect(warm).toBeDefined();
+    type ChatPost = Posted & { messages: unknown[]; tools: unknown[]; maxNewTokens: number };
+    const warm = worker.posted.find((m) => m.type === 'chat') as ChatPost | undefined;
+    expect(warm).toMatchObject({ maxNewTokens: 1 });
     worker.reply({
       type: 'done',
       id: warm!.id,
@@ -309,13 +313,14 @@ describe('provider on the wllama engine', () => {
 
     const request = {
       ...REQUEST,
-      tools: [{ name: 'read_file' }, { name: 'write_file' }],
+      tools: [{ name: 'read_file' }, { name: 'render' }],
     } as unknown as AparteChatRequest;
     void ((await SouffleursProvider.chat(request)) as ReadableStream).getReader();
     await tick();
-    const generate = worker.posted.find((m) => m.type === 'generate') as
-      (Posted & { prompt: string }) | undefined;
-    expect(generate!.prompt.startsWith(warm!.prefix)).toBe(true);
+    const turn = worker.posted.filter((m) => m.type === 'chat')[1] as ChatPost;
+    expect(turn.messages[0]).toEqual(warm!.messages[0]);
+    expect(turn.tools).toEqual(warm!.tools);
+    expect(warm!.messages).toHaveLength(1);
   });
 
   it('the warm-up reports that it is preparing the model, on its device, then that it is ready', async () => {
@@ -327,7 +332,7 @@ describe('provider on the wllama engine', () => {
     await tick();
     await tick();
     const worker = FakeWorker.last!;
-    const warm = worker.posted.find((m) => m.type === 'warm') as
+    const warm = worker.posted.find((m) => m.type === 'chat') as
       (Posted & { device: string }) | undefined;
     worker.reply({
       type: 'done',
@@ -351,7 +356,7 @@ describe('provider on the wllama engine', () => {
     await tick();
     await tick();
     const worker = FakeWorker.last!;
-    const warm = worker.posted.find((m) => m.type === 'warm');
+    const warm = worker.posted.find((m) => m.type === 'chat');
     void ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
     const duringChat = getSouffleurStatus();
 
@@ -409,13 +414,70 @@ describe('provider on the wllama engine', () => {
   });
 });
 
+describe('SouffleursProvider.chat — tool calls (LFM3)', () => {
+  it('turns the calls of done into tool_use events, and drops one whose arguments are unreadable', async () => {
+    vi.stubGlobal('console', { ...console, log: vi.fn(), warn: vi.fn() });
+    const { SouffleursProvider } = await load();
+    const request = {
+      ...REQUEST,
+      tools: [{ name: 'compute' }, { name: 'render' }, { name: 'write_file' }],
+    } as unknown as AparteChatRequest;
+    const reader = ((await SouffleursProvider.chat(request)) as ReadableStream).getReader();
+    await tick();
+    const worker = FakeWorker.last!;
+    const chat = worker.posted.find((m) => m.type === 'chat') as
+      (Posted & { tools: { function: { name: string } }[] }) | undefined;
+    expect(chat!.tools.map((t) => t.function.name)).toEqual(['render', 'compute']); // the contract's
+    worker.reply({ type: 'chunk', id: chat!.id, delta: 'Je calcule ça.' });
+    worker.reply({
+      type: 'done',
+      id: chat!.id,
+      usage: { inputTokens: 10, outputTokens: 4, ttftMs: 1, durationMs: 2 },
+      toolCalls: [
+        { name: 'compute', arguments: '{"expression":"2340 * 17 / 100"}' },
+        { name: 'render', arguments: '{"kind":"pdf","task":"Fact' },
+      ],
+    });
+    const events: { type: string; name?: string; input?: unknown }[] = [];
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      events.push(value);
+    }
+    expect(events.map((e) => e.type)).toEqual(['text', 'tool_use', 'done']);
+    expect(events[1]).toMatchObject({ name: 'compute', input: { expression: '2340 * 17 / 100' } });
+  });
+
+  it('says which call is being written until the turn ends', async () => {
+    vi.stubGlobal('console', { ...console, log: vi.fn(), warn: vi.fn() });
+    const { SouffleursProvider } = await load();
+    const { getSouffleurStatus } = await import('./status');
+    const request = { ...REQUEST, tools: [{ name: 'render' }] } as unknown as AparteChatRequest;
+    const reader = ((await SouffleursProvider.chat(request)) as ReadableStream).getReader();
+    await tick();
+    const worker = FakeWorker.last!;
+    const chat = worker.posted.find((m) => m.type === 'chat')!;
+    worker.reply({ type: 'chunk', id: chat.id, delta: 'Je crée le tableau.' });
+    worker.reply({ type: 'tool-start', id: chat.id, name: 'render' });
+    expect(getSouffleurStatus()).toMatchObject({ status: 'generating', tool: 'render' });
+    worker.reply({
+      type: 'done',
+      id: chat.id,
+      usage: { inputTokens: 10, outputTokens: 4, ttftMs: 1, durationMs: 2 },
+      toolCalls: [{ name: 'render', arguments: '{"kind":"xlsx","task":"Budget"}' }],
+    });
+    while (!(await reader.read()).done);
+    expect(getSouffleurStatus().tool).toBeUndefined();
+  });
+});
+
 describe('Stop before the turn starts', () => {
   it('a chat cancelled while still queued never reaches the engine', async () => {
     const { SouffleursProvider } = await load();
     const first = ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
     await tick();
     const worker = FakeWorker.last!;
-    const [firstId] = worker.sentIds('generate');
+    const [firstId] = worker.sentIds('chat');
 
     const second = ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
     await tick();
@@ -430,6 +492,6 @@ describe('Stop before the turn starts', () => {
     await tick();
     void first;
 
-    expect(worker.sentIds('generate')).toHaveLength(1);
+    expect(worker.sentIds('chat')).toHaveLength(1);
   });
 });

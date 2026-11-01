@@ -11,6 +11,8 @@
  */
 import { CacheManager, Wllama } from '@wllama/wllama';
 import type { AdapterName } from '../model-catalog';
+import type { ChatMessage } from '../wire/chat-wire';
+import type { Lfm3Tool } from '../wire/contract-lfm3';
 import { RepetitionGuard } from '../wire/repetition-guard';
 import type {
   ComputeDevice,
@@ -52,6 +54,18 @@ export interface CompletionChunk {
 export interface ChatImagePart {
   type: 'image';
   data: ArrayBuffer;
+}
+
+/** A streamed chat chunk (OpenAI shape, llama-server's): text, and the calls arriving piece by piece. */
+export interface ChatStreamChunk {
+  choices: {
+    delta?: {
+      content?: string | null;
+      tool_calls?: { index: number; function?: { name?: string; arguments?: string } }[];
+    };
+    finish_reason?: string | null;
+  }[];
+  timings?: LlamaTimings;
 }
 
 /** The slice of Wllama this engine uses — a seam for tests. */
@@ -104,7 +118,8 @@ export class WllamaEngine implements EngineLike {
     // lands while that generation is still downloading or loading must not be lost.
     if (msg.type === 'abort') {
       this.running?.abort();
-      if (this.current?.type === 'generate') this.current.aborted = true;
+      if (this.current?.type === 'generate' || this.current?.type === 'chat')
+        this.current.aborted = true;
       return;
     }
     this.chain = this.chain.then(() => this.handle(msg));
@@ -146,6 +161,17 @@ export class WllamaEngine implements EngineLike {
         case 'generate':
           await this.ensure(msg.id, msg.adapter, msg.device, msg.baseFile, msg.adapterFile, null);
           await this.generate(msg.id, msg.adapter, msg.prompt, msg.maxNewTokens, msg.debug);
+          break;
+        case 'chat':
+          await this.ensure(msg.id, msg.adapter, msg.device, msg.baseFile, msg.adapterFile, null);
+          await this.chat(
+            msg.id,
+            msg.adapter,
+            msg.messages,
+            msg.tools,
+            msg.maxNewTokens,
+            msg.debug,
+          );
           break;
         case 'warm':
           await this.ensure(msg.id, msg.adapter, msg.device, msg.baseFile, msg.adapterFile, null);
@@ -206,6 +232,8 @@ export class WllamaEngine implements EngineLike {
       await wllama.loadModel(mmproj ? [base, mmproj] : [base], {
         n_ctx: N_CTX,
         n_gpu_layers: gpuLayers(device),
+        // the model's own chat template for `chat` (LFM3); the raw `generate` path never reads it
+        jinja: true,
         ...(adapter ? { lora_adapters: [{ blob: adapter, scale: 1 }] } : {}),
         ...(mmproj ? { image_max_tokens: IMAGE_MAX_TOKENS } : {}),
       });
@@ -314,6 +342,100 @@ export class WllamaEngine implements EngineLike {
       type: 'done',
       id,
       usage: usageFromTimings(timings, Math.round((tFirst || now) - t0), Math.round(now - t0)),
+    });
+  }
+
+  /**
+   * LFM3: the messages and tools through the model's own template (llama.cpp's jinja, the lab bench's
+   * `/v1/chat/completions`). Text streams as chunks; the calls are gathered by index as the template's parser
+   * emits them and sent whole in `done`, never run half-written.
+   */
+  private async chat(
+    id: number,
+    adapter: AdapterName,
+    messages: ChatMessage[],
+    tools: readonly Lfm3Tool[] | undefined,
+    maxNewTokens: number,
+    debug?: boolean,
+  ): Promise<void> {
+    const t0 = performance.now();
+    if (this.current?.aborted) {
+      this.send({ type: 'done', id, usage: usageFromTimings(undefined, 0, 0) });
+      return;
+    }
+    const controller = new AbortController();
+    this.running = controller;
+    const guard = new RepetitionGuard();
+    const calls = new Map<number, { name: string; arguments: string }>();
+    let tFirst = 0;
+    let timings: LlamaTimings | undefined;
+    let finish: string | null | undefined;
+    let raw = '';
+    try {
+      const stream = (await this.model().createChatCompletion({
+        messages,
+        ...(tools?.length ? { tools } : {}),
+        max_tokens: maxNewTokens,
+        temperature: 0,
+        stream: true,
+        cache_prompt: true,
+        chat_template_kwargs: { enable_thinking: false },
+        abortSignal: controller.signal,
+      })) as unknown as AsyncIterable<ChatStreamChunk>;
+      for await (const chunk of stream) {
+        if (chunk.timings) timings = chunk.timings;
+        const choice = chunk.choices[0];
+        finish = choice?.finish_reason ?? finish;
+        for (const part of choice?.delta?.tool_calls ?? []) {
+          const call = calls.get(part.index) ?? { name: '', arguments: '' };
+          const named = Boolean(call.name);
+          call.name += part.function?.name ?? '';
+          call.arguments += part.function?.arguments ?? '';
+          calls.set(part.index, call);
+          if (!named && call.name) this.send({ type: 'tool-start', id, name: call.name });
+          if (!tFirst) tFirst = performance.now();
+        }
+        const text = choice?.delta?.content ?? '';
+        if (!text) continue;
+        if (!tFirst) tFirst = performance.now();
+        raw += text;
+        guard.push(text);
+        if (guard.tripped) {
+          controller.abort();
+          break;
+        }
+        this.send({ type: 'chunk', id, delta: text });
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) throw contextError(err) ?? err;
+    } finally {
+      this.running = null;
+    }
+    const toolCalls = [...calls.values()].filter((c) => c.name);
+    if (debug) console.log('[souffleurs.engine] CHAT >>>\n%s\nCALLS >>>', raw, toolCalls);
+
+    if (guard.tripped) {
+      this.send({
+        type: 'error',
+        id,
+        message: `generation looped (${adapter} repeated the same line 4 times) — stopped`,
+      });
+      return;
+    }
+    if (finish === 'length' && adapter !== 'souffleur-chat' && !controller.signal.aborted) {
+      this.send({
+        type: 'error',
+        id,
+        message: `sortie de ${adapter} tronquée (limite de génération ou de contexte atteinte)`,
+      });
+      return;
+    }
+    const now = performance.now();
+    this.send({
+      type: 'done',
+      id,
+      usage: usageFromTimings(timings, Math.round((tFirst || now) - t0), Math.round(now - t0)),
+      ...(toolCalls.length ? { toolCalls } : {}),
     });
   }
 

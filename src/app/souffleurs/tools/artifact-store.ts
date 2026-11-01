@@ -14,7 +14,8 @@ export interface ProducedArtifact {
 }
 
 export interface ProducedWidget {
-  kind: 'html' | 'svg' | 'chart' | 'code';
+  /** `echarts`: an ECharts option (JSON) from a json-render Chart (ADR-003); `chart` is a Chart.js config. */
+  kind: 'html' | 'svg' | 'chart' | 'code' | 'echarts';
   content: string;
 }
 

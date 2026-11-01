@@ -9,14 +9,14 @@
  * legacy fallback (unversioned names) until the manifest is on HF,
  * and base purge when `base.rev` changes (the base keeps the same names).
  */
-import { SOUFFLEURS_HF_REPO, type AdapterName } from './model-catalog';
+import { souffleursBaseUrl, type AdapterName } from './model-catalog';
 
 const SEEN_KEY = 'bp.souffleurs.seen';
 const CACHED_MANIFEST_KEY = 'bp.souffleurs.manifest';
 /** "Seen" key for the vision tower (outside the souffleur roles namespace). */
 const VISION_SEEN_KEY = '__vision';
 
-export type SouffleurRole = 'chat' | 'pdf' | 'xlsx-docx' | 'sandbox';
+export type SouffleurRole = 'chat' | 'render' | 'pdf' | 'xlsx-docx' | 'sandbox';
 
 export const adapterRole = (adapter: AdapterName): SouffleurRole =>
   adapter.replace(/^souffleur-/, '') as SouffleurRole;
@@ -300,9 +300,7 @@ let _instance: Promise<SouffleurManifestClient> | null = null;
 export function getSouffleurManifest(): Promise<SouffleurManifestClient> {
   if (!_instance) {
     _instance = (async () => {
-      const client = new SouffleurManifestClient(
-        `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`,
-      );
+      const client = new SouffleurManifestClient(souffleursBaseUrl());
       await client.load();
       // The engine switch (ADR-014) leaves the ONNX era's files behind: base,
       // adapters and vision tower, ~1.4 GB in two caches nothing reads any more.

@@ -9,6 +9,8 @@ export interface SouffleurStatusState {
   progress?: number;
   message?: string;
   device?: 'webgpu' | 'wasm';
+  /** The call the caller is writing, its arguments still streaming: the wait between its text and the tool's card. */
+  tool?: string;
 }
 
 type Listener = (state: SouffleurStatusState) => void;

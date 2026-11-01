@@ -26,14 +26,15 @@ import {
   artifactCardRenderer,
   computeHandler,
   computeTool,
-  createWidgetHandler,
-  createWidgetTool,
   extType,
   fileRegistry,
   installToolRendererStyles,
   readFileHandler,
   readFileTool,
   readFileRenderer,
+  renderHandler,
+  renderRenderer,
+  renderTool,
   setArtifactLoader,
   setArtifactSink,
   setConversationResolver,
@@ -47,9 +48,6 @@ import {
   souffleurAskQuestionTool,
   transformFileHandler,
   transformFileTool,
-  widgetRenderer,
-  writeFileHandler,
-  writeFileTool,
 } from '../souffleurs';
 import { DexieConversationAdapter } from '../storage/conversation-adapter';
 import { LOCAL_KEYS, SettingsService, localGet } from '../storage/settings.service';
@@ -165,21 +163,19 @@ export function provideMonaparte(): EnvironmentProviders[] {
           }),
       });
 
-      // The contract's 9 tools (search_knowledge/remember = RAG decoys, not
-      // registered: they stay out of the activation list).
+      // Contract 0.4.0 (LFM3, ADR-003): six tools, ask_question above. `render` takes write_file's and
+      // create_widget's place (json-render behind it), `compute` takes an expression.
       aparteGlobalConfig.registerTool(readFileTool, readFileHandler);
-      aparteGlobalConfig.registerTool(writeFileTool, writeFileHandler);
+      aparteGlobalConfig.registerTool(renderTool, renderHandler);
       aparteGlobalConfig.registerTool(computeTool, computeHandler);
-      aparteGlobalConfig.registerTool(createWidgetTool, createWidgetHandler);
       aparteGlobalConfig.registerTool(transformFileTool, transformFileHandler);
       aparteGlobalConfig.registerTool(setReminderTool, setReminderHandler);
 
       // Without a dedicated renderer, the lib only shows the tool name: the
       // hover error (unknown file_id, image, unreadable) stayed silent.
       aparteGlobalConfig.registerToolRenderer('read_file', readFileRenderer);
-      aparteGlobalConfig.registerToolRenderer('write_file', artifactCardRenderer);
+      aparteGlobalConfig.registerToolRenderer('render', renderRenderer);
       aparteGlobalConfig.registerToolRenderer('transform_file', artifactCardRenderer);
-      aparteGlobalConfig.registerToolRenderer('create_widget', widgetRenderer);
       // compute draws nothing: its result feeds the model's answer. Since aparté 0.23 a
       // hidden call stays in the message and the history; only its row is empty.
       aparteGlobalConfig.registerToolDisplay('compute', { hidden: true });
