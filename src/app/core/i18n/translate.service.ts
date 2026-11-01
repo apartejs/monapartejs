@@ -5,7 +5,7 @@
  */
 import { Injectable, computed, signal } from '@angular/core';
 import { aparteGlobalConfig, APARTE_DEFAULT_LOCALE } from '@aparte/core';
-import { fr as aparteFr } from '@aparte/locale-fr';
+import { fr as aparteFr } from '@aparte/locales/fr';
 import { currentLocale } from '../aparte.config';
 import { LOCAL_KEYS, localSet } from '../../storage/settings.service';
 import { EN, FR, type Translations } from './translations';

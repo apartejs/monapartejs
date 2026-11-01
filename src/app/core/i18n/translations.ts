@@ -107,7 +107,7 @@ export interface Translations {
   update: { available: string; reload: string };
   search: { placeholder: string; noResults: string; hint: string };
   linkGuard: { title: string; body: string; open: string };
-  compaction: { dropped: string; intent: string; files: string; tools: string };
+  compaction: { dropped: string; files: string; tools: string };
   common: { cancel: string; confirm: string };
 }
 
@@ -252,7 +252,6 @@ export const FR: Translations = {
   },
   compaction: {
     dropped: '%n tours antérieurs ont été retirés du contexte.',
-    intent: 'Demande initiale',
     files: 'Fichiers produits',
     tools: 'Outils utilisés',
   },
@@ -398,7 +397,6 @@ export const EN: Translations = {
   },
   compaction: {
     dropped: '%n earlier turns were removed from the context.',
-    intent: 'Original request',
     files: 'Files produced',
     tools: 'Tools used',
   },

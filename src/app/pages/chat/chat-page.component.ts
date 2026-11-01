@@ -41,12 +41,9 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="chat-wrap">
-      <!-- $any: null deselects (aparté reads conversationId() ?? null, and its source
-           declares string | null | undefined), but @aparte/angular 0.25's published
-           types narrow the input to string — apartejs/aparte#124. -->
       <aparte-chat
         id="bp-chat"
-        [conversationId]="$any(conversationId())"
+        [conversationId]="conversationId()"
         [placeholder]="t().chat.placeholder"
         [centerWhenEmpty]="true"
         [overlayComposer]="true"
@@ -73,11 +70,11 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
              logical margins (see .helper below). -->
         <!-- The library's gauge, not an estimate of ours: it reads the
              inputTokens the engine actually reports, against the model's
-             declared contextWindow (8k, the engine's n_ctx). It draws nothing
-             before the first turn. auto-compact makes it ask for a compaction
-             on reaching 90 %; plugin-compaction answers, wired in
-             core/aparte.config.ts. -->
-        <aparte-context slot="toolbar" variant="ring" auto-compact></aparte-context>
+             declared contextWindow (8k, the engine's n_ctx), and opens a panel
+             of what fills it. It draws nothing before the first turn. No
+             auto-compact (deprecated in aparté 0.26): plugin-compaction decides
+             on its own, wired in core/aparte.config.ts. -->
+        <aparte-context slot="toolbar" variant="ring"></aparte-context>
         <div slot="toolbar" class="helper" [attr.role]="slowDeviceHint() ? 'status' : null">
           {{ slowDeviceHint() ? t().modelStatus.slowDevice : t().chat.helper }}
         </div>
