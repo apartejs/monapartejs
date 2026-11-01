@@ -51,7 +51,7 @@ let nextId = 0;
       [class.is-interactive]="interactive()"
       [class.is-booped]="booped()"
       [attr.data-state]="effective()"
-      [style.font-size.px]="size()"
+      [style.font-size]="fontSize()"
       (mouseenter)="onEnter()"
       (mouseleave)="onLeave()"
       (click)="boop()"
@@ -560,7 +560,12 @@ let nextId = 0;
 })
 export class MascotteComponent {
   readonly state = input<MascotteState>('idle');
-  readonly size = input<number>(32);
+  /** The face's font size: pixels, or any CSS length (the chat's welcome sizes it to the room it has). */
+  readonly size = input<number | string>(32);
+  protected readonly fontSize = computed(() => {
+    const size = this.size();
+    return typeof size === 'number' ? `${size}px` : size;
+  });
   /** The playground: cursor, hover, click, micro-expressions. */
   readonly interactive = input(false, { transform: booleanAttribute });
   /** Only the eyes follow the cursor — for a mount that cannot be clicked. */

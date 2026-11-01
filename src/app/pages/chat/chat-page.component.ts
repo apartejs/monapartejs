@@ -56,7 +56,12 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       >
         <div slot="empty-state" class="welcome">
           <!-- The one mount that can be clicked: the playground (eyes, hover, boop). -->
-          <bp-mascotte [state]="'idle'" [size]="110" housed interactive />
+          <bp-mascotte
+            [state]="'idle'"
+            size="clamp(16px, 40cqh - 60px, 110px)"
+            housed
+            interactive
+          />
           <h1 class="bp-serif">{{ greeting() }}</h1>
           <p class="tagline bp-serif">{{ t().welcome.tagline }}</p>
           <p class="sub">{{ t().welcome.sub }}</p>
@@ -200,13 +205,27 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
     aparte-chat {
       height: 100%;
     }
+    /* The welcome only gets the space above the centred composer (aparté's centerWhenEmpty), and an
+     * attachment makes the composer taller still. So it fills that space as a size container, and the
+     * mascot takes what the text leaves: its house is 2.5em tall, the text 130px (150 with a margin for a
+     * third line) — 2.5 × (40cqh − 60px) = 100cqh − 150px. Below 190px the house would be under 16px:
+     * no room for one worth drawing. */
     .welcome {
+      flex: 1 1 0;
+      min-height: 0;
+      container-type: size;
       display: flex;
       flex-direction: column;
+      justify-content: flex-end;
       align-items: center;
       gap: 6px;
       text-align: center;
       padding-bottom: 12px;
+    }
+    @container (max-height: 190px) {
+      .welcome bp-mascotte {
+        display: none;
+      }
     }
     .welcome h1 {
       font-size: clamp(1.6rem, 4vw, 2.2rem);
