@@ -213,11 +213,11 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       text-align: center;
       padding-bottom: 12px;
     }
-    /* The welcome and the composer are one centred block (styles.scss), and the chat container is the
-     * size container: the mascot takes what the rest of the block leaves. Its house is 2.5em tall; the
-     * rest is about 400px — text 130, paddings 28, aparté's hidden scroll button 36, the composer 155 with
-     * an attachment, a margin of 51 — so 2.5 × (40cqh − 160px) = 100cqh − 400px. Below 440px the house
-     * would be under 16px: no room for one worth drawing. */
+    /* The welcome and the composer are one centred block (aparté's centerWhenEmpty), and the chat container
+     * is the size container (styles.scss): the mascot takes what the rest of the block leaves. Its house is
+     * 2.5em tall; the rest is about 400px — text 130, paddings 28, the composer 155 with an attachment, a
+     * margin of 87 — so 2.5 × (40cqh − 160px) = 100cqh − 400px. Below 440px the house would be under 16px:
+     * no room for one worth drawing. */
     @container (max-height: 440px) {
       .welcome bp-mascotte {
         display: none;
