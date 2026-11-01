@@ -13,8 +13,7 @@ import { inject, isDevMode, provideAppInitializer, type EnvironmentProviders } f
 import { provideServiceWorker } from '@angular/service-worker';
 import { ConversationManagerService, provideAparte } from '@aparte/angular';
 import { AparteDirectTransport, aparteGlobalConfig, registerSegmentRenderer } from '@aparte/core';
-import type { AparteMessage } from '@aparte/core';
-import { fr } from '@aparte/locale-fr';
+import { fr } from '@aparte/locales/fr';
 import { buildReceipt, questionReceiptRenderer } from '@aparte/plugin-ask-user';
 import { createCompactionSelector, setupCompaction } from '@aparte/plugin-compaction';
 import { setupMarkedProvider } from '@aparte/plugin-marked';
@@ -54,7 +53,7 @@ import {
 } from '../souffleurs';
 import { DexieConversationAdapter } from '../storage/conversation-adapter';
 import { LOCAL_KEYS, SettingsService, localGet } from '../storage/settings.service';
-import { buildCompactionDigest } from './compaction-digest';
+import { factualCompaction } from './compaction-digest';
 import { TranslateService } from './i18n/translate.service';
 import { LinkGuardService } from './link-guard.service';
 import { TitlerService } from './titler.service';
@@ -95,19 +94,23 @@ export function provideMonaparte(): EnvironmentProviders[] {
       setSouffleurDebug(isDevMode());
 
       aparteGlobalConfig.setTransport(new AparteDirectTransport({ byok: true }));
-      // Since aparté 0.5, ALL actions except `copy` are disabled by default:
-      // the lib only renders what someone honors ("a button nobody answers
-      // is a lie told to the user"). So we enable what we handle:
+      // Every action is off by default — `copy` too since aparté 0.27.1: the
+      // lib only renders what someone honors ("a button nobody answers is a lie
+      // told to the user"). So we enable what we handle:
+      //  - copy: the lib honors it on its own; it was on by default until 0.27;
       //  - retry/edit: handled by AparteClient, needed for branches;
       //  - info: the "i" button emits `aparte-message-info`, listened to by
       //    ChatPageComponent which opens the stats popover. The popover and
       //    its listener already existed — only the activation was missing,
       //    so the button had disappeared with the move to 0.5.
       // Lib reminder: `info` only shows if the message carries a `usage`.
-      aparteGlobalConfig.setBubbleActions({ retry: true, edit: true, info: true });
+      aparteGlobalConfig.setBubbleActions({ copy: true, retry: true, edit: true, info: true });
 
-      // Compaction. The gauge (<aparte-context auto-compact> in the chat) asks
-      // at 90 % of the window; this answers.
+      // Compaction. Since aparté 0.26 the plugin decides on its own — after a
+      // turn that ends at 80 % of the window, before a send that would not fit,
+      // and when the engine refuses a prompt as too long — and it writes a
+      // checkpoint instead of deleting turns: the messages stay on screen, and
+      // the model reads the summary in their place.
       //
       // `summarize` REPLACES the model call, and that is deliberate, not a
       // shortcut. Two reasons, in order:
@@ -115,43 +118,25 @@ export function provideMonaparte(): EnvironmentProviders[] {
       //     the model refuses, answers as if continuing the chat, or invents —
       //     one run produced a second client's amounts found nowhere in the
       //     transcript. See FRICTIONS-MODELE.local.md.
-      //  2. It could not have worked anyway: the plugin puts its instruction in
-      //     a `system` message, and our provider imposes the contract's own
-      //     system prompt while buildWirePrompt drops the rest. The instruction
-      //     never reached the model. Going through `summarize` sidesteps the
-      //     transport entirely, so the verbatim contract is untouched.
+      //  2. Our provider imposes the contract's own system prompt and template:
+      //     a summarisation request is not something the model was trained on.
+      //     Going through `summarize` sidesteps the transport entirely, so the
+      //     verbatim contract is untouched.
       //
-      // The selector stays the library's, budget-aware over the 32k the model
-      // now declares: it keeps the newest turns that still fit. We capture what
-      // it drops so the digest reads the real messages rather than parsing the
-      // flattened prose back out — the plugin runs one compaction at a time, so
-      // the capture cannot interleave.
+      // The selector stays the library's, budget-aware over the window the
+      // model declares: it keeps the newest turns that still fit. The digest
+      // reads the real messages it drops (see compaction-digest.ts).
       const i18n = inject(TranslateService);
-      let lastDropped: AparteMessage[] = [];
-      const budgeted = createCompactionSelector({
-        contextWindow: () => aparteGlobalConfig.getCurrentModel()?.contextWindow,
-        systemPrompt: () => aparteGlobalConfig.resolveSystemPrompt(),
-        tools: () => aparteGlobalConfig.getTools(),
-      });
-      setupCompaction({
-        selector: (messages) => {
-          const selection = budgeted(messages);
-          lastDropped = selection.drop;
-          return selection;
-        },
-        summarize: async () => {
-          // Consumed, not just read: should a summarise ever run without the
-          // selector having just run, the digest comes out empty — and the plugin
-          // treats an empty summary as a failure ("Empty summary returned by
-          // model"), so the compaction reports `aparte-compact-error` and leaves
-          // the transcript untouched. That is the outcome we want: a stale digest
-          // would state facts about ANOTHER compaction, in a notice the model then
-          // reads as true.
-          const dropped = lastDropped;
-          lastDropped = [];
-          return buildCompactionDigest(dropped, i18n.t().compaction);
-        },
-      });
+      setupCompaction(
+        factualCompaction(
+          createCompactionSelector({
+            contextWindow: () => aparteGlobalConfig.getCurrentModel()?.contextWindow,
+            systemPrompt: () => aparteGlobalConfig.resolveSystemPrompt(),
+            tools: () => aparteGlobalConfig.getTools(),
+          }),
+          () => i18n.t().compaction,
+        ),
+      );
 
       setupMarkedProvider();
       setupStreamingMarkdownProvider();
