@@ -58,7 +58,7 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
           <!-- The one mount that can be clicked: the playground (eyes, hover, boop). -->
           <bp-mascotte
             [state]="'idle'"
-            size="clamp(16px, 40cqh - 60px, 110px)"
+            size="clamp(16px, 40cqh - 160px, 110px)"
             housed
             interactive
           />
@@ -205,24 +205,20 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
     aparte-chat {
       height: 100%;
     }
-    /* The welcome only gets the space above the centred composer (aparté's centerWhenEmpty), and an
-     * attachment makes the composer taller still. So it fills that space as a size container, and the
-     * mascot takes what the text leaves: its house is 2.5em tall, the text 130px (150 with a margin for a
-     * third line) — 2.5 × (40cqh − 60px) = 100cqh − 150px. Below 190px the house would be under 16px:
-     * no room for one worth drawing. */
     .welcome {
-      flex: 1 1 0;
-      min-height: 0;
-      container-type: size;
       display: flex;
       flex-direction: column;
-      justify-content: flex-end;
       align-items: center;
       gap: 6px;
       text-align: center;
       padding-bottom: 12px;
     }
-    @container (max-height: 190px) {
+    /* The welcome and the composer are one centred block (styles.scss), and the chat container is the
+     * size container: the mascot takes what the rest of the block leaves. Its house is 2.5em tall; the
+     * rest is about 400px — text 130, paddings 28, aparté's hidden scroll button 36, the composer 155 with
+     * an attachment, a margin of 51 — so 2.5 × (40cqh − 160px) = 100cqh − 400px. Below 440px the house
+     * would be under 16px: no room for one worth drawing. */
+    @container (max-height: 440px) {
       .welcome bp-mascotte {
         display: none;
       }

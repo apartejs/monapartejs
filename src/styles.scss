@@ -97,6 +97,36 @@ body.bp-generating .bp-decorative * {
   animation-play-state: paused !important;
 }
 
+/* Empty chat: the welcome and the composer are centred TOGETHER. aparté's centerWhenEmpty centres the
+ * composer alone and leaves the welcome the half above it. A grid with a flexible row above and below the
+ * block centres both; the viewport row (minmax(0, auto)) only shrinks, and scrolls, when the block does not
+ * fit. The container is also what the welcome mascot is sized against (chat-page). Global, because these
+ * are aparté's own elements, outside the page's encapsulated styles. */
+bp-chat-page .aparte-chat-container[data-aparte-empty] {
+  display: grid;
+  /* An explicit full-width column: the overlay composer's justify-content: flex-end would otherwise
+   * push a content-sized column to the right edge. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr minmax(0, auto) auto auto 1fr;
+  container-type: size;
+}
+bp-chat-page .aparte-chat-container[data-aparte-empty]::before {
+  content: '';
+  grid-row: 1;
+}
+bp-chat-page .aparte-chat-container[data-aparte-empty] > aparte-chat-viewport {
+  grid-row: 2;
+}
+bp-chat-page .aparte-chat-container[data-aparte-empty] > aparte-elicitation {
+  grid-row: 3;
+}
+bp-chat-page .aparte-chat-container[data-aparte-empty] > aparte-composer {
+  grid-row: 4;
+}
+bp-chat-page .aparte-chat-container[data-aparte-empty]::after {
+  grid-row: 5;
+}
+
 /* Thin, discreet, themed scrollbars. */
 * {
   scrollbar-width: thin;
