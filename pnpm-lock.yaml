@@ -450,7 +450,7 @@ packages:
         optional: true
 
   '@aparte/json-render-catalogs@file:vendor/aparte-json-render-catalogs-0.1.0.tgz':
-    resolution: {integrity: sha512-0idD44uEs48iKd2YnojegD1St0naPpVANbd/2le6VTfHqOsAN1Z65+X2u8GaX4dXYrvWQzgezqiC17HYHYGFyA==, tarball: file:vendor/aparte-json-render-catalogs-0.1.0.tgz}
+    resolution: {integrity: sha512-kjav+TONoBINYoDC08+Dp4wDaCZgRXcu+e9bQJA8xwpXAxMcCf0SsylvdkiaD4CcE20fSR2B1qUOHd6rNohMgQ==, tarball: file:vendor/aparte-json-render-catalogs-0.1.0.tgz}
     version: 0.1.0
     engines: {node: '>=20'}
 
@@ -470,7 +470,7 @@ packages:
     engines: {node: '>=20'}
 
   '@aparte/json-render-xlsx@file:vendor/aparte-json-render-xlsx-0.1.0.tgz':
-    resolution: {integrity: sha512-h2LNq15yPFh87W8cygl6ia2HbfCYBhvPVilCoj/lj2uXViOVohV1WmL9jFw1F+wjwYCGKQdpPjjysfD2HhrNsQ==, tarball: file:vendor/aparte-json-render-xlsx-0.1.0.tgz}
+    resolution: {integrity: sha512-Y4IGJ55flOQlKMR/Flqi6202w+GZPzUOSabk+YWiKNGierWD+/mZ3Ds3N31WAsCPE7Fdcasmnk7bucZ+jGbRFg==, tarball: file:vendor/aparte-json-render-xlsx-0.1.0.tgz}
     version: 0.1.0
     engines: {node: '>=20'}
 

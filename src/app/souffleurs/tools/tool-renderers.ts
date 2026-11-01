@@ -35,6 +35,8 @@ const CARD_STYLES = `
 .bp-artifact-preview table { border-collapse: collapse; width: 100%; }
 .bp-artifact-preview th, .bp-artifact-preview td { border: 1px solid var(--aparte-border); padding: 3px 8px; text-align: left; }
 .bp-artifact-preview th { background: var(--aparte-surface-2); }
+/* The json-render preview (an <article>, inline styles, white page) draws its own tables. */
+.bp-artifact-preview article :is(table, th, td) { all: revert; }
 .bp-artifact-error { color: var(--aparte-error); font-size: 13px; }
 .bp-tool-line { display: flex; padding: 2px 0; }
 .bp-tool-note { color: var(--aparte-text-muted); font-size: 12.5px; font-family: var(--bp-mono, monospace); }
