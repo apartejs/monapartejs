@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AparteConversation } from '@aparte/core';
+import { createIdbStorage } from '@aparte/plugin-storage-idb';
 import { monaparteDb } from './db';
-import { DexieConversationAdapter } from './conversation-adapter';
+import { MonaparteStorage } from './conversation-adapter';
 import { fileRegistry, setConversationResolver } from '../souffleurs/files/file-registry';
 import { EXPORT_KIND, clearAll, exportAll, importAll } from './export-import';
 
@@ -29,11 +30,19 @@ function makeConv(overrides: Partial<AparteConversation> = {}): AparteConversati
   };
 }
 
-describe('DexieConversationAdapter', () => {
-  let adapter: DexieConversationAdapter;
+/** A storage over its own two databases: Dexie for the app's tables, the plugin's for the conversations. */
+function storageNamed(name: string): MonaparteStorage {
+  return new MonaparteStorage(
+    new monaparteDb(name),
+    createIdbStorage({ name: `${name}-conversations` }),
+  );
+}
+
+describe('MonaparteStorage', () => {
+  let adapter: MonaparteStorage;
 
   beforeEach(() => {
-    adapter = new DexieConversationAdapter(new monaparteDb(`test-${Date.now()}-${counter++}`));
+    adapter = storageNamed(`test-${Date.now()}-${counter++}`);
   });
 
   it('save + loadAll: full round-trip, messages ordered', async () => {
@@ -60,11 +69,11 @@ describe('DexieConversationAdapter', () => {
     expect(all[0].messages).toHaveLength(3);
   });
 
-  it('loadMeta: meta without messages, preview and count filled', async () => {
-    await adapter.save(makeConv());
+  it('loadMeta: meta without messages', async () => {
+    const conv = makeConv();
+    await adapter.save(conv);
     const meta = await adapter.loadMeta();
-    expect(meta[0].messageCount).toBe(2);
-    expect(meta[0].lastMessagePreview).toContain('comment puis-je aider');
+    expect(meta[0].title).toBe(conv.title);
     expect((meta[0] as Record<string, unknown>)['messages']).toBeUndefined();
   });
 
@@ -79,7 +88,21 @@ describe('DexieConversationAdapter', () => {
     await adapter.save(conv);
     await adapter.delete(conv.id);
     expect(await adapter.loadAll()).toHaveLength(0);
-    expect(await adapter.db.messages.where('convId').equals(conv.id).count()).toBe(0);
+    expect(await adapter.loadFull(conv.id)).toBeNull();
+  });
+
+  it('delete: also cascades the artifacts of the conversation', async () => {
+    const conv = makeConv();
+    await adapter.save(conv);
+    await adapter.db.artifacts.put({
+      id: 'a1',
+      convId: conv.id,
+      name: 'facture.pdf',
+      kind: 'pdf',
+      updatedAt: Date.now(),
+    } as never);
+    await adapter.delete(conv.id);
+    expect(await adapter.db.artifacts.count()).toBe(0);
   });
 
   it('delete: also cascades the souffleurs registry files', async () => {
@@ -136,7 +159,7 @@ describe('DexieConversationAdapter', () => {
     expect(dump.kind).toBe(EXPORT_KIND);
     expect(dump.conversations).toHaveLength(1);
 
-    const target = new DexieConversationAdapter(new monaparteDb(`test-import-${Date.now()}`));
+    const target = storageNamed(`test-import-${Date.now()}`);
     const result = await importAll(target, dump);
     expect(result.conversations).toBe(1);
     expect(await target.getSetting('nickname')).toBe('Paul');
@@ -159,11 +182,11 @@ describe('DexieConversationAdapter', () => {
  * the `url` rebuilt on every hydration, in the messages AND IN THE TREE
  * (it's the tree that `importTree()` replays on reload).
  */
-describe('DexieConversationAdapter — attachments on reload', () => {
-  let adapter: DexieConversationAdapter;
+describe('MonaparteStorage — attachments on reload', () => {
+  let adapter: MonaparteStorage;
 
   beforeEach(() => {
-    adapter = new DexieConversationAdapter(new monaparteDb(`att-${Date.now()}-${counter++}`));
+    adapter = storageNamed(`att-${Date.now()}-${counter++}`);
     // fake-indexeddb doesn't provide URL.createObjectURL: we simulate it and
     // count the calls to prove the URL is indeed rebuilt.
     let n = 0;
@@ -221,25 +244,120 @@ describe('DexieConversationAdapter — attachments on reload', () => {
     expect(first?.message.attachments?.[0].url).toMatch(/^blob:fresh-/);
   });
 
-  it('the binary lives ONLY in the attachments table, not in the message', async () => {
+  it('the file is kept apart, by message', async () => {
     const conv = withAttachment();
     await adapter.save(conv);
 
-    const rows = await adapter.db.attachments.where('convId').equals(conv.id).toArray();
+    const rows = await adapter.loadAttachments(`${conv.id}-m1`);
     expect(rows).toHaveLength(1);
     expect(rows[0].blob).toBeInstanceOf(Blob);
-    expect(rows[0].msgId).toBe(`${conv.id}-m1`);
-
-    const msgRow = await adapter.db.messages.get(`${conv.id}-m1`);
-    expect(msgRow).toBeDefined();
-    expect('attachments' in (msgRow!.data as object)).toBe(false);
+    expect(rows[0].convId).toBe(conv.id);
   });
 
   it('purging the conversation: attachments follow', async () => {
     const conv = withAttachment();
     await adapter.save(conv);
     await adapter.delete(conv.id);
-    expect(await adapter.db.attachments.where('convId').equals(conv.id).count()).toBe(0);
+    expect(await adapter.loadAttachments(`${conv.id}-m1`)).toHaveLength(0);
+  });
+});
+
+/**
+ * Until 0.32, monaparte kept conversations in its own Dexie tables. They move, once, into
+ * @aparte/plugin-storage-idb's database: each conversation is saved there, read back, and only
+ * then removed from the old tables — a move, so a conversation deleted afterwards cannot come
+ * back from them, and one that failed to move stays where it was for the next start.
+ */
+describe('MonaparteStorage — moving the conversations of the Dexie tables', () => {
+  let name: string;
+
+  beforeEach(() => {
+    name = `move-${Date.now()}-${counter++}`;
+    let n = 0;
+    URL.createObjectURL = () => `blob:fresh-${++n}`;
+  });
+
+  /** A conversation as monaparte's Dexie adapter wrote it: meta + tree, messages apart, files apart. */
+  async function legacy(db: monaparteDb, id: string): Promise<void> {
+    const t = Date.now();
+    await db.conversations.put({
+      id,
+      title: 'Facture Durand',
+      createdAt: t,
+      updatedAt: t,
+      autoTitle: true,
+      pinnedAt: t,
+      lastMessagePreview: 'Voici la facture.',
+      messageCount: 2,
+      tree: null,
+    } as never);
+    await db.messages.bulkPut([
+      {
+        id: `${id}-m1`,
+        convId: id,
+        timestamp: t,
+        data: { id: `${id}-m1`, role: 'user', content: 'Ma photo', timestamp: t },
+      },
+      {
+        id: `${id}-m2`,
+        convId: id,
+        timestamp: t + 1,
+        data: { id: `${id}-m2`, role: 'assistant', content: 'Voici la facture.', timestamp: t + 1 },
+      },
+    ] as never);
+    await db.attachments.put({
+      id: 'att-1',
+      convId: id,
+      msgId: `${id}-m1`,
+      name: 'photo.png',
+      mimeType: 'image/png',
+      size: 9,
+      blob: new Blob(['PNG bytes'], { type: 'image/png' }),
+    });
+  }
+
+  it('moves every conversation, its order, its pin, its title flag and its files', async () => {
+    const db = new monaparteDb(name);
+    await legacy(db, 'c1');
+    const storage = new MonaparteStorage(db, createIdbStorage({ name: `${name}-conversations` }));
+
+    const meta = await storage.loadMeta();
+    expect(meta.map((m) => m.id)).toEqual(['c1']);
+    expect(meta[0].pinnedAt).toBeTypeOf('number');
+
+    const conv = await storage.loadFull('c1');
+    expect(conv?.autoTitle).toBe(true);
+    expect(conv?.messages.map((m) => m.content)).toEqual(['Ma photo', 'Voici la facture.']);
+    const att = (conv!.messages[0] as unknown as { attachments: { name: string; blob: Blob }[] })
+      .attachments[0];
+    expect(att.name).toBe('photo.png');
+    expect(await att.blob.text()).toBe('PNG bytes');
+
+    expect(await db.conversations.count()).toBe(0);
+    expect(await db.messages.count()).toBe(0);
+    expect(await db.attachments.count()).toBe(0);
+  });
+
+  it('a conversation deleted after the move does not come back on the next start', async () => {
+    const db = new monaparteDb(name);
+    await legacy(db, 'c1');
+    const storage = new MonaparteStorage(db, createIdbStorage({ name: `${name}-conversations` }));
+    await storage.delete('c1');
+
+    const next = new MonaparteStorage(
+      new monaparteDb(name),
+      createIdbStorage({ name: `${name}-conversations` }),
+    );
+    expect(await next.loadMeta()).toEqual([]);
+  });
+
+  it('nothing to move: the plugin alone answers', async () => {
+    const storage = new MonaparteStorage(
+      new monaparteDb(name),
+      createIdbStorage({ name: `${name}-conversations` }),
+    );
+    await storage.save(makeConv({ id: 'fresh' }));
+    expect((await storage.loadMeta()).map((m) => m.id)).toEqual(['fresh']);
   });
 });
 
@@ -250,10 +368,10 @@ describe('DexieConversationAdapter — attachments on reload', () => {
  * accept both.
  */
 describe('export/import — kind compatibility', () => {
-  let adapter: DexieConversationAdapter;
+  let adapter: MonaparteStorage;
 
   beforeEach(() => {
-    adapter = new DexieConversationAdapter(new monaparteDb(`kind-${Date.now()}-${counter++}`));
+    adapter = storageNamed(`kind-${Date.now()}-${counter++}`);
   });
 
   it('an export produced by the "bonaparte" version is still importable', async () => {

@@ -208,7 +208,7 @@ export const fileRegistry = {
    * Forgets the files of a deleted conversation.
    *
    * The Map ONLY: the Dexie row already goes with the conversation, in the
-   * same transaction as its messages and artifacts (conversationAdapter.delete).
+   * same transaction as its artifacts (conversationAdapter.delete).
    * Without this complement, the blobs stayed in memory until the next
    * reload — and a deleted file_id kept resolving.
    */

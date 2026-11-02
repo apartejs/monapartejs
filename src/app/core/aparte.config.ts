@@ -49,7 +49,7 @@ import {
   transformFileHandler,
   transformFileTool,
 } from '../souffleurs';
-import { DexieConversationAdapter } from '../storage/conversation-adapter';
+import { MonaparteStorage } from '../storage/conversation-adapter';
 import { LOCAL_KEYS, SettingsService, localGet } from '../storage/settings.service';
 import { factualCompaction } from './compaction-digest';
 import { TranslateService } from './i18n/translate.service';
@@ -58,7 +58,7 @@ import { TitlerService } from './titler.service';
 import { RichRenderService } from './rich-render.service';
 
 /** Shared adapter (conversations + settings + export/import). */
-export const conversationAdapter = new DexieConversationAdapter();
+export const conversationAdapter = new MonaparteStorage();
 
 export function currentLocale(): 'fr' | 'en' {
   const stored = localGet(LOCAL_KEYS.LOCALE);

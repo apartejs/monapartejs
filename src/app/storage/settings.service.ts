@@ -3,7 +3,7 @@
  * + synchronous localStorage keys (read before paint by index.html).
  */
 import { Injectable, computed, signal } from '@angular/core';
-import { DexieConversationAdapter } from './conversation-adapter';
+import { MonaparteStorage } from './conversation-adapter';
 
 /** IndexedDB keys (durable preferences). */
 export const SETTINGS_KEYS = {
@@ -44,12 +44,12 @@ export function localRemove(key: string): void {
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
-  private adapter: DexieConversationAdapter | null = null;
+  private adapter: MonaparteStorage | null = null;
   private readonly _settings = signal<Record<string, unknown>>({});
 
   readonly settings = computed(() => this._settings());
 
-  async init(adapter: DexieConversationAdapter): Promise<void> {
+  async init(adapter: MonaparteStorage): Promise<void> {
     this.adapter = adapter;
     this._settings.set(await adapter.getAllSettings());
   }
