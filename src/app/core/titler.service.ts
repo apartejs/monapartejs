@@ -20,18 +20,10 @@ import { Injectable, effect, inject, isDevMode } from '@angular/core';
 import { ConversationManagerService } from '@aparte/angular';
 import type { AparteConversation } from '@aparte/core';
 import { firstUserTextToTitle } from './conversation-text';
+import { MODEL_FILE } from './titler-model';
 // Type-only, so it is erased at compile time and the package still arrives through
 // the dynamic import below rather than in the initial bundle.
 import type { Titler } from '@aparte/titler-efigsp';
-
-/**
- * The model file copied by angular.json. Named here rather than read from the
- * package's `modelUrl`, which cannot be imported in the browser (see `load()`). The
- * asset glob copies `model/*.bin`, so a version that renames its model would 404 —
- * which `load()` reports rather than swallows, so it is a visible failure, not a
- * conversation quietly titled by truncation.
- */
-const MODEL_FILE = 'titler-v1-efigsp-int3.bin';
 
 @Injectable({ providedIn: 'root' })
 export class TitlerService {

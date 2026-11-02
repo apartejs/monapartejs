@@ -51,7 +51,7 @@
     "@aparte/plugin-shiki": "0.32.0",
     "@aparte/plugin-storage-idb": "0.32.0",
     "@aparte/plugin-streaming-markdown": "0.32.0",
-    "@aparte/titler-efigsp": "^1.0.4",
+    "@aparte/titler-efigsp": "^1.2.0",
     "@faker-js/faker": "^10.5.0",
     "@json-render/core": "0.21.3",
     "@json-render/yaml": "0.21.3",

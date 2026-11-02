@@ -81,8 +81,8 @@ importers:
         specifier: 0.32.0
         version: 0.32.0(@aparte/core@0.32.0)
       '@aparte/titler-efigsp':
-        specifier: ^1.0.4
-        version: 1.0.4
+        specifier: ^1.2.0
+        version: 1.2.0
       '@faker-js/faker':
         specifier: ^10.5.0
         version: 10.5.0
@@ -528,8 +528,8 @@ packages:
     peerDependencies:
       '@aparte/core': '>=0.32.0 <1.0.0'
 
-  '@aparte/titler-efigsp@1.0.4':
-    resolution: {integrity: sha512-lxPP0PMbaw+cnfqpzJO1RSEdgQjmRh6OE87NO7+AxYVPgRlNSVH8obymw74FgJ///+5DmMtbOGzGtOkIZLk2Pw==}
+  '@aparte/titler-efigsp@1.2.0':
+    resolution: {integrity: sha512-aZoAlTmtUBcFMA/f2TAs5btfkdK034WTIFFLDKkncOgZ8na+tXtqC0eaFBU6i4cKTQ86niN0JFmAmBHT/0twkw==}
     engines: {node: '>=18'}
 
   '@babel/code-frame@7.29.7':
@@ -6857,7 +6857,7 @@ snapshots:
       '@aparte/core': 0.32.0
       '@paulrichez/streaming-markdown': 0.3.2
 
-  '@aparte/titler-efigsp@1.0.4': {}
+  '@aparte/titler-efigsp@1.2.0': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:
