@@ -24,12 +24,14 @@ export function messageText(message: AparteMessage): string {
 /**
  * The text to title a conversation from, or null when it is not the moment.
  *
- * The moment is exactly one user message: before it there is nothing to read, and
- * after it the conversation is under way and its title is settled — retitling then
- * would overwrite a rename the person made by hand, which nothing on a conversation
- * lets us tell apart from an automatic one.
+ * The moment is exactly one user message, while the title is still the manager's
+ * (`autoTitle`: set on the first send, cleared by `updateTitle` — a rename, or the
+ * title we give here). Before it there is nothing to read; after it, retitling would
+ * overwrite a rename the person made by hand, at every load of a conversation that
+ * has a single user message.
  */
 export function firstUserTextToTitle(conversation: AparteConversation): string | null {
+  if (conversation.autoTitle !== true) return null;
   const users = (conversation.messages ?? []).filter((m) => m.role === 'user');
   if (users.length !== 1) return null;
   const text = messageText(users[0]);

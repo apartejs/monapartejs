@@ -13,8 +13,8 @@
  * leaves the device, like everything else here.
  *
  * We title ONCE, when a conversation first receives a user message, and never again:
- * a later pass would overwrite a rename the person made by hand, and there is no flag
- * on a conversation that tells an automatic title from a chosen one.
+ * a later pass would overwrite a rename the person made by hand. The manager's
+ * `autoTitle` tells them apart (firstUserTextToTitle), and our own title clears it.
  */
 import { Injectable, effect, inject, isDevMode } from '@angular/core';
 import { ConversationManagerService } from '@aparte/angular';
