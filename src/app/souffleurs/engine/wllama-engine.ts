@@ -3,11 +3,16 @@
  * transformers.js worker spoke. It runs in the page: wllama already isolates the compute in
  * its own worker, and that is the setup measured on the M5.
  *
- * One model in memory. A souffleur = the GGUF base + its LoRA adapter, applied at load time,
- * so changing souffleur reloads (2.4 s measured) and drops the prompt cache. Vision = the
- * base without adapter + the mmproj. Every file is downloaded through the cache and handed
- * to `loadModel` as a Blob: wllama's own model cache keys on the model URL alone and served
- * a text-only model when the mmproj was added later — the image was then ignored silently.
+ * One model in memory: the GGUF base and the adapters of the souffleur set already in the
+ * cache, loaded together, each request naming its own (`lora: [{ id, scale }]`). Switching
+ * souffleur used to reload the model, and the chat then re-read its whole prompt after every
+ * document: 43.5 s with the GPU, 130 s without, on the M5 (5/11). With one load, a slot per
+ * souffleur and LFM3's sliding window kept whole, the chat resumes from its cache: 2.6 s and
+ * 4.2 s (aparte-repetitions/lab/2026-10-lfm3-bench/m5-prompt-cache-2026-11-05.md).
+ * Vision = the base without adapter + the mmproj, a load of its own. Every file is downloaded
+ * through the cache and handed to `loadModel` as a Blob: wllama's own model cache keys on the
+ * model URL alone and served a text-only model when the mmproj was added later — the image
+ * was then ignored silently.
  */
 import { CacheManager, Wllama } from '@wllama/wllama';
 import type { AdapterName } from '../model-catalog';
@@ -30,8 +35,17 @@ import { gpuLayers, toLlamaPrompt, usageFromTimings, type LlamaTimings } from '.
  */
 export const TOOL_CALL_MARKERS = ['<|tool_call_start|>', '<|tool_call_end|>'];
 
-/** Runtime context. Training sequences are ≤ 4,096 tokens; the KV cache at 8,192 is ≈ 100 MB. */
+/** Runtime context of a conversation (one slot). Training sequences are ≤ 4,096 tokens. */
 export const N_CTX = 8192;
+
+/**
+ * Slots of N_CTX each, not one unified cache: the chat keeps its own and the expert takes the
+ * other (llama.cpp picks the slot whose cache matches the prompt best). With `kv_unified`,
+ * wllama's default, the idle chat slot was emptied while the expert ran (reproduced on a
+ * native llama-server built from the same source). LFM3's KV cache for 2 × 8,192 tokens with
+ * the sliding window whole: 352 MiB.
+ */
+export const N_SLOTS = 2;
 
 /** One tile per image, as the ONNX path did by default: multi-tile took 43–98 s on the M5. */
 export const IMAGE_MAX_TOKENS = 256;
@@ -44,6 +58,13 @@ export interface CompletionOptions {
   stream: true;
   preserved_tokens: string[];
   abortSignal?: AbortSignal;
+  /** The loaded adapter this request runs with; the others stay at scale 0. */
+  lora?: LoraScale[];
+}
+
+export interface LoraScale {
+  id: number;
+  scale: number;
 }
 
 export interface CompletionChunk {
@@ -98,6 +119,8 @@ export interface EngineDeps {
 interface Loaded {
   key: string;
   wllama: WllamaLike;
+  /** The adapters loaded with the base, in their lora id order; none for vision. */
+  adapters: { name: AdapterName; file: string }[];
 }
 
 type Send = (msg: WorkerToMain) => void;
@@ -157,14 +180,38 @@ export class WllamaEngine implements EngineLike {
     try {
       switch (msg.type) {
         case 'prepare':
-          await this.ensure(msg.id, msg.adapter, msg.device, msg.baseFile, msg.adapterFile, null);
+          await this.ensure(
+            msg.id,
+            msg.adapter,
+            msg.device,
+            msg.baseFile,
+            msg.adapterFile,
+            null,
+            msg.setFiles,
+          );
           break;
         case 'generate':
-          await this.ensure(msg.id, msg.adapter, msg.device, msg.baseFile, msg.adapterFile, null);
+          await this.ensure(
+            msg.id,
+            msg.adapter,
+            msg.device,
+            msg.baseFile,
+            msg.adapterFile,
+            null,
+            msg.setFiles,
+          );
           await this.generate(msg.id, msg.adapter, msg.prompt, msg.maxNewTokens, msg.debug);
           break;
         case 'chat':
-          await this.ensure(msg.id, msg.adapter, msg.device, msg.baseFile, msg.adapterFile, null);
+          await this.ensure(
+            msg.id,
+            msg.adapter,
+            msg.device,
+            msg.baseFile,
+            msg.adapterFile,
+            null,
+            msg.setFiles,
+          );
           await this.chat(
             msg.id,
             msg.adapter,
@@ -175,8 +222,16 @@ export class WllamaEngine implements EngineLike {
           );
           break;
         case 'warm':
-          await this.ensure(msg.id, msg.adapter, msg.device, msg.baseFile, msg.adapterFile, null);
-          await this.warm(msg.id, msg.prefix);
+          await this.ensure(
+            msg.id,
+            msg.adapter,
+            msg.device,
+            msg.baseFile,
+            msg.adapterFile,
+            null,
+            msg.setFiles,
+          );
+          await this.warm(msg.id, msg.adapter, msg.prefix);
           break;
         case 'describe-image':
           await this.ensure(msg.id, 'vision', msg.device, msg.baseFile, null, msg.mmprojFile);
@@ -205,7 +260,11 @@ export class WllamaEngine implements EngineLike {
     await current?.wllama.exit();
   }
 
-  /** Loads base (+ adapter | + mmproj) unless that exact set is already in memory. */
+  /**
+   * Loads the base with the adapters of the set already in the cache, plus the one asked for —
+   * or, for vision, the base with the mmproj — unless the model in memory already has it. An
+   * adapter of the set downloaded after the load joins at its first use, with one reload.
+   */
   private async ensure(
     id: number,
     role: AdapterName | 'vision',
@@ -213,29 +272,56 @@ export class WllamaEngine implements EngineLike {
     baseFile: string,
     adapterFile: string | null,
     mmprojFile: string | null,
+    setFiles?: Partial<Record<AdapterName, string>>,
   ): Promise<void> {
-    const key = [baseFile, adapterFile ?? '', mmprojFile ?? '', device].join('|');
-    if (this.loaded?.key === key) {
+    const key = [baseFile, mmprojFile ?? '', device].join('|');
+    const loaded = this.loaded;
+    if (
+      loaded?.key === key &&
+      (role === 'vision' || loaded.adapters.some((a) => a.name === role && a.file === adapterFile))
+    ) {
       this.send({ type: 'ready', id, adapter: role, ms: 0 });
       return;
     }
     const t0 = performance.now();
 
+    const adapters: { name: AdapterName; file: string }[] = [];
+    if (role !== 'vision' && adapterFile) {
+      for (const [name, file] of Object.entries(setFiles ?? {}) as [AdapterName, string][]) {
+        if (name !== role && (await this.deps.cache.has(this.url(file))))
+          adapters.push({ name, file });
+        else if (name === role) adapters.push({ name, file: adapterFile });
+      }
+      if (!adapters.some((a) => a.name === role)) adapters.push({ name: role, file: adapterFile });
+    }
+
     // Every file first: a download that fails (offline, 404) must leave the model in
     // memory — and its warm prompt cache — where it was.
     const base = await this.fetch(id, baseFile);
     const mmproj = mmprojFile ? await this.fetch(id, mmprojFile) : null;
-    const adapter = adapterFile ? await this.fetch(id, adapterFile) : null;
+    const blobs: Blob[] = [];
+    for (const a of adapters) blobs.push(await this.fetch(id, a.file));
 
     await this.release();
     const wllama = this.deps.createWllama();
     try {
       await wllama.loadModel(mmproj ? [base, mmproj] : [base], {
-        n_ctx: N_CTX,
         n_gpu_layers: gpuLayers(device),
         // the model's own chat template for `chat` (LFM3); the raw `generate` path never reads it
         jinja: true,
-        ...(adapter ? { lora_adapters: [{ blob: adapter, scale: 1 }] } : {}),
+        ...(blobs.length
+          ? {
+              lora_adapters: blobs.map((blob) => ({ blob, scale: 1 })),
+              // applied per request (`lora`), never all at once
+              lora_init_without_apply: true,
+              n_ctx: N_CTX * N_SLOTS,
+              n_parallel: N_SLOTS,
+              kv_unified: false,
+              // LFM3's 256-token sliding window kept whole: without it llama.cpp cannot resume
+              // from the checkpoint taken 4 tokens before a prompt's end and re-reads 516 tokens
+              swa_full: true,
+            }
+          : { n_ctx: N_CTX }),
         ...(mmproj ? { image_max_tokens: IMAGE_MAX_TOKENS } : {}),
       });
     } catch (err) {
@@ -243,8 +329,14 @@ export class WllamaEngine implements EngineLike {
       await wllama.exit().catch(() => undefined);
       throw err;
     }
-    this.loaded = { key, wllama };
+    this.loaded = { key, wllama, adapters };
     this.send({ type: 'ready', id, adapter: role, ms: Math.round(performance.now() - t0) });
+  }
+
+  /** The request's adapter, by its id in the load; the others stay at scale 0. */
+  private lora(role: AdapterName): { lora?: LoraScale[] } {
+    const i = this.loaded?.adapters.findIndex((a) => a.name === role) ?? -1;
+    return i < 0 ? {} : { lora: [{ id: i, scale: 1 }] };
   }
 
   private async fetch(id: number, file: string): Promise<Blob> {
@@ -295,6 +387,7 @@ export class WllamaEngine implements EngineLike {
         stream: true,
         preserved_tokens: TOOL_CALL_MARKERS,
         abortSignal: controller.signal,
+        ...this.lora(adapter),
       });
       for await (const chunk of stream) {
         if (chunk.timings) timings = chunk.timings;
@@ -382,6 +475,7 @@ export class WllamaEngine implements EngineLike {
         cache_prompt: true,
         chat_template_kwargs: { enable_thinking: false },
         abortSignal: controller.signal,
+        ...this.lora(adapter),
       })) as unknown as AsyncIterable<ChatStreamChunk>;
       for await (const chunk of stream) {
         if (chunk.timings) timings = chunk.timings;
@@ -440,7 +534,7 @@ export class WllamaEngine implements EngineLike {
     });
   }
 
-  private async warm(id: number, prefix: string): Promise<void> {
+  private async warm(id: number, adapter: AdapterName, prefix: string): Promise<void> {
     const t0 = performance.now();
     let timings: LlamaTimings | undefined;
     const stream = await this.model().createCompletion({
@@ -450,6 +544,7 @@ export class WllamaEngine implements EngineLike {
       cache_prompt: true,
       stream: true,
       preserved_tokens: TOOL_CALL_MARKERS,
+      ...this.lora(adapter),
     });
     for await (const chunk of stream) if (chunk.timings) timings = chunk.timings;
     const ms = Math.round(performance.now() - t0);

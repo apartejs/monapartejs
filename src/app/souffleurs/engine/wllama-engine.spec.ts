@@ -163,7 +163,7 @@ describe('WllamaEngine', () => {
     expect(instances[0].loads).toHaveLength(1);
     const { blobs, params } = instances[0].loads[0];
     expect(blobs).toEqual([cache.blobs.get(`${BASE_URL}/${BASE}`)]);
-    expect(params['n_ctx']).toBe(8192);
+    expect(params['n_ctx']).toBe(2 * 8192); // a slot of 8,192 per souffleur
     expect((params['lora_adapters'] as { blob: Blob }[])[0].blob).toBe(
       cache.blobs.get(`${BASE_URL}/${CHAT}`),
     );
@@ -301,6 +301,101 @@ describe('WllamaEngine', () => {
     cache.blobs.set(`${BASE_URL}/${BASE}`, new Blob(['b']));
     cache.blobs.set(`${BASE_URL}/${CHAT}`, new Blob(['c']));
     expect(await engine.isCached([BASE, CHAT])).toBe(true);
+  });
+});
+
+describe('WllamaEngine — the gguf set in one load (5/11, M5)', () => {
+  // Measured on the M5: reloading at every souffleur switch made the chat re-read its whole prompt after each document
+  // (43.5 s with the GPU, 130 s without); one load with both adapters, two slots not unified and swa_full: 2.6 s / 4.2 s.
+  const RENDER = 'gguf/souffleur-render-0.9.0-lora-f16.gguf';
+  const SET = { 'souffleur-chat': CHAT, 'souffleur-render': RENDER };
+  const inSet = (msg: MainToWorker): MainToWorker => ({ ...msg, setFiles: SET }) as MainToWorker;
+  const renderGenerate = (id: number): MainToWorker =>
+    inSet({ ...generate(id), adapter: 'souffleur-render', adapterFile: RENDER } as MainToWorker);
+  const cached = (cache: { blobs: Map<string, Blob> }, ...files: string[]) =>
+    files.forEach((f) => cache.blobs.set(`${BASE_URL}/${f}`, new Blob([f])));
+  const loraOf = (opts: object) => (opts as { lora?: unknown }).lora;
+
+  it('loads every cached adapter of the set with the base, once, and picks one per request', async () => {
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT, RENDER);
+    send(inSet(generate(1)));
+    await settled(1, 'done');
+    send(renderGenerate(2));
+    await settled(2, 'done');
+    send(inSet(generate(3)));
+    await settled(3, 'done');
+
+    expect(instances).toHaveLength(1);
+    expect(instances[0].loads).toHaveLength(1);
+    const { params } = instances[0].loads[0];
+    expect((params['lora_adapters'] as { blob: Blob }[]).map((a) => a.blob)).toEqual([
+      cache.blobs.get(`${BASE_URL}/${CHAT}`),
+      cache.blobs.get(`${BASE_URL}/${RENDER}`),
+    ]);
+    expect(params['lora_init_without_apply']).toBe(true);
+    expect(instances[0].completions.map(loraOf)).toEqual([
+      [{ id: 0, scale: 1 }],
+      [{ id: 1, scale: 1 }],
+      [{ id: 0, scale: 1 }],
+    ]);
+  });
+
+  it('keeps a slot per souffleur: two slots of N_CTX, not unified, the sliding window whole', async () => {
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT, RENDER);
+    send(inSet(prepare(1)));
+    await settled(1, 'ready');
+
+    expect(instances[0].loads[0].params).toMatchObject({
+      n_ctx: 2 * 8192,
+      n_parallel: 2,
+      kv_unified: false,
+      swa_full: true,
+    });
+  });
+
+  it('adds an adapter of the set that was not in the cache at its first use, with one reload', async () => {
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT);
+    send(inSet(prepare(1)));
+    await settled(1, 'ready');
+    expect(instances[0].loads[0].params['lora_adapters']).toHaveLength(1);
+
+    send(renderGenerate(2));
+    await settled(2, 'done');
+    send(inSet(generate(3)));
+    await settled(3, 'done');
+
+    expect(instances).toHaveLength(2);
+    expect(instances[1].loads[0].params['lora_adapters']).toHaveLength(2);
+    expect(instances[1].completions.map(loraOf)).toEqual([
+      [{ id: 1, scale: 1 }],
+      [{ id: 0, scale: 1 }],
+    ]);
+  });
+
+  it('the chat chat-completion names its adapter too', async () => {
+    FakeWllama.chatStream = [
+      { choices: [{ delta: { content: 'Bonjour' }, finish_reason: 'stop' }] },
+    ];
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT, RENDER);
+    send(
+      inSet({
+        type: 'chat',
+        id: 1,
+        adapter: 'souffleur-chat',
+        device: 'webgpu',
+        messages: [{ role: 'user', content: 'Bonjour' }],
+        maxNewTokens: 16,
+        baseFile: BASE,
+        adapterFile: CHAT,
+      }),
+    );
+    await settled(1, 'done');
+
+    expect(loraOf(instances[0].chats[0])).toEqual([{ id: 0, scale: 1 }]);
   });
 });
 

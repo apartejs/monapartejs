@@ -295,6 +295,21 @@ describe('provider on the wllama engine', () => {
     });
   });
 
+  it('every message carries the whole gguf set, so the engine loads it once', async () => {
+    const { SouffleursProvider } = await load();
+    void SouffleursProvider.prepareModel?.('souffleur-chat', () => undefined);
+    await tick();
+    await tick();
+    const prepare = FakeWorker.last!.posted.find((m) => m.type === 'prepare') as
+      (Posted & { setFiles?: Record<string, string> }) | undefined;
+    expect(prepare?.setFiles).toEqual({
+      'souffleur-chat': 'gguf/souffleur-chat-0.3.0-lora-f16.gguf',
+      'souffleur-pdf': 'gguf/souffleur-pdf-0.1.0-lora-q8_0.gguf',
+      'souffleur-xlsx-docx': 'gguf/souffleur-xlsx-docx-0.1.0-lora-q8_0.gguf',
+      'souffleur-sandbox': 'gguf/souffleur-sandbox-0.1.0-lora-q8_0.gguf',
+    });
+  });
+
   it('warmCaller warms the system and tools the next chat turn starts with', async () => {
     const { SouffleursProvider, warmCaller } = await load();
     const warmed = warmCaller(['read_file', 'render']);

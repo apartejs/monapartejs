@@ -36,7 +36,7 @@ import {
   type AdapterName,
 } from './model-catalog';
 import { createDefaultEngine } from './engine/wllama-engine';
-import { adapterRole, getSouffleurManifest } from './manifest';
+import { adapterRole, getSouffleurManifest, type SouffleurRole } from './manifest';
 import { ProgressAggregator } from './progress-aggregator';
 import { getSouffleurStatus, setSouffleurStatus, type SouffleurStatusState } from './status';
 import type { SouffleurFileRef } from './wire/system-prompt';
@@ -191,14 +191,21 @@ function isDebug(): boolean {
   return _debugDefault;
 }
 
-/** Resolves an adapter's versioned files via the manifest (+ markSeen after ready). */
+/**
+ * Resolves an adapter's versioned files via the manifest (+ markSeen after ready), with the
+ * whole gguf set: the engine loads the set's cached adapters once and picks one per request.
+ */
 async function resolveAdapterFiles(adapter: AdapterName) {
   const manifest = await getSouffleurManifest();
   const role = adapterRole(adapter);
+  const setFiles = Object.fromEntries(
+    manifest.roles().map((r) => [`souffleur-${r}`, manifest.ggufAdapterFile(r as SouffleurRole)]),
+  ) as Partial<Record<AdapterName, string>>;
   return {
     files: {
       baseFile: manifest.ggufBaseFile(),
       adapterFile: manifest.ggufAdapterFile(role),
+      setFiles,
     },
     size: manifest.ggufSize(role) ?? SIZE_ADAPTER_BYTES,
     markSeen: () => manifest.markSeen(role),

@@ -16,6 +16,12 @@ export interface AdapterFiles {
   baseFile: string;
   /** e.g. 'gguf/souffleur-chat-0.3.0-lora-f16.gguf' */
   adapterFile: string;
+  /**
+   * Every adapter of the gguf set, by souffleur. The engine loads those already in the cache with the base, once, and
+   * picks one per request: switching souffleur neither reloads nor drops the chat's prompt cache. Absent: the
+   * adapter above alone, as before.
+   */
+  setFiles?: Partial<Record<AdapterName, string>>;
 }
 
 export type MainToWorker =

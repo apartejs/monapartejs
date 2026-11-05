@@ -127,9 +127,10 @@ describe('OnboardingPreloadService — tower update cycle', () => {
       seen.push(service.progress());
       onProgress({ progress: 100 });
     });
-    prefetchTower.mockImplementation(async (_file, onProgress) => {
+    prefetchTower.mockImplementation(async (file, onProgress) => {
       onProgress?.(1000, 3000);
-      seen.push(service.progress());
+      // the tower's progress only: the executors' download that follows in the background reports none
+      if (file === 'gguf/mmproj.gguf') seen.push(service.progress());
     });
 
     await service.start();
@@ -156,7 +157,9 @@ describe('OnboardingPreloadService — wllama: warm the caller, download the res
   let service: InstanceType<typeof OnboardingPreloadService>;
   const settle = () => new Promise((r) => setTimeout(r, 0));
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // the earlier tests' background downloads and warm-ups end first, so none lands in `calls`
+    for (let i = 0; i < 5; i++) await settle();
     markSeen.mockClear();
     warmCaller.mockClear();
     isFileCached.mockImplementation(async () => false);
@@ -165,13 +168,15 @@ describe('OnboardingPreloadService — wllama: warm the caller, download the res
     service = new OnboardingPreloadService();
   });
 
-  it('after the mmproj, warms the caller with the registered tools, then only downloads the executors', async () => {
+  it('after the mmproj, downloads the executors, then warms the caller with the registered tools', async () => {
+    // The engine loads every adapter of the set already in the cache with the caller: an executor downloaded after
+    // the warm-up joined at the first document with a reload, and the warm prompt cache went with it (M5, 5/11).
     await service.start();
     await settle();
     await settle();
 
     expect(warmCaller).toHaveBeenCalledWith(['read_file', 'compute']);
-    expect(calls).toEqual(['gguf/mmproj.gguf', 'warm', 'gguf/souffleur-pdf.gguf']);
+    expect(calls).toEqual(['gguf/mmproj.gguf', 'gguf/souffleur-pdf.gguf', 'warm']);
     expect(markSeen).toHaveBeenCalledWith('pdf');
   });
 
