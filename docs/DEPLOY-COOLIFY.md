@@ -73,6 +73,10 @@ Without them the workflow still succeeds: the image is published and deployment 
 manual, with a note in the run summary. When they are set and the webhook answers outside
 2xx, the job fails — a silently untriggered deployment must not pass for a success.
 
+The webhook is called with **POST**: since Coolify 4.2, a GET answers `405 "This endpoint
+has changed to a POST request."` and nothing deploys (6/11: the image was built, the site
+stayed on the previous one).
+
 ⚠️ **Do not use a git "on push" webhook**: it triggers the deployment BEFORE CI has
 published the image, so Coolify pulls the previous one. The site then serves the old code,
 with no error and nothing in the logs.
