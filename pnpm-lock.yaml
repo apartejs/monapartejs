@@ -150,8 +150,8 @@ importers:
         specifier: ^4.0.0
         version: 4.3.1
       simple-statistics:
-        specifier: ^7.9.3
-        version: 7.9.3
+        specifier: ^8.0.0
+        version: 8.0.0
       tslib:
         specifier: ^2.3.0
         version: 2.8.1
@@ -5688,8 +5688,8 @@ packages:
     resolution: {integrity: sha512-ZpzWAFHIFqyFE56dXqgX/DkDRZdz+rRcjoIk/RQU4IX0wiCv1l8S7ZrXDHcCc+uaf+6o7w3h2l3g6GYG5TKN9Q==}
     engines: {node: ^18.17.0 || >=20.5.0}
 
-  simple-statistics@7.9.3:
-    resolution: {integrity: sha512-WXpxUfo7BJCRpyl4besiuMV7wNj9xiPIq7IKmUQO4upIaF8pK2AXwhjttHN5L8KXZrLkGMCHGHq4p+pJXiIahQ==}
+  simple-statistics@8.0.0:
+    resolution: {integrity: sha512-LiiSF7yROeA/ppntYUT4u1BiSgRPyDktmuNXX6fWFGKMgD69BM7lTwfA8IYProO9BBXlNJNxtm++dIYdrO09Uw==}
 
   slash@5.1.0:
     resolution: {integrity: sha512-ZA6oR3T/pEyuqwMgAKT0/hAv8oAXckzbkmR0UkUosQ+Mc4RxGoJkRmwHgHufaenlyAgE1Mxgpdcrf75y6XcnDg==}
@@ -12175,7 +12175,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  simple-statistics@7.9.3: {}
+  simple-statistics@8.0.0: {}
 
   slash@5.1.0: {}
 
