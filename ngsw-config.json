@@ -13,7 +13,7 @@
           "/manifest.webmanifest",
           "/*.css",
           "/*.js",
-          "/assets/wllama/*.wasm"
+          "/assets/wllama/**/*.wasm"
         ]
       }
     },

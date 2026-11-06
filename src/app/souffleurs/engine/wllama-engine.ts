@@ -27,6 +27,7 @@ import type {
   WorkerToMain,
 } from '../worker-protocol';
 import { gpuLayers, toLlamaPrompt, usageFromTimings, type LlamaTimings } from './llama-wire';
+import { WLLAMA_ASSETS } from './wllama-assets';
 
 /**
  * llama.cpp drops special tokens from the completion text unless the request preserves them:
@@ -817,11 +818,10 @@ function contextError(err: unknown): Error | null {
  * offline.
  */
 export function createWllama(): WllamaLike {
-  const wllama = new Wllama({ default: '/assets/wllama/wllama.wasm' });
-  wllama.setCompat({
-    wasm: '/assets/wllama-compat/wllama.wasm',
-    worker: '/assets/wllama-compat/wllama.js',
-  });
+  // Folders named after their content (scripts/copy-wllama-assets.mjs): the service worker serves a .wasm cached by
+  // an earlier deployment only to that deployment's code.
+  const wllama = new Wllama({ default: WLLAMA_ASSETS.wasm });
+  wllama.setCompat({ wasm: WLLAMA_ASSETS.compatWasm, worker: WLLAMA_ASSETS.compatWorker });
   return wllama as unknown as WllamaLike;
 }
 
