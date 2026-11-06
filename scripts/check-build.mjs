@@ -7,7 +7,9 @@
  *    wllama would otherwise fetch the compat build from a CDN;
  *  - the adapter-staging patch (ngxson/wllama#265) must be in the bundled code — the
  *    bundler compiles wllama's src/, and a patch of esm/ alone shipped every souffleur
- *    without its LoRA.
+ *    without its LoRA;
+ *  - the slot save/restore actions (wllama 3.12.0-aparte-lfm3.2, ADR-018) must be in the bundled code and in both
+ *    .wasm builds — with an older build the boot warm-up still works, but is read again at every start.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -30,8 +32,20 @@ else if (!readFileSync(join(dist, engine), 'utf8').includes('/models/lora-')) {
   failures.push(`${engine}: wllama is bundled WITHOUT the adapter-staging patch`);
 }
 
+for (const file of ['assets/wllama/wllama.wasm', 'assets/wllama-compat/wllama.wasm']) {
+  const path = join(dist, file);
+  if (existsSync(path) && !readFileSync(path).includes('slot_restore')) {
+    failures.push(`${file} has no slot save/restore (wllama older than 3.12.0-aparte-lfm3.2)`);
+  }
+}
+if (engine && !readFileSync(join(dist, engine), 'utf8').includes('srst_req')) {
+  failures.push(`${engine}: wllama is bundled without restoreSlot`);
+}
+
 if (failures.length) {
   console.error(`[check-build] ${failures.length} problem(s):\n  - ${failures.join('\n  - ')}`);
   process.exit(1);
 }
-console.log('[check-build] wllama assets served locally, adapter-staging patch bundled');
+console.log(
+  '[check-build] wllama assets served locally, adapter-staging patch and slot actions bundled',
+);

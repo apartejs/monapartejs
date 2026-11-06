@@ -5,8 +5,9 @@ import { firstUserTextToTitle, messageText } from './conversation-text';
 const msg = (role: string, content: string, segments?: unknown[]): AparteMessage =>
   ({ id: crypto.randomUUID(), role, content, segments, timestamp: 0 }) as AparteMessage;
 
-const conv = (messages: AparteMessage[]): AparteConversation =>
-  ({ id: 'c1', title: '', messages, createdAt: 0, updatedAt: 0 }) as AparteConversation;
+/** As the manager leaves a conversation after its first send: the title is still its own. */
+const conv = (messages: AparteMessage[], autoTitle = true): AparteConversation =>
+  ({ id: 'c1', title: '', messages, createdAt: 0, updatedAt: 0, autoTitle }) as AparteConversation;
 
 describe('messageText', () => {
   it('reads a plain message', () => {
@@ -51,5 +52,17 @@ describe('firstUserTextToTitle — title once, at the first user message', () =>
 
   it('says nothing for a blank user message', () => {
     expect(firstUserTextToTitle(conv([msg('user', '   ')]))).toBeNull();
+  });
+
+  it('says nothing once the title is no longer the manager’s — renamed by the person, or titled already', () => {
+    // Seen in the browser on 2/11: a conversation renamed by hand, with one user message,
+    // took its first message back as title when it was opened after a reload.
+    expect(firstUserTextToTitle(conv([msg('user', 'Voici ma photo')], false))).toBeNull();
+  });
+
+  it('says nothing for a conversation saved before the flag existed', () => {
+    const c = conv([msg('user', 'Voici ma photo')]);
+    delete c.autoTitle;
+    expect(firstUserTextToTitle(c)).toBeNull();
   });
 });

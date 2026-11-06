@@ -1,31 +1,37 @@
 /**
- * Lib renderers (plain DOM, no Angular) — the mascot replaces aparté's
- * typing indicator and error rendering. Candidate for @aparte/plugin-mascot.
+ * Lib renderers (plain DOM, no Angular) — the mascot replaces aparté's error
+ * rendering; the status line draws the bubble's own waiting dots. Candidate for
+ * @aparte/plugin-mascot.
  */
 import { aparteGlobalConfig } from '@aparte/core';
 
-function faceEl(face: string, suffixClass?: string): HTMLElement {
+function faceEl(face: string): HTMLElement {
   const wrap = document.createElement('span');
   wrap.className = 'bp-mascotte-inline';
   const feat = document.createElement('span');
   feat.className = 'bp-mascotte-face';
   feat.textContent = face;
   wrap.appendChild(feat);
-  if (suffixClass) {
-    const suffix = document.createElement('span');
-    suffix.className = suffixClass;
-    wrap.appendChild(suffix);
-  }
   return wrap;
 }
 
-/** "Currently writing" indicator: ('.')… + status text. */
-function statusRenderer(text: string): HTMLElement {
-  const el = faceEl("('.')", 'bp-mascotte-dots');
-  const label = document.createElement('span');
-  label.className = 'bp-mascotte-status-text';
-  label.textContent = text;
-  el.appendChild(label);
+/**
+ * Status line (shown while a tool call is being written): the same three dots as a reply that has not
+ * started yet — aparté's `.aparte-waiting` markup, so both waits look alike. The container keeps the
+ * accessible name, so the text is not drawn.
+ */
+function statusRenderer(): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'aparte-waiting';
+  const dots = document.createElement('span');
+  dots.className = 'aparte-dots';
+  dots.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement('span');
+    dot.className = 'aparte-dot';
+    dots.appendChild(dot);
+  }
+  el.appendChild(dots);
   return el;
 }
 
@@ -42,11 +48,7 @@ function errorRenderer({ message }: { message: string }): HTMLElement {
 const STYLES = `
 .bp-mascotte-inline { display: inline-flex; align-items: baseline; gap: 6px; }
 .bp-mascotte-face { font-family: var(--bp-serif, serif); color: var(--bp-mascotte, var(--aparte-primary)); }
-.bp-mascotte-dots::after { content: '…'; color: var(--aparte-text-muted); animation: bp-mascotte-dots 1.6s steps(4) infinite; }
-.bp-mascotte-status-text { color: var(--aparte-text-muted); }
 .bp-mascotte-error-text { color: var(--aparte-error); }
-@keyframes bp-mascotte-dots { 0% { opacity: .2; } 50% { opacity: 1; } 100% { opacity: .2; } }
-@media (prefers-reduced-motion: reduce) { .bp-mascotte-dots::after { animation: none; } }
 `;
 
 let installed = false;

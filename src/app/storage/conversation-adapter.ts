@@ -1,7 +1,10 @@
 /**
- * AparteStorageAdapter over Dexie/IndexedDB — the lib provides NO
- * implementation (the ConversationManager never touches storage).
- * Split storage: meta + tree in `conversations`, messages apart.
+ * monaparte's storage. The conversations are @aparte/plugin-storage-idb's (aparté 0.32): split
+ * storage, attachments kept as files, all-or-nothing saves. What only monaparte has stays in its
+ * Dexie database: the artifacts, the souffleurs' file registry, the settings and the memory.
+ *
+ * Until 0.32 the conversations lived in Dexie tables too (`conversations`, `messages`,
+ * `attachments`); they are moved into the plugin's database on the first call (`moveLegacy`).
  */
 import type {
   AparteAttachmentRow,
@@ -10,78 +13,40 @@ import type {
   AparteMessage,
   AparteStorageAdapter,
 } from '@aparte/core';
-import { APARTE_CONVERSATION_SCHEMA_VERSION } from '@aparte/core';
+import { createIdbStorage, type IdbStorage } from '@aparte/plugin-storage-idb';
 // Leaf module of the registry, not the `../souffleurs` barrel: that one
 // would drag the tools and the worker into the storage code chunk.
 import { fileRegistry } from '../souffleurs/files/file-registry';
 import { monaparteDb, type ArtifactRow, type ConversationRow, type MemoryFactRow } from './db';
 
-export class DexieConversationAdapter implements AparteStorageAdapter {
-  constructor(readonly db: monaparteDb = new monaparteDb()) {}
+export class MonaparteStorage implements AparteStorageAdapter {
+  private moved?: Promise<void>;
+
+  constructor(
+    readonly db: monaparteDb = new monaparteDb(),
+    readonly conversations: IdbStorage = createIdbStorage({ name: 'monaparte-conversations' }),
+  ) {}
 
   async loadAll(): Promise<AparteConversation[]> {
-    const rows = await this.db.conversations.orderBy('updatedAt').reverse().toArray();
-    return Promise.all(rows.map((row) => this.hydrate(row)));
+    return (await this.ready()).loadAll();
   }
 
   async save(conv: AparteConversation): Promise<void> {
-    const messages = conv.messages ?? [];
-    const last = messages.at(-1);
-    const row: ConversationRow = {
-      id: conv.id,
-      title: conv.title,
-      createdAt: conv.createdAt,
-      updatedAt: conv.updatedAt,
-      archivedAt: conv.archivedAt,
-      pinnedAt: conv.pinnedAt,
-      autoTitle: conv.autoTitle,
-      lastMessagePreview: last ? previewOf(last) : undefined,
-      messageCount: messages.length,
-      schemaVersion: conv.schemaVersion ?? APARTE_CONVERSATION_SCHEMA_VERSION,
-      tree: conv.tree ?? null,
-    };
-    // Attachments come out of the message: their `url` is a `blob:`
-    // revoked on reload (ERR_FILE_NOT_FOUND), only the `blob` makes sense in
-    // the DB. We store the binary apart and rebuild the URL at hydration.
-    const attachmentRows = extractAttachments(conv.id, messages);
-
-    await this.db.transaction(
-      'rw',
-      [this.db.conversations, this.db.messages, this.db.attachments],
-      async () => {
-        await this.db.conversations.put(row);
-        await this.db.messages.where('convId').equals(conv.id).delete();
-        if (messages.length) {
-          await this.db.messages.bulkPut(
-            messages.map((m, i) => ({
-              id: m.id || `${conv.id}:${i}`,
-              convId: conv.id,
-              timestamp: m.timestamp || conv.updatedAt + i,
-              // `attachments` removed: the binary goes into its own table.
-              data: stripAttachments(m),
-            })),
-          );
-        }
-        await this.db.attachments.where('convId').equals(conv.id).delete();
-        if (attachmentRows.length) await this.db.attachments.bulkPut(attachmentRows);
-      },
-    );
+    await (await this.ready()).save(conv);
   }
 
   async delete(id: string): Promise<void> {
+    await (await this.ready()).delete(id);
     await this.db.transaction(
       'rw',
       [
+        this.db.artifacts,
+        this.db.souffleurFiles,
         this.db.conversations,
         this.db.messages,
         this.db.attachments,
-        this.db.artifacts,
-        this.db.souffleurFiles,
       ],
       async () => {
-        await this.db.conversations.delete(id);
-        await this.db.messages.where('convId').equals(id).delete();
-        await this.db.attachments.where('convId').equals(id).delete();
         await this.db.artifacts.where('convId').equals(id).delete();
         // The souffleurs registry files go too: they are binaries (an
         // image, a spreadsheet), and nothing attaches them to anything
@@ -90,6 +55,8 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
         // they erased — and, in an app whose whole promise is that nothing
         // leaves the device, what stays ON the device must obey deletion.
         await this.db.souffleurFiles.where('convId').equals(id).delete();
+        // A conversation that did not move yet must not come back from the old tables.
+        await this.deleteLegacy(id);
       },
     );
     // The DB is cleaned; the registry's Map, though, lives in memory and
@@ -98,33 +65,35 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
   }
 
   async archive(id: string): Promise<void> {
-    await this.db.conversations.update(id, { archivedAt: Date.now() });
+    await (await this.ready()).archive(id);
   }
 
   async unarchive(id: string): Promise<void> {
-    await this.db.conversations.update(id, { archivedAt: undefined });
+    await (await this.ready()).unarchive(id);
   }
 
   async loadMeta(): Promise<AparteConversationMeta[]> {
-    const rows = await this.db.conversations.orderBy('updatedAt').reverse().toArray();
-    return rows.map(({ tree: _tree, ...meta }) => meta);
+    return (await this.ready()).loadMeta();
   }
 
   async loadFull(id: string): Promise<AparteConversation | null> {
-    const row = await this.db.conversations.get(id);
-    return row ? this.hydrate(row) : null;
+    return (await this.ready()).loadFull(id);
   }
 
   async pin(id: string): Promise<void> {
-    await this.db.conversations.update(id, { pinnedAt: Date.now() });
+    await (await this.ready()).pin(id);
   }
 
   async unpin(id: string): Promise<void> {
-    await this.db.conversations.update(id, { pinnedAt: undefined });
+    await (await this.ready()).unpin(id);
   }
 
   async rename(id: string, title: string): Promise<void> {
-    await this.db.conversations.update(id, { title });
+    await (await this.ready()).rename(id, title);
+  }
+
+  async loadAttachments(msgId: string): Promise<AparteAttachmentRow[]> {
+    return (await this.ready()).loadAttachments(msgId);
   }
 
   /* ── Memory ── */
@@ -169,7 +138,7 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
     return Object.fromEntries(rows.map((r) => [r.key, r.value]));
   }
 
-  /* ── Artifacts / attachments (consumed starting from D3) ── */
+  /* ── Artifacts ── */
 
   async loadArtifacts(filter?: { convId?: string }): Promise<ArtifactRow[]> {
     if (filter?.convId) {
@@ -178,109 +147,100 @@ export class DexieConversationAdapter implements AparteStorageAdapter {
     return this.db.artifacts.orderBy('updatedAt').reverse().toArray();
   }
 
-  async loadAttachments(msgId: string): Promise<AparteAttachmentRow[]> {
-    return this.db.attachments.where('msgId').equals(msgId).toArray();
+  /* ── The move out of the Dexie tables ── */
+
+  /** The plugin's storage, once the old tables have been moved into it (the first call moves them). */
+  private async ready(): Promise<IdbStorage> {
+    this.moved ??= this.moveLegacy();
+    await this.moved;
+    return this.conversations;
   }
 
-  /* ── internal ── */
-
-  private async hydrate(row: ConversationRow): Promise<AparteConversation> {
-    const messages = await this.db.messages.where('convId').equals(row.id).sortBy('timestamp');
-    const attachmentRows = await this.db.attachments.where('convId').equals(row.id).toArray();
-    const fresh = freshAttachmentsByMsg(attachmentRows);
-    const { tree, lastMessagePreview: _p, messageCount: _c, folderId: _f, ...meta } = row;
-    return {
-      ...meta,
-      messages: messages.map((m) => withAttachments(m.data, fresh)),
-      // ⚠️ THE TREE TOO: it's what `importTree()` replays on reload, so
-      // dead URLs here and the bubble breaks even if `messages` is correct.
-      tree: rehydrateTree(tree, fresh) as AparteConversation['tree'],
-    };
-  }
-}
-
-/* ── Attachments: blob persisted, `url` rebuilt on every session ───── */
-
-type AttachmentRow = AparteAttachmentRow & { convId: string };
-
-/** Removes `attachments` from the stored message (the binary lives in its own table). */
-function stripAttachments(message: AparteMessage): AparteMessage {
-  if (!('attachments' in message)) return message;
-  const { attachments: _dropped, ...rest } = message as AparteMessage & { attachments?: unknown };
-  return rest as AparteMessage;
-}
-
-/** Extracts blobs from the messages into `attachments` rows. */
-function extractAttachments(convId: string, messages: AparteMessage[]): AttachmentRow[] {
-  const rows: AttachmentRow[] = [];
-  for (const m of messages) {
-    const atts = (m as AparteMessage & { attachments?: unknown }).attachments;
-    if (!Array.isArray(atts)) continue;
-    for (const a of atts as {
-      id: string;
-      name: string;
-      type?: string;
-      size?: number;
-      blob?: Blob;
-    }[]) {
-      if (!a?.blob) continue; // url only (legacy): nothing to persist
-      rows.push({
-        id: a.id,
-        convId,
-        msgId: m.id,
-        name: a.name,
-        mimeType: a.type ?? a.blob.type ?? 'application/octet-stream',
-        size: a.size ?? a.blob.size ?? 0,
-        blob: a.blob,
-      });
+  /**
+   * Each conversation of the old tables is saved into the plugin, read back, and only then
+   * removed from them: a move. One that fails stays where it was, for the next start; the app
+   * starts either way.
+   */
+  private async moveLegacy(): Promise<void> {
+    let rows: ConversationRow[];
+    try {
+      rows = await this.db.conversations.toArray();
+    } catch (err) {
+      console.error('[monaparte] storage: the old conversation tables could not be read', err);
+      return;
+    }
+    for (const row of rows) {
+      try {
+        const conv = await this.readLegacy(row);
+        await this.conversations.save(conv);
+        const back = await this.conversations.loadFull(conv.id);
+        if (back?.messages.length !== conv.messages.length) {
+          throw new Error(
+            `read back ${back?.messages.length ?? 'nothing'} of ${conv.messages.length} messages`,
+          );
+        }
+        await this.db.transaction(
+          'rw',
+          [this.db.conversations, this.db.messages, this.db.attachments],
+          () => this.deleteLegacy(row.id),
+        );
+      } catch (err) {
+        console.error(`[monaparte] storage: conversation ${row.id} stays in the old tables`, err);
+      }
     }
   }
-  return rows;
+
+  private async deleteLegacy(id: string): Promise<void> {
+    await this.db.conversations.delete(id);
+    await this.db.messages.where('convId').equals(id).delete();
+    await this.db.attachments.where('convId').equals(id).delete();
+  }
+
+  /** A conversation as the Dexie adapter wrote it: meta + tree, messages apart, files apart. */
+  private async readLegacy(row: ConversationRow): Promise<AparteConversation> {
+    const messages = await this.db.messages.where('convId').equals(row.id).sortBy('timestamp');
+    const files = await this.db.attachments.where('convId').equals(row.id).toArray();
+    const byMsg = filesByMessage(files);
+    const { tree, lastMessagePreview: _p, messageCount: _c, folderId: _f, ...meta } = row;
+    const conv: AparteConversation = {
+      ...meta,
+      messages: messages.map((m) => withFiles(m.data, byMsg)),
+    };
+    // The tree too: it is what `importTree()` replays on reload.
+    if (tree) conv.tree = treeWithFiles(tree, byMsg) as AparteConversation['tree'];
+    return conv;
+  }
 }
 
-/**
- * Groups by msgId with a NEW `url`. Object URLs are session-scoped: never
- * serialized, rebuilt on every load.
- * (Not revoked, as in the reference implementation: their lifetime is that
- * of the tab.)
- */
-function freshAttachmentsByMsg(rows: AttachmentRow[]): Map<string, unknown[]> {
+/* ── Old rows: the files go back into their messages, as blobs; the plugin keeps them ── */
+
+type LegacyFileRow = AparteAttachmentRow & { convId: string };
+
+function filesByMessage(rows: LegacyFileRow[]): Map<string, unknown[]> {
   const byMsg = new Map<string, unknown[]>();
   for (const r of rows) {
     if (!r.blob) continue;
     const list = byMsg.get(r.msgId) ?? [];
-    list.push({
-      id: r.id,
-      name: r.name,
-      type: r.mimeType,
-      url: URL.createObjectURL(r.blob),
-      size: r.size,
-      blob: r.blob,
-    });
+    list.push({ id: r.id, name: r.name, type: r.mimeType, url: '', size: r.size, blob: r.blob });
     byMsg.set(r.msgId, list);
   }
   return byMsg;
 }
 
-function withAttachments(message: AparteMessage, fresh: Map<string, unknown[]>): AparteMessage {
-  const atts = fresh.get(message.id);
+function withFiles(message: AparteMessage, byMsg: Map<string, unknown[]>): AparteMessage {
+  const atts = byMsg.get(message.id);
   return atts?.length ? ({ ...message, attachments: atts } as AparteMessage) : message;
 }
 
-/** Rewrites the tree's messages with the SAME fresh attachments. */
-function rehydrateTree(tree: unknown, fresh: Map<string, unknown[]>): unknown {
-  if (!tree || typeof tree !== 'object' || fresh.size === 0) return tree ?? undefined;
+function treeWithFiles(tree: unknown, byMsg: Map<string, unknown[]>): unknown {
+  if (!tree || typeof tree !== 'object' || byMsg.size === 0) return tree;
   const t = tree as { headId?: string; messages?: { message: AparteMessage; parentId?: string }[] };
   if (!Array.isArray(t.messages)) return tree;
   return {
     ...t,
     messages: t.messages.map(({ message, parentId }) => ({
       parentId,
-      message: withAttachments(message, fresh),
+      message: withFiles(message, byMsg),
     })),
   };
-}
-
-function previewOf(message: AparteMessage): string {
-  return (message.content ?? '').slice(0, 200);
 }

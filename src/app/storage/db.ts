@@ -98,6 +98,8 @@ export interface SouffleurFileRow {
    *    but kept: the file_id's from history must stay resolvable.
    */
   convId?: string | null;
+  /** The tool that produced it (`render`: an edit rebuilds it); absent for an attached file. Not indexed. */
+  producedBy?: string;
 }
 
 export class monaparteDb extends Dexie {

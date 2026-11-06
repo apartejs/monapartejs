@@ -267,9 +267,37 @@ async function loaded(manifest: unknown): Promise<SouffleurManifestClient> {
   return m;
 }
 
+describe('SouffleurManifestClient — lfm3 block (ADR-003)', () => {
+  const LFM3 = {
+    rev: '2026-11-02',
+    base: {
+      file: 'https://huggingface.co/LiquidAI/LFM3-Omni-2B-GGUF/resolve/3d29af2/LFM3-Omni-2B-Q4_K_M.gguf',
+      size: 1099630080,
+    },
+    souffleurs: {
+      chat: { version: 'c0.6', file: 'lfm3/chat-c0.6.gguf', size: 89663680 },
+      render: { version: 'v0.6', file: 'lfm3/render-v0.6.gguf', size: 89663680 },
+    },
+  };
+
+  it('reads the lfm3 block, not the gguf block the LFM2.5 app in production reads', async () => {
+    const m = await loaded({ ...MANIFEST, gguf: GGUF, lfm3: LFM3 });
+    expect(m.hasGguf()).toBe(true);
+    expect(m.ggufBaseFile()).toBe(LFM3.base.file);
+    expect(m.ggufAdapterFile('chat')).toBe('lfm3/chat-c0.6.gguf');
+    expect(m.version('render')).toBe('v0.6');
+    expect(m.baseRev()).toBe('2026-11-02');
+  });
+
+  it('a manifest with the LFM2.5 gguf block alone publishes no LFM3 set', async () => {
+    const m = await loaded({ ...MANIFEST, gguf: GGUF });
+    expect(m.hasGguf()).toBe(false);
+  });
+});
+
 describe('SouffleurManifestClient — gguf block', () => {
   it('reads the gguf block when present', async () => {
-    const m = await loaded({ ...MANIFEST, gguf: GGUF });
+    const m = await loaded({ ...MANIFEST, lfm3: GGUF });
     expect(m.hasGguf()).toBe(true);
     expect(m.ggufBaseFile()).toBe('gguf/lfm25-vl-1.6b-Q4_K_M.gguf');
     expect(m.ggufAdapterFile('chat')).toBe('gguf/souffleur-chat-0.4.0-lora-f16.gguf');
@@ -283,7 +311,7 @@ describe('SouffleurManifestClient — gguf block', () => {
 
   it('versions come from the gguf block', async () => {
     store.set('bp.souffleurs.seen', JSON.stringify({ chat: '0.2.0' }));
-    const m = await loaded({ ...MANIFEST, gguf: GGUF });
+    const m = await loaded({ ...MANIFEST, lfm3: GGUF });
     expect(m.version('chat')).toBe('0.4.0');
     expect(m.size('chat')).toBe(88880480);
     expect(m.hasUpdate('chat')).toBe(true);
@@ -302,7 +330,7 @@ describe('SouffleurManifestClient — gguf block', () => {
   it('an unknown role in the gguf block fails loudly', async () => {
     const m = await loaded({
       ...MANIFEST,
-      gguf: { ...GGUF, souffleurs: { chat: GGUF.souffleurs.chat } },
+      lfm3: { ...GGUF, souffleurs: { chat: GGUF.souffleurs.chat } },
     });
     expect(() => m.ggufAdapterFile('pdf')).toThrow('souffleur gguf inconnu: pdf');
   });
@@ -322,7 +350,7 @@ describe('SouffleurManifestClient — vision is the mmproj once gguf is publishe
     const m = await loaded({
       ...MANIFEST,
       vision,
-      gguf: { ...GGUF, mmproj: { ...GGUF.mmproj, version: '0.2.0' } },
+      lfm3: { ...GGUF, mmproj: { ...GGUF.mmproj, version: '0.2.0' } },
     });
     expect(m.visionSize()).toBe(244046400);
     expect(m.visionHasUpdate()).toBe(true);
@@ -337,7 +365,7 @@ describe('getSouffleurManifest — the ONNX era leaves nothing behind', () => {
     vi.stubGlobal('caches', { delete: del, open: vi.fn() });
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => new Response(JSON.stringify({ ...MANIFEST, gguf: GGUF }))),
+      vi.fn(async () => new Response(JSON.stringify({ ...MANIFEST, lfm3: GGUF }))),
     );
     resetSouffleurManifestSingleton();
     await getSouffleurManifest();

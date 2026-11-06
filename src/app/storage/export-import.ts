@@ -5,7 +5,7 @@
  */
 import type { AparteConversation } from '@aparte/core';
 import type { MemoryFactRow } from './db';
-import { DexieConversationAdapter } from './conversation-adapter';
+import { MonaparteStorage } from './conversation-adapter';
 import { LOCAL_KEYS, localRemove } from './settings.service';
 
 export const EXPORT_KIND = 'monaparte-full-export';
@@ -26,7 +26,7 @@ export interface FullExport {
   settings: Record<string, unknown>;
 }
 
-export async function exportAll(adapter: DexieConversationAdapter): Promise<FullExport> {
+export async function exportAll(adapter: MonaparteStorage): Promise<FullExport> {
   return {
     version: 1,
     kind: EXPORT_KIND,
@@ -39,7 +39,7 @@ export async function exportAll(adapter: DexieConversationAdapter): Promise<Full
 
 /** Merges into the existing data. The caller reloads the page afterward. */
 export async function importAll(
-  adapter: DexieConversationAdapter,
+  adapter: MonaparteStorage,
   data: unknown,
 ): Promise<{ conversations: number; memory: number }> {
   if (
@@ -64,7 +64,7 @@ export async function importAll(
 }
 
 /** Erases everything: conversations, memory, IDB settings, local keys. The caller reloads. */
-export async function clearAll(adapter: DexieConversationAdapter): Promise<void> {
+export async function clearAll(adapter: MonaparteStorage): Promise<void> {
   const conversations = await adapter.loadMeta();
   for (const conv of conversations) {
     await adapter.delete(conv.id);

@@ -17,6 +17,8 @@ export interface RegisteredFile extends SouffleurFileRef {
    * never listed. See SouffleurFileRow.
    */
   convId?: string | null;
+  /** The tool that produced it (`render`); absent for a file the user attached. */
+  producedBy?: string;
 }
 
 /** Extension → Files available block type (mapping of training's `_ext_type`). */
@@ -108,7 +110,7 @@ export const fileRegistry = {
     return entry;
   },
 
-  registerBlob(blob: Blob, name: string, mime: string): RegisteredFile {
+  registerBlob(blob: Blob, name: string, mime: string, producedBy?: string): RegisteredFile {
     const entry: RegisteredFile = {
       id: genFileId(),
       name,
@@ -117,8 +119,22 @@ export const fileRegistry = {
       blob,
       addedAt: Date.now(),
       convId: currentConv(),
+      ...(producedBy ? { producedBy } : {}),
     };
     files.set(entry.id, entry);
+    persist(entry);
+    return entry;
+  },
+
+  /**
+   * A new version of a file under the same id: an edit of a produced document keeps the id the model copies
+   * back and the conversation's "Files available" block, with the new content.
+   */
+  replace(id: string, blob: Blob, name: string, mime: string): RegisteredFile | undefined {
+    const old = files.get(id);
+    if (!old) return undefined;
+    const entry: RegisteredFile = { ...old, name, type: extType(name, mime), mime, blob };
+    files.set(id, entry);
     persist(entry);
     return entry;
   },
@@ -192,7 +208,7 @@ export const fileRegistry = {
    * Forgets the files of a deleted conversation.
    *
    * The Map ONLY: the Dexie row already goes with the conversation, in the
-   * same transaction as its messages and artifacts (conversationAdapter.delete).
+   * same transaction as its artifacts (conversationAdapter.delete).
    * Without this complement, the blobs stayed in memory until the next
    * reload — and a deleted file_id kept resolving.
    */

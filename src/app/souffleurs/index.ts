@@ -12,6 +12,7 @@ export {
   prepareCaller,
   prepareExecutor,
   runExecutor,
+  setNextTurnFiles,
   setSouffleurDebug,
   warmCaller,
   type ExecutorAdapter,
@@ -63,6 +64,7 @@ export { readFileHandler, readFileTool } from './tools/read-file.tool';
 export { writeFileHandler, writeFileTool } from './tools/write-file.tool';
 export { computeHandler, computeTool } from './tools/compute.tool';
 export { createWidgetHandler, createWidgetTool } from './tools/create-widget.tool';
+export { renderHandler, renderTool } from './tools/render.tool';
 export { transformFileHandler, transformFileTool } from './tools/transform-file.tool';
 export { listReminders, setReminderHandler, setReminderTool } from './tools/set-reminder.tool';
 export {
@@ -75,5 +77,6 @@ export {
   artifactCardRenderer,
   installToolRendererStyles,
   readFileRenderer,
+  renderRenderer,
   widgetRenderer,
 } from './tools/tool-renderers';

@@ -97,6 +97,13 @@ body.bp-generating .bp-decorative * {
   animation-play-state: paused !important;
 }
 
+/* Empty chat: aparté's centerWhenEmpty centres the welcome and the composer as one block (0.31, #151). The
+ * container is the size container the welcome mascot is measured against (chat-page). Global, because it is
+ * aparté's own element, outside the page's encapsulated styles. */
+bp-chat-page .aparte-chat-container[data-aparte-empty] {
+  container-type: size;
+}
+
 /* Thin, discreet, themed scrollbars. */
 * {
   scrollbar-width: thin;

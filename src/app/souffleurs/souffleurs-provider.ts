@@ -31,18 +31,23 @@ import {
   EXECUTOR_MAX_NEW_TOKENS,
   SIZE_ADAPTER_BYTES,
   SIZE_MMPROJ_BYTES,
-  SOUFFLEURS_HF_REPO,
   VISION_MAX_NEW_TOKENS,
+  souffleursBaseUrl,
   type AdapterName,
 } from './model-catalog';
 import { createDefaultEngine } from './engine/wllama-engine';
-import { adapterRole, getSouffleurManifest } from './manifest';
+import { adapterRole, getSouffleurManifest, type SouffleurRole } from './manifest';
 import { ProgressAggregator } from './progress-aggregator';
 import { getSouffleurStatus, setSouffleurStatus, type SouffleurStatusState } from './status';
-import { buildSystemPrompt, type SouffleurFileRef } from './wire/system-prompt';
-import { buildWirePrompt, wirePrefix } from './wire/prompt-builder';
-import { UNPARSEABLE, parsePythonicOutput } from './wire/pythonic-parser';
-import { WireStreamDemux } from './wire/stream-demux';
+import type { SouffleurFileRef } from './wire/system-prompt';
+import {
+  lfm3SystemPrompt,
+  lfm3Tools,
+  parseCallArguments,
+  toChatMessages,
+  type ChatMessage,
+} from './wire/chat-wire';
+import type { Lfm3Tool } from './wire/contract-lfm3';
 import type {
   ComputeDevice,
   EngineLike,
@@ -50,8 +55,6 @@ import type {
   WorkerFileProgress,
   WorkerToMain,
 } from './worker-protocol';
-
-const HF_BASE_URL = `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`;
 
 /**
  * Files channel: the app sets `request._meta['souffleurFiles']` (via a
@@ -78,12 +81,16 @@ interface PendingHandlers {
   onProgress?: (p: WorkerFileProgress) => void;
   onReady?: (adapter: AdapterName | 'vision', ms: number) => void;
   onChunk?: (delta: string) => void;
-  onDone?: (usage: {
-    inputTokens: number;
-    outputTokens: number;
-    ttftMs: number;
-    durationMs: number;
-  }) => void;
+  onToolStart?: (name: string) => void;
+  onDone?: (
+    usage: {
+      inputTokens: number;
+      outputTokens: number;
+      ttftMs: number;
+      durationMs: number;
+    },
+    toolCalls?: { name: string; arguments: string }[],
+  ) => void;
   onError?: (message: string) => void;
 }
 
@@ -111,8 +118,11 @@ function attach(engine: EngineLike): EngineLike {
       case 'chunk':
         handlers?.onChunk?.(msg.delta);
         break;
+      case 'tool-start':
+        handlers?.onToolStart?.(msg.name);
+        break;
       case 'done':
-        handlers?.onDone?.(msg.usage);
+        handlers?.onDone?.(msg.usage, msg.toolCalls);
         _pending.delete(msg.id);
         break;
       case 'error':
@@ -125,7 +135,7 @@ function attach(engine: EngineLike): EngineLike {
 }
 
 function getWorker(): EngineLike {
-  if (!_worker) _worker = attach(createDefaultEngine(HF_BASE_URL));
+  if (!_worker) _worker = attach(createDefaultEngine(souffleursBaseUrl()));
   return _worker;
 }
 
@@ -147,11 +157,94 @@ export async function detectComputeDevice(): Promise<ComputeDevice> {
   return _device;
 }
 
-/** Single queue: one pipeline, one operation at a time. */
+/** Single queue: one pipeline, one operation at a time. Any operation stops a read-ahead (see `readAhead`). */
 function enqueue<T>(op: () => Promise<T>): Promise<T> {
+  stopReadAhead();
+  return queue(op);
+}
+
+function queue<T>(op: () => Promise<T>): Promise<T> {
   const run = _chain.then(op, op);
   _chain = run.catch(() => undefined);
   return run;
+}
+
+/**
+ * The files the conversation's next request will list, from the app (the same source as its request
+ * interceptor). Unset, nothing is read ahead.
+ */
+let _nextTurnFiles: (() => SouffleurFileRef[]) | null = null;
+
+export function setNextTurnFiles(source: (() => SouffleurFileRef[]) | null): void {
+  _nextTurnFiles = source;
+}
+
+/** The read-ahead queued or running, if any: stopped by the next operation, before or after it is posted. */
+let _readAhead: { cancelled: boolean; posted: boolean } | null = null;
+
+function stopReadAhead(): void {
+  const running = _readAhead;
+  if (!running) return;
+  _readAhead = null;
+  running.cancelled = true;
+  if (running.posted) getWorker().postMessage({ type: 'abort' } satisfies MainToWorker);
+}
+
+/**
+ * Reads the next turn's prompt ahead, after a final answer that changed the conversation's files (6/11, M5).
+ * A document the model produced joins "Files available" at the next user turn — the F16 edit rows train on it
+ * there — so the system message changes, and the template puts the 1,600 tokens of tools after it: the
+ * follow-up re-read its whole prompt, 45 s with the M5's GPU, 136 s without. The prompt is the turn just
+ * answered with the new system message; its generation prompt opens the answer's own turn, so the follow-up
+ * finds all of it in the cache. It runs while the user reads the document, silently (no status): the next
+ * operation stops it, and llama.cpp keeps the batches already read for whatever shares them.
+ */
+function readAhead(
+  files: readonly SouffleurFileRef[],
+  history: AparteChatRequest['messages'],
+  tools: Lfm3Tool[],
+  device: ComputeDevice,
+  adapterFiles: Awaited<ReturnType<typeof resolveAdapterFiles>>['files'],
+): void {
+  const next = _nextTurnFiles?.();
+  if (!next) return;
+  const system = lfm3SystemPrompt(next);
+  if (system === lfm3SystemPrompt(files)) return;
+  const messages = toChatMessages(system, history);
+  const state = { cancelled: false, posted: false };
+  _readAhead = state;
+  void queue(
+    () =>
+      new Promise<void>((resolve) => {
+        if (state.cancelled) {
+          resolve();
+          return;
+        }
+        const id = _nextId++;
+        const settle = () => {
+          if (_readAhead === state) _readAhead = null;
+          resolve();
+        };
+        _pending.set(id, {
+          onDone: settle,
+          onError: (message) => {
+            console.warn('[souffleurs] read-ahead failed:', message);
+            settle();
+          },
+        });
+        state.posted = true;
+        getWorker().postMessage({
+          type: 'chat',
+          id,
+          adapter: CALLER_ADAPTER,
+          device,
+          messages,
+          tools,
+          maxNewTokens: 1,
+          ...adapterFiles,
+        } satisfies MainToWorker);
+      }),
+  );
 }
 
 /**
@@ -182,14 +275,21 @@ function isDebug(): boolean {
   return _debugDefault;
 }
 
-/** Resolves an adapter's versioned files via the manifest (+ markSeen after ready). */
+/**
+ * Resolves an adapter's versioned files via the manifest (+ markSeen after ready), with the
+ * whole gguf set: the engine loads the set's cached adapters once and picks one per request.
+ */
 async function resolveAdapterFiles(adapter: AdapterName) {
   const manifest = await getSouffleurManifest();
   const role = adapterRole(adapter);
+  const setFiles = Object.fromEntries(
+    manifest.roles().map((r) => [`souffleur-${r}`, manifest.ggufAdapterFile(r as SouffleurRole)]),
+  ) as Partial<Record<AdapterName, string>>;
   return {
     files: {
       baseFile: manifest.ggufBaseFile(),
       adapterFile: manifest.ggufAdapterFile(role),
+      setFiles,
     },
     size: manifest.ggufSize(role) ?? SIZE_ADAPTER_BYTES,
     markSeen: () => manifest.markSeen(role),
@@ -241,16 +341,28 @@ export const SouffleursProvider: AparteAIProvider = {
     const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
     const enabledTools = request.tools?.map((t) => t.name) ?? [];
     const files = (request._meta?.[META_FILES_KEY] as SouffleurFileRef[] | undefined) ?? [];
-    const system = buildSystemPrompt(enabledTools, files);
-    const prompt = buildWirePrompt(system, request.messages);
+    // LFM3 (ADR-003): the contract's core and files as the system message, the enabled tools in the contract's
+    // words, the history as chat messages — the model's own template renders them in the engine.
+    const messages = toChatMessages(lfm3SystemPrompt(files), request.messages);
+    const tools = lfm3Tools(enabledTools);
     const maxNewTokens = Math.max(request.maxTokens ?? 0, CALLER_MAX_NEW_TOKENS);
-    // Diagnostics: on by default in dev (see setSouffleurDebug) — exact wire
-    // prompt, raw output and parsed calls in the console, + ids on the worker
-    // side. `localStorage.setItem('bp.debug','0')` silences, '1' forces in prod.
+    // An image among the files (6/11): the vision encoder joins the set's load at this turn — which re-reads its
+    // prompt anyway, the list having changed — so the description reloads nothing and the closing turn keeps the
+    // chat's cache (the M5: two reloads and a 57 s re-read per image turn). Only with WebGPU (no image reading
+    // without it), and only once it is in the cache: a download belongs to the description, with its progress,
+    // and a failed one to read_file — never to this turn.
+    const imageEncoder =
+      device === 'webgpu' && files.some((f) => f.type === 'image')
+        ? (await getSouffleurManifest()).ggufMmprojFile()
+        : null;
+    const encoder =
+      imageEncoder && (await getWorker().isCached([imageEncoder])) ? imageEncoder : undefined;
+    // Diagnostics: on by default in dev (see setSouffleurDebug) — the messages, tools, raw output and calls in
+    // the console. `localStorage.setItem('bp.debug','0')` silences, '1' forces in prod.
     const debug = isDebug();
 
     let raw = '';
-    const demux = new WireStreamDemux();
+    const prompt = JSON.stringify({ messages, tools: tools.map((t) => t.function.name) }, null, 1);
     _lastWire = { prompt, raw: '', at: Date.now() };
 
     // Cancellation: the consumer closes the controller BEFORE the worker has
@@ -270,16 +382,6 @@ export const SouffleursProvider: AparteAIProvider = {
           closed = true;
           controller.close();
         };
-        const emitDemux = (deltas: ReturnType<WireStreamDemux['push']>) => {
-          for (const ev of deltas) {
-            emit(
-              ev.kind === 'text'
-                ? { type: 'text', delta: ev.delta }
-                : { type: 'thinking', delta: ev.delta },
-            );
-          }
-        };
-
         setSouffleurStatus({
           status: _loadedAdapter === CALLER_ADAPTER ? 'generating' : 'loading',
           device,
@@ -298,42 +400,49 @@ export const SouffleursProvider: AparteAIProvider = {
               }
               const id = _nextId++;
               _pending.set(id, {
-                onReady: () => resolved.markSeen(),
+                onReady: () => {
+                  resolved.markSeen();
+                  // Loaded (or found loaded): the turn generates — not 'loading' until its end after an expert
+                  // or a description ran.
+                  if (!closed) setSouffleurStatus({ status: 'generating', device });
+                },
                 onChunk: (delta) => {
                   raw += delta;
-                  emitDemux(demux.push(delta));
+                  emit({ type: 'text', delta });
                 },
-                onDone: (usage) => {
-                  emitDemux(demux.flush());
-                  if (_lastWire) _lastWire.raw = raw;
-                  const parsed = parsePythonicOutput(raw);
+                // aparté has no event for a call still being written: the status carries it, and the chat page
+                // shows its waiting dots until `done` brings the call (and its card).
+                onToolStart: (tool) => {
+                  if (!closed) setSouffleurStatus({ status: 'generating', device, tool });
+                },
+                onDone: (usage, calls = []) => {
+                  const answered = !closed && calls.length === 0;
+                  if (_lastWire)
+                    _lastWire.raw = raw + (calls.length ? '\n' + JSON.stringify(calls) : '');
                   if (debug) {
-                    console.log('[souffleurs] PROMPT WIRE >>>\n%s', prompt);
+                    console.log('[souffleurs] MESSAGES >>>\n%s', prompt);
                     console.log('[souffleurs] RAW OUTPUT >>>\n%s', raw);
-                    console.log('[souffleurs] PARSED >>>', parsed);
+                    console.log('[souffleurs] CALLS >>>', calls);
                   }
                   // Turn cancelled: do NOT trigger the tools the model had
                   // started announcing (emit() is already neutralized).
                   if (!closed) {
-                    for (const call of parsed.calls) {
-                      if (call.name === UNPARSEABLE) {
+                    for (const call of calls) {
+                      const input = parseCallArguments(call.arguments);
+                      if (!input) {
                         console.warn(
-                          '[souffleurs] unparseable tool_call ignored:',
-                          call.args['raw'],
+                          '[souffleurs] tool call with unreadable arguments ignored:',
+                          call,
                         );
                         continue;
                       }
-                      emit({
-                        type: 'tool_use',
-                        id: genCallId(),
-                        name: call.name,
-                        input: call.args,
-                      });
+                      emit({ type: 'tool_use', id: genCallId(), name: call.name, input });
                     }
                   }
                   emit({ type: 'done', usage });
                   setSouffleurStatus({ status: 'ready', device });
                   finish();
+                  if (answered) readAhead(files, request.messages, tools, device, resolved.files);
                   resolve();
                 },
                 onError: (message) => {
@@ -344,14 +453,16 @@ export const SouffleursProvider: AparteAIProvider = {
                 },
               });
               getWorker().postMessage({
-                type: 'generate',
+                type: 'chat',
                 id,
                 adapter: CALLER_ADAPTER,
                 device,
-                prompt,
+                messages,
+                tools,
                 maxNewTokens,
                 debug,
                 ...resolved.files,
+                ...(encoder ? { mmprojFile: encoder } : {}),
               } satisfies MainToWorker);
             }),
         );
@@ -426,9 +537,18 @@ export const SouffleursProvider: AparteAIProvider = {
     getWorker().postMessage({ type: 'dispose' } satisfies MainToWorker);
     _loadedAdapter = null;
     try {
-      await new CacheManager().deleteMany(
-        (entry) => !!entry.metadata?.originalURL?.includes(SOUFFLEURS_HF_REPO),
+      const base = souffleursBaseUrl();
+      // the manifest's absolute files too: Liquid AI's base and mmproj are fetched from their repository
+      const manifest = await getSouffleurManifest().catch(() => null);
+      const elsewhere = new Set(
+        [manifest?.hasGguf() ? manifest.ggufBaseFile() : null, manifest?.ggufMmprojFile()].filter(
+          (f): f is string => !!f && /^https?:\/\//.test(f),
+        ),
       );
+      await new CacheManager().deleteMany((entry) => {
+        const url = entry.metadata?.originalURL ?? '';
+        return url.startsWith(base) || elsewhere.has(url);
+      });
     } catch {
       // cache unavailable: nothing to erase
     }
@@ -476,6 +596,8 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
     );
   }
   const baseFile = manifest.ggufBaseFile();
+  // The set: a load the description causes keeps the adapters, so the closing turn reloads nothing.
+  const { setFiles } = (await resolveAdapterFiles(CALLER_ADAPTER)).files;
   const debug = isDebug();
 
   setSouffleurStatus({ status: 'loading', device });
@@ -494,8 +616,8 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
           },
           onDone: () => {
             _pending.delete(id);
-            // The vision load occupies the slot: the souffleur will reload on
-            // the next turn (same invariant as an executor swap).
+            // Conservative: the description may have loaded the base without the set (a manifest without
+            // one). With the set, the next turn finds its adapter at once and says so at its `ready`.
             _loadedAdapter = null;
             setSouffleurStatus({ status: 'ready', device });
             resolve(text.trim());
@@ -516,6 +638,7 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
           maxNewTokens: VISION_MAX_NEW_TOKENS,
           baseFile,
           mmprojFile,
+          setFiles,
           debug,
         } satisfies MainToWorker);
       }),
@@ -523,15 +646,16 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
 }
 
 /**
- * Prefills the caller's system prompt into llama.cpp's prompt cache, so the
- * first message of a session does not pay for the whole tool block. Any chat
- * prompt built with the same tools starts with this prefix (`wirePrefix`).
- * A failed warm-up costs nothing but speed: it never rejects.
+ * Prefills the caller's system message and tools into llama.cpp's prompt cache, so the
+ * first message of a session does not pay for the whole tool block (44 s of the first turn on the M5, LFM3).
+ * The template renders the system and the tools first, so a turn with the same tools starts with this
+ * conversation's tokens; the one token generated is thrown away. Never rejects: a failed warm-up costs speed.
  */
 export async function warmCaller(enabledToolNames: readonly string[]): Promise<void> {
   const device = await detectComputeDevice();
   const resolved = await resolveAdapterFiles(CALLER_ADAPTER);
-  const prefix = wirePrefix(buildSystemPrompt(enabledToolNames));
+  const messages: ChatMessage[] = [{ role: 'system', content: lfm3SystemPrompt() }];
+  const tools = lfm3Tools(enabledToolNames);
   return enqueue(
     () =>
       new Promise<void>((resolve) => {
@@ -553,11 +677,15 @@ export async function warmCaller(enabledToolNames: readonly string[]): Promise<v
           },
         });
         getWorker().postMessage({
-          type: 'warm',
+          type: 'chat',
           id,
           adapter: CALLER_ADAPTER,
           device,
-          prefix,
+          messages,
+          tools,
+          maxNewTokens: 1,
+          // the engine saves this cache once read and restores it at the next starts (ADR-018)
+          persist: true,
           ...resolved.files,
         } satisfies MainToWorker);
       }),
@@ -640,7 +768,7 @@ export async function prepareCaller(): Promise<void> {
 }
 
 /**
- * Runs an executor souffleur (pdf / xlsx-docx / sandbox) — J3.
+ * Runs an executor souffleur — on LFM3 the json-render expert (`souffleur-render`, ADR-003).
  * Goes through the SAME queue as the caller (a single pipeline, swap ≈ 3.8 s).
  * Invisible to the AparteClient loop: an executor round trip = zero agentic turn.
  */
@@ -658,12 +786,14 @@ export async function runExecutor(
   if (opts.signal?.aborted) throw abortError();
   const device = await detectComputeDevice();
   const resolved = await resolveAdapterFiles(adapter);
-  // `intent: ` prefix — TRAINING FORMAT of the three executors (100% of
-  // examples: pdf 1228/1228, xlsx-docx 1056/1056, sandbox 1492/1492, lab
-  // audit of 07/26, HANDOFF-fixes-bonaparte §1), and what the lab executor
-  // does (`browser/app/executor.js`: `intent: ${args.intent}`). The app was
-  // sending the bare task: every file generation was out of distribution.
-  const prompt = buildWirePrompt(systemPrompt, [{ role: 'user', content: `intent: ${task}` }]);
+  // `intent: ` prefix — the TRAINING FORMAT of every executor, the LFM2.5 ones (lab audit of 07/26,
+  // HANDOFF-fixes-bonaparte §1) and the json-render expert (its dataset rows, chain_test.py). The app once sent
+  // the bare task: every file generation was out of distribution.
+  const messages: ChatMessage[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: `intent: ${task}` },
+  ];
+  const prompt = JSON.stringify(messages, null, 1);
   // Visible cycle (mascot/badge): loading during the swap, generating while
   // the executor produces output, ready on return.
   setSouffleurStatus({ status: 'loading', device });
@@ -711,7 +841,7 @@ export async function runExecutor(
               console.log('[souffleurs] EXECUTOR %s PROMPT >>>\n%s', adapter, prompt);
               console.log('[souffleurs] EXECUTOR %s RAW >>>\n%s', adapter, raw);
             }
-            resolve({ raw: raw.split('<|im_end|>')[0], usage });
+            resolve({ raw, usage });
           },
           onError: (message) => {
             settle();
@@ -720,11 +850,11 @@ export async function runExecutor(
           },
         });
         getWorker().postMessage({
-          type: 'generate',
+          type: 'chat',
           id,
           adapter,
           device,
-          prompt,
+          messages,
           maxNewTokens: opts.maxNewTokens ?? EXECUTOR_MAX_NEW_TOKENS,
           ...resolved.files,
         } satisfies MainToWorker);

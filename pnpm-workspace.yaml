@@ -1,2 +1,5 @@
-patchedDependencies:
-  '@wllama/wllama@3.8.1': patches/@wllama__wllama@3.8.1.patch
+# feat/lfm3: wllama is a fork built on llama.cpp 2e0d86b (LFM3) with the adapter-staging patch in its source
+# (aparte-repetitions/lab/2026-10-lfm3-bench/wllama-spike/), and the json-render exporters are not on npm yet —
+# both come from vendor/ until they are published. The pdf exporter asks for the catalog by version: same tarball.
+overrides:
+  '@aparte/json-render-catalogs': 'file:vendor/aparte-json-render-catalogs-0.1.0.tgz'

@@ -29,12 +29,14 @@ const CARD_STYLES = `
 .bp-artifact-icon { font-family: var(--bp-serif, serif); color: var(--bp-mascotte, var(--aparte-primary)); font-size: 18px; }
 .bp-artifact-name { font-weight: 500; font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bp-artifact-meta { color: var(--aparte-text-muted); font-size: 12px; }
-.bp-artifact-dl { font: inherit; font-size: 12.5px; background: var(--aparte-primary); color: var(--aparte-primary-ink); border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.bp-artifact-dl { font: inherit; font-size: 12.5px; background: var(--aparte-primary); color: var(--aparte-on-primary, oklch(from var(--aparte-primary) clamp(var(--aparte-ink-dark, .176), (var(--aparte-ink-flip, .57) - l) * 1000, 1) .02 h)); border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
 .bp-artifact-dl:hover { background: var(--aparte-primary-hover); }
 .bp-artifact-preview { margin-top: 10px; max-height: 260px; overflow: auto; font-size: 12.5px; border-top: 1px solid var(--aparte-border); padding-top: 10px; }
 .bp-artifact-preview table { border-collapse: collapse; width: 100%; }
 .bp-artifact-preview th, .bp-artifact-preview td { border: 1px solid var(--aparte-border); padding: 3px 8px; text-align: left; }
 .bp-artifact-preview th { background: var(--aparte-surface-2); }
+/* The json-render preview (an <article>, inline styles, white page) draws its own tables. */
+.bp-artifact-preview article :is(table, th, td) { all: revert; }
 .bp-artifact-error { color: var(--aparte-error); font-size: 13px; }
 .bp-tool-line { display: flex; padding: 2px 0; }
 .bp-tool-note { color: var(--aparte-text-muted); font-size: 12.5px; font-family: var(--bp-mono, monospace); }
@@ -48,6 +50,7 @@ const CARD_STYLES = `
 .bp-widget iframe { display: block; width: 100%; min-height: 220px; border: none; background: #fff; }
 .bp-widget pre { margin: 0; padding: 12px 14px; overflow: auto; font-family: var(--bp-mono, monospace); font-size: 12.5px; }
 .bp-widget canvas { display: block; width: 100%; max-height: 320px; padding: 10px; box-sizing: border-box; }
+.bp-widget .bp-echarts { width: 100%; height: 320px; background: #fff; }
 `;
 
 function parseResult(segment: AparteToolCallSegment): Record<string, unknown> | null {
@@ -274,6 +277,37 @@ export const widgetRenderer: AparteToolRenderer = {
 };
 
 /**
+ * render (ADR-003) — a chart is drawn in the conversation with ECharts, from the option the json-render Chart gave
+ * (plain data, built by our catalog: no code from the model); a document is the artifact card, as write_file's.
+ */
+export const renderRenderer: AparteToolRenderer = {
+  render(segment) {
+    const widget = widgetsByCall.get(segment.toolCall.id);
+    if (segment.status !== 'pending' && widget?.kind === 'echarts') {
+      return `<div class="aparte-segment bp-widget" data-segment-id="${esc(segment.id)}"><div class="bp-echarts"></div></div>`;
+    }
+    return artifactCardRenderer.render(segment);
+  },
+  setup(element, segment) {
+    const widget = widgetsByCall.get(segment.toolCall.id);
+    const box = element.querySelector<HTMLElement>('.bp-echarts');
+    if (!box || widget?.kind !== 'echarts') {
+      artifactCardRenderer.setup?.(element, segment);
+      return;
+    }
+    void (async () => {
+      try {
+        const echarts = await import('echarts');
+        echarts.init(box, undefined, { renderer: 'svg' }).setOption(JSON.parse(widget.content));
+      } catch {
+        box.textContent = 'graphique illisible';
+      }
+    })();
+  },
+  getStyles: () => CARD_STYLES,
+};
+
+/**
  * read_file — the lib's GENERIC renderer only shows the tool name and a
  * ✓/✗ icon: `segment.result` is never rendered. A failed survey ("unknown
  * file_id", image without vision, read failure) thus appeared as a mute
@@ -292,30 +326,11 @@ export const readFileRenderer: AparteToolRenderer = {
       return `<div class="aparte-segment bp-artifact-card" data-segment-id="${esc(segment.id)}"><span class="bp-artifact-error">(x.x) ${esc(detail)}</span></div>`;
     }
     const name = result?.['name'] ?? result?.['file_id'] ?? '';
-    // IMAGE path: the description produced by the encoder is vision's only
-    // visible feedback. Showing it avoids having to open the console to know
-    // whether the problem comes from the VL or from souffleur-chat's rendering.
-    const description = result?.['description'];
-    if (typeof description === 'string' && description) {
-      const dims =
-        result?.['width'] && result?.['height']
-          ? `${esc(result['width'])}×${esc(result['height'])}`
-          : '';
-      // Makes VISIBLE the path taken by the contract: without `query` it's the
-      // survey, with `query` the targeted question. Avoids going to the console
-      // to know what the model actually asked for.
-      const q = result?.['query'];
-      const mode = typeof q === 'string' && q ? `« ${esc(q)} »` : 'survol';
-      return `<div class="aparte-segment bp-artifact-card" data-segment-id="${esc(segment.id)}">
-  <div class="bp-artifact-head">
-    <span class="bp-artifact-icon">(o.o)</span>
-    <span class="bp-artifact-name">${esc(name)}</span>
-    <span class="bp-artifact-meta">${mode}${dims ? ` · ${dims}` : ''}</span>
-  </div>
-  <div class="bp-artifact-preview">${esc(description)}</div>
-</div>`;
-    }
-    return `<div class="aparte-segment bp-tool-line" data-segment-id="${esc(segment.id)}"><span class="bp-tool-note">(▤) fichier lu${name ? ` — ${esc(name)}` : ''}</span></div>`;
+    // IMAGE path: one line like any file read. The description feeds the model, and the answer
+    // already says what the image shows; the debug console logs it (DESCRIBE) when it is needed.
+    const isImage = typeof result?.['description'] === 'string';
+    const note = isImage ? '(o.o) image regardée' : '(▤) fichier lu';
+    return `<div class="aparte-segment bp-tool-line" data-segment-id="${esc(segment.id)}"><span class="bp-tool-note">${note}${name ? ` — ${esc(name)}` : ''}</span></div>`;
   },
   getStyles: () => CARD_STYLES,
 };

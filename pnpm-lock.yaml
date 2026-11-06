@@ -4,10 +4,8 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@wllama/wllama@3.8.1':
-    hash: 86f8c8101f6f8e9751952b3d84e0c746c3c1ef95673a7db5ef027d4f42c34da3
-    path: patches/@wllama__wllama@3.8.1.patch
+overrides:
+  '@aparte/json-render-catalogs': file:vendor/aparte-json-render-catalogs-0.1.0.tgz
 
 importers:
 
@@ -38,41 +36,68 @@ importers:
         specifier: ^19.2.25
         version: 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@aparte/angular':
-        specifier: 0.29.3
-        version: 0.29.3(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.29.3)(rxjs@7.8.2)
+        specifier: 0.32.0
+        version: 0.32.0(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.32.0)(rxjs@7.8.2)
       '@aparte/core':
-        specifier: 0.29.3
-        version: 0.29.3
+        specifier: 0.32.0
+        version: 0.32.0
+      '@aparte/json-render-catalogs':
+        specifier: file:vendor/aparte-json-render-catalogs-0.1.0.tgz
+        version: file:vendor/aparte-json-render-catalogs-0.1.0.tgz
+      '@aparte/json-render-docx':
+        specifier: file:vendor/aparte-json-render-docx-0.1.0.tgz
+        version: file:vendor/aparte-json-render-docx-0.1.0.tgz
+      '@aparte/json-render-pdf':
+        specifier: file:vendor/aparte-json-render-pdf-0.1.0.tgz
+        version: file:vendor/aparte-json-render-pdf-0.1.0.tgz
+      '@aparte/json-render-preview':
+        specifier: file:vendor/aparte-json-render-preview-0.1.0.tgz
+        version: file:vendor/aparte-json-render-preview-0.1.0.tgz
+      '@aparte/json-render-xlsx':
+        specifier: file:vendor/aparte-json-render-xlsx-0.1.0.tgz
+        version: file:vendor/aparte-json-render-xlsx-0.1.0.tgz
       '@aparte/locales':
-        specifier: 0.29.3
-        version: 0.29.3(@aparte/core@0.29.3)
+        specifier: 0.32.0
+        version: 0.32.0(@aparte/core@0.32.0)
       '@aparte/plugin-ask-user':
-        specifier: 0.29.3
-        version: 0.29.3(@aparte/core@0.29.3)
+        specifier: 0.32.0
+        version: 0.32.0(@aparte/core@0.32.0)
       '@aparte/plugin-compaction':
-        specifier: 0.29.3
-        version: 0.29.3(@aparte/core@0.29.3)
+        specifier: 0.32.0
+        version: 0.32.0(@aparte/core@0.32.0)
+      '@aparte/plugin-echarts':
+        specifier: 0.32.0
+        version: 0.32.0(@aparte/core@0.32.0)(echarts@6.1.0)
       '@aparte/plugin-marked':
-        specifier: 0.29.3
-        version: 0.29.3(@aparte/core@0.29.3)(marked@18.0.7)
+        specifier: 0.32.0
+        version: 0.32.0(@aparte/core@0.32.0)(marked@18.0.7)
       '@aparte/plugin-shiki':
-        specifier: 0.29.3
-        version: 0.29.3(@aparte/core@0.29.3)(shiki@4.3.1)
+        specifier: 0.32.0
+        version: 0.32.0(@aparte/core@0.32.0)(shiki@4.3.1)
+      '@aparte/plugin-storage-idb':
+        specifier: 0.32.0
+        version: 0.32.0(@aparte/core@0.32.0)
       '@aparte/plugin-streaming-markdown':
-        specifier: 0.29.3
-        version: 0.29.3(@aparte/core@0.29.3)
+        specifier: 0.32.0
+        version: 0.32.0(@aparte/core@0.32.0)
       '@aparte/titler-efigsp':
-        specifier: ^1.0.4
-        version: 1.0.4
+        specifier: ^1.2.0
+        version: 1.2.0
       '@faker-js/faker':
         specifier: ^10.5.0
         version: 10.5.0
+      '@json-render/core':
+        specifier: 0.21.3
+        version: 0.21.3(zod@4.6.7)
+      '@json-render/yaml':
+        specifier: 0.21.3
+        version: 0.21.3(zod@4.6.7)
       '@wllama/wllama':
-        specifier: 3.8.1
-        version: 3.8.1(patch_hash=86f8c8101f6f8e9751952b3d84e0c746c3c1ef95673a7db5ef027d4f42c34da3)
+        specifier: file:vendor/wllama-wllama-3.12.0-aparte-lfm3.2.tgz
+        version: file:vendor/wllama-wllama-3.12.0-aparte-lfm3.2.tgz
       '@wllama/wllama-compat':
-        specifier: 3.8.1
-        version: 3.8.1
+        specifier: file:vendor/wllama-wllama-compat-3.12.0-aparte-lfm3.2.tgz
+        version: file:vendor/wllama-wllama-compat-3.12.0-aparte-lfm3.2.tgz
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
@@ -85,6 +110,9 @@ importers:
       docx:
         specifier: ^9.7.1
         version: 9.7.1
+      echarts:
+        specifier: 6.1.0
+        version: 6.1.0
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
@@ -133,7 +161,7 @@ importers:
     devDependencies:
       '@angular-devkit/build-angular':
         specifier: ^19.2.27
-        version: 19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(typescript@5.7.3)(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))
+        version: 19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(typescript@5.7.3)(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1))(yaml@2.9.1)
       '@angular/cli':
         specifier: ^19.2.27
         version: 19.2.27(@types/node@26.1.1)(chokidar@4.0.3)
@@ -169,7 +197,7 @@ importers:
         version: 8.68.0(eslint@9.39.5(jiti@1.21.7))(typescript@5.7.3)
       vitest:
         specifier: ^3.0.0
-        version: 3.2.7(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)
+        version: 3.2.7(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1)
 
 packages:
 
@@ -402,21 +430,21 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@aparte/angular@0.29.3':
-    resolution: {integrity: sha512-bgGiIM5Gm1A5b4u7tOK/33j1HVnkZvFazFkJR6Kw1sLBpFz0lsYuz8ZDUcZ3RZYaKeh04rVdmQBPnf67pnNBxA==}
+  '@aparte/angular@0.32.0':
+    resolution: {integrity: sha512-BcH3JWOQdwGiByqHX5n8TKyOz2NwIyo6P448anQquu3YZgSQCu478bL5MfStL0Ou/i7SUlNsp/YktvYfZOj2aA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@angular/common': ^19.2.0 || ^20.0.0 || ^21.0.0
       '@angular/core': ^19.2.0 || ^20.0.0 || ^21.0.0
-      '@aparte/core': '>=0.29.3 <1.0.0'
+      '@aparte/core': '>=0.32.0 <1.0.0'
       rxjs: ^7.8.0
 
-  '@aparte/core@0.29.3':
-    resolution: {integrity: sha512-jJVmqKP6aZTTohRNsJHUkj0EF7He7b65p70pUBHZrrG4LItPCdAuM0rvr9z2/LJgXYbVjS7kF7hOslBk+55+Cw==}
+  '@aparte/core@0.32.0':
+    resolution: {integrity: sha512-sbahN5JWjsTi8L2k5OPZOD+pbQgEGGQoH/+dnchRF82InUJme8tJQJge7kfCqHsd2d7vw2CX3KcR1PURTjtacA==}
     engines: {node: '>=18'}
 
-  '@aparte/engine@0.29.3':
-    resolution: {integrity: sha512-Q8I8i4MK4OkTjXqtQvvpqY7BQ/2o569f0wO+sJ61Yh6slPU8DouMHnLmorQi/IEzCJI7GmSEdujUyMoPZP2/Xw==}
+  '@aparte/engine@0.32.0':
+    resolution: {integrity: sha512-2uAZbEN8EDzYn/3bwQjZi7VCRTjR+UgMsocmyJGf79WvSt5gHUpaoCuskurOhndee4Dqngu6vAtr8s6pVjd2pA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@aparte/core': '*'
@@ -424,46 +452,84 @@ packages:
       '@aparte/core':
         optional: true
 
-  '@aparte/locales@0.29.3':
-    resolution: {integrity: sha512-uA1LB4E/w+d4KN4d7xyzI9GsgWqTD6LbL2UkfduNbfVqGWmMoIUMHoR0NzONnRNzC5GSyosoql+7SZRc0Z4jGQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@aparte/core': '>=0.29.3 <1.0.0'
+  '@aparte/json-render-catalogs@file:vendor/aparte-json-render-catalogs-0.1.0.tgz':
+    resolution: {integrity: sha512-kjav+TONoBINYoDC08+Dp4wDaCZgRXcu+e9bQJA8xwpXAxMcCf0SsylvdkiaD4CcE20fSR2B1qUOHd6rNohMgQ==, tarball: file:vendor/aparte-json-render-catalogs-0.1.0.tgz}
+    version: 0.1.0
+    engines: {node: '>=20'}
 
-  '@aparte/plugin-ask-user@0.29.3':
-    resolution: {integrity: sha512-3t5al0tAQmCFzu4NaVZW1mPCgozFY5XKFhF7SVil9+Zw0AkgJgs44R/xt0EfLKesNxpBeOfXpCn3FS4xT3PILA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@aparte/core': '>=0.29.3 <1.0.0'
+  '@aparte/json-render-docx@file:vendor/aparte-json-render-docx-0.1.0.tgz':
+    resolution: {integrity: sha512-JNuurD1CddlG8yBCqeSjOzYTZwRcfFwN47YLK6uvl3S0CDt7CYgmzg2C6zSRBPyls1to+WcE0Fit+sTWEQML0A==, tarball: file:vendor/aparte-json-render-docx-0.1.0.tgz}
+    version: 0.1.0
+    engines: {node: '>=20'}
 
-  '@aparte/plugin-compaction@0.29.3':
-    resolution: {integrity: sha512-4F5VA6L+eTKEGmHj5dpadqd9VJtEiQcP6Q8FUMmryWo/ynO+ISU4NphYwr5f5VeZwuPA7QHXE4x/xKY1WiusNg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@aparte/core': '>=0.29.3 <1.0.0'
+  '@aparte/json-render-pdf@file:vendor/aparte-json-render-pdf-0.1.0.tgz':
+    resolution: {integrity: sha512-uN+RA+FA7k0EhH4B9g0bQB/rIgjbkItPIUHiLUdSdY2afkSW2LLRS4rq3nAqpaABtlEwP+EvEWpXFbvMp9ig6A==, tarball: file:vendor/aparte-json-render-pdf-0.1.0.tgz}
+    version: 0.1.0
+    engines: {node: '>=20'}
 
-  '@aparte/plugin-marked@0.29.3':
-    resolution: {integrity: sha512-BaLAU7ON7XeZaPWg6qovpI4Se1b31QTzjj/ybSNtm3CRw23Fei3IftQXau7QnabPUkg3T42GS3ZtSvQnZxQcXQ==}
+  '@aparte/json-render-preview@file:vendor/aparte-json-render-preview-0.1.0.tgz':
+    resolution: {integrity: sha512-+8souGEfYVbtFUzEIZZhyX8fU/pzkGia1wM6Y6C7yR6JhfJSel5+Fo1u25GJLcRgM04afxCdJyvySl71/G+1Ww==, tarball: file:vendor/aparte-json-render-preview-0.1.0.tgz}
+    version: 0.1.0
+    engines: {node: '>=20'}
+
+  '@aparte/json-render-xlsx@file:vendor/aparte-json-render-xlsx-0.1.0.tgz':
+    resolution: {integrity: sha512-Y4IGJ55flOQlKMR/Flqi6202w+GZPzUOSabk+YWiKNGierWD+/mZ3Ds3N31WAsCPE7Fdcasmnk7bucZ+jGbRFg==, tarball: file:vendor/aparte-json-render-xlsx-0.1.0.tgz}
+    version: 0.1.0
+    engines: {node: '>=20'}
+
+  '@aparte/locales@0.32.0':
+    resolution: {integrity: sha512-4nJSZ0JyluF9WkiqWZDmW7PTuFsDwahJsHC8J4wmK8sNj3SAbpas7Q8KTl6o8i3mhcu2jAkgzkzq3JMjiI49Fw==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.29.3 <1.0.0'
+      '@aparte/core': '>=0.32.0 <1.0.0'
+
+  '@aparte/plugin-ask-user@0.32.0':
+    resolution: {integrity: sha512-mrqtJrkwTVBAnSak3XDMaxhw7gU0QADTXFGpREPLAr+SQltKw5dYnJfyNwlEny2FauheWrR8Bg2XzMn4PynQYw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@aparte/core': '>=0.32.0 <1.0.0'
+
+  '@aparte/plugin-compaction@0.32.0':
+    resolution: {integrity: sha512-UIEbnCJSkfijoA1DqVf+xtDhraiWI780gRmnBUBupyryPUSyP9mO1Ui5SGEiL1os43SSHVFDHZFIYshR0Ly2Dg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@aparte/core': '>=0.32.0 <1.0.0'
+
+  '@aparte/plugin-echarts@0.32.0':
+    resolution: {integrity: sha512-AXVa13/jqcLtZuCs1fFNDeahbtASWMeWck6tZAO9Yt275goSYinocbuq2mvDGwUhODPWVCwAL3XoKentIn5PBw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@aparte/core': '>=0.32.0 <1.0.0'
+      echarts: '>=6.0.0 <7.0.0'
+
+  '@aparte/plugin-marked@0.32.0':
+    resolution: {integrity: sha512-KjVpB8rNu/Rrrg4FyC4o9E9OK+8WOFlrQ2CqjH+zFx9UjNWWi9fhs+tZKc3lISLuwDjnk3MJTB30ZOHwKFSPsg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@aparte/core': '>=0.32.0 <1.0.0'
       marked: ^18.0.0
 
-  '@aparte/plugin-shiki@0.29.3':
-    resolution: {integrity: sha512-c946snjyvhrLcA6sn4vZmOTAVcujSQ7vY7W7vdBWvPdXbCUT6iZsEoV50+pE3uTl6rlDXlqSjKsTt1p8ZgUhwA==}
+  '@aparte/plugin-shiki@0.32.0':
+    resolution: {integrity: sha512-v5ixfk0FjqUU6s5hhnDOe1zUz5v8pmfI9A/fgUPpffY+PtXH40wieW1rl3hZsP+UMJ30SVM/wDrdGGHIw4Zgow==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.29.3 <1.0.0'
+      '@aparte/core': '>=0.32.0 <1.0.0'
       shiki: ^4.0.0
 
-  '@aparte/plugin-streaming-markdown@0.29.3':
-    resolution: {integrity: sha512-dROzk3Ljb+9sQ3R6S/ca1UlAcL6IQvCNa+6I+GorWtpNZQzuhoC0efaJI3V6Y3Zx9Xyp5+9fc06mCv+i/p3y/Q==}
+  '@aparte/plugin-storage-idb@0.32.0':
+    resolution: {integrity: sha512-nYoNF/HMnyi43FJWHFrkqS++AoYxMIhXgmWBHtftTzB9hG5V6BTlSISBORUpd6SDaMfRXLdje9e6U/UPQQd6AA==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=0.29.3 <1.0.0'
+      '@aparte/core': '>=0.32.0 <1.0.0'
 
-  '@aparte/titler-efigsp@1.0.4':
-    resolution: {integrity: sha512-lxPP0PMbaw+cnfqpzJO1RSEdgQjmRh6OE87NO7+AxYVPgRlNSVH8obymw74FgJ///+5DmMtbOGzGtOkIZLk2Pw==}
+  '@aparte/plugin-streaming-markdown@0.32.0':
+    resolution: {integrity: sha512-5uk23e5eFgLpMj1exwDHx3vatm+/x5EWEwlXoI3wClRZGsnYxNKGUB66V1fy6Wf+u0aQN8/cyEVZruDuP/LsmQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@aparte/core': '>=0.32.0 <1.0.0'
+
+  '@aparte/titler-efigsp@1.2.0':
+    resolution: {integrity: sha512-aZoAlTmtUBcFMA/f2TAs5btfkdK034WTIFFLDKkncOgZ8na+tXtqC0eaFBU6i4cKTQ86niN0JFmAmBHT/0twkw==}
     engines: {node: '>=18'}
 
   '@babel/code-frame@7.29.7':
@@ -1714,6 +1780,14 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@json-render/core@0.21.3':
+    resolution: {integrity: sha512-sgzPtRhRB5wkhrbLtPm9bAhna5Q0x/U0vUpb3S/VEutouWEvvZRebHhpM5XiEjRM5Shv4W70VMZ8pGcGcz7j+A==}
+    peerDependencies:
+      zod: ^4.0.0
+
+  '@json-render/yaml@0.21.3':
+    resolution: {integrity: sha512-oqH31jeJI1DbqzIG/jbwZ5iW8epdGFKNS21vp8ReLExqR3eDtIYxGSt5D8oYJdJdBZ6y3UmkqYvxB/+EaJT+1A==}
+
   '@jsonjoy.com/base64@1.1.2':
     resolution: {integrity: sha512-q6XAnWQDIMA3+FTiOYajoYqySkO+JSat0ytXGSuRdq9uXE7o92gzuQwQM14xaCRlBLGq3v5miDGC4vkVTn54xA==}
     engines: {node: '>=10.0'}
@@ -2949,11 +3023,13 @@ packages:
   '@webassemblyjs/wast-printer@1.14.1':
     resolution: {integrity: sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw==}
 
-  '@wllama/wllama-compat@3.8.1':
-    resolution: {integrity: sha512-IvmjrJ+JzDbt3w1FQq1yAmnFEiLGCceowK2Q80zW+k9ChFkPBM1ByX/9xm2xVxyd8MHC50VpuDo6SDE83k9kIQ==}
+  '@wllama/wllama-compat@file:vendor/wllama-wllama-compat-3.12.0-aparte-lfm3.2.tgz':
+    resolution: {integrity: sha512-aQ7tKjf1gs/xFIfqdPdrwO/l202DE1O+OGVjIYF+QcalJ1IiboqRLf1K9a95ClXbbeyJin2z/PX79Ae+6gpR8Q==, tarball: file:vendor/wllama-wllama-compat-3.12.0-aparte-lfm3.2.tgz}
+    version: 3.12.0-aparte-lfm3.2
 
-  '@wllama/wllama@3.8.1':
-    resolution: {integrity: sha512-Pl7BEJhPU8OHnV/yhn3DFZYhLLOdSHh+4TND79WCftHnlUAdQPAsyc/CfIOY+4mVxvf5VW3Xw3Uf7BBfotS1gw==}
+  '@wllama/wllama@file:vendor/wllama-wllama-3.12.0-aparte-lfm3.2.tgz':
+    resolution: {integrity: sha512-pNVLByd9hT83fuwBQYN0UGoxeT7sGXV/Q+sN3kOwi9Zg1lNvniCdbp1IfNjuoLluT1C+7cOm8EFEE0UdBE6rTw==, tarball: file:vendor/wllama-wllama-3.12.0-aparte-lfm3.2.tgz}
+    version: 3.12.0-aparte-lfm3.2
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -3717,6 +3793,10 @@ packages:
   dexie@4.4.4:
     resolution: {integrity: sha512-jIwsYI8Os2hgnqc6O49YwFDKGc5v5QjGx0wPVp543ip1F53VFAKMLthV2pQosQcVTv3eAskTWYspOx195PM0FQ==}
 
+  diff@8.0.4:
+    resolution: {integrity: sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==}
+    engines: {node: '>=0.3.1'}
+
   dns-packet@5.6.1:
     resolution: {integrity: sha512-l4gcSouhcgIKRvyy99RNVOgxXiicE+2jZoNmaNmZ6JXiGajBOJAesk1OBlJuM5k2c+eudGdLxDqXuPCKIj6kpw==}
     engines: {node: '>=6'}
@@ -3750,6 +3830,9 @@ packages:
 
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
+
+  echarts@6.1.0:
+    resolution: {integrity: sha512-q0yaFPggC9FUdsWH4blavRWFmxdrIodbkoKNAjJudAI6CA9gNPxHtV2RcZNEepZVlk4yvBYkOkbk6HIVpIyHZA==}
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
@@ -4500,6 +4583,11 @@ packages:
 
   jspdf-autotable@5.0.8:
     resolution: {integrity: sha512-Hy05N86yBO7CXBrnSLOge7i1ZYpKH2DjQ94iybaP7vBhSInjvRBgDc99ngKzSbSO8Jc98ZCally8I6n0tj2RJQ==}
+    peerDependencies:
+      jspdf: ^2 || ^3 || ^4
+
+  jspdf-autotable@5.0.9:
+    resolution: {integrity: sha512-wIOG2ggjG6Y7qvqjgFACZZeu+oHxoxrhwCn1lTMxjPhojLVVvu2U2yS2srVCYl0CXe6pqiG/jQMIIS0CFn1ssw==}
     peerDependencies:
       jspdf: ^2 || ^3 || ^4
 
@@ -5901,6 +5989,9 @@ packages:
   tslib@1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
 
+  tslib@2.3.0:
+    resolution: {integrity: sha512-N82ooyxVNm6h1riLCoyS9e3fuJ3AMG2zIZs2Gd1ATcSFjSA23Q0fzjjZeh0jbJvWVDZ0cJT8yaNNaaXHzueNjg==}
+
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -6301,6 +6392,11 @@ packages:
     resolution: {integrity: sha512-YgvUTfwqyc7UXVMrB+SImsVYSmTS8X/tSrtdNZMImM+n7+QTriRXyXim0mBrTXNeqzVF0KWGgHPeiyViFFrNDw==}
     engines: {node: '>=18'}
 
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
@@ -6329,8 +6425,14 @@ packages:
     resolution: {integrity: sha512-9qv4rlDiopXg4E69k+vMHjNN63YFMe9sZMrdlvKnCjlCRWeCBswPPMPUfx+ipsAWq1LXHe70RcbaHdJJpS6hyQ==}
     engines: {node: '>= 10'}
 
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+
   zone.js@0.15.1:
     resolution: {integrity: sha512-XE96n56IQpJM7NAoXswY3XRLcWFW83xe0BiAOeMD7K5k5xecOeul3Qcpx6GqEeeHNkW5DWL5zOyTbEfB4eti8w==}
+
+  zrender@6.1.0:
+    resolution: {integrity: sha512-oEGMDB6pOP2S6OwRR4PdVv610zrjnA3Bh+JnSG12fYJlBKjtNAoEb5fSUoCOOINlH96I2fU38/A2UpRKs67xYQ==}
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
@@ -6349,13 +6451,13 @@ snapshots:
     transitivePeerDependencies:
       - chokidar
 
-  '@angular-devkit/build-angular@19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(typescript@5.7.3)(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))':
+  '@angular-devkit/build-angular@19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(typescript@5.7.3)(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1))(yaml@2.9.1)':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@angular-devkit/architect': 0.1902.27(chokidar@4.0.3)
       '@angular-devkit/build-webpack': 0.1902.27(chokidar@4.0.3)(webpack-dev-server@5.2.2(tslib@2.8.1)(webpack@5.105.0(postcss@8.5.12)))(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
       '@angular-devkit/core': 19.2.27(chokidar@4.0.3)
-      '@angular/build': 19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(less@4.2.2)(postcss@8.5.12)(terser@5.39.0)(typescript@5.7.3)
+      '@angular/build': 19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(less@4.2.2)(postcss@8.5.12)(terser@5.39.0)(typescript@5.7.3)(yaml@2.9.1)
       '@angular/compiler-cli': 19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3)
       '@babel/core': 7.26.10
       '@babel/generator': 7.26.10
@@ -6368,7 +6470,7 @@ snapshots:
       '@babel/runtime': 7.26.10
       '@discoveryjs/json-ext': 0.6.3
       '@ngtools/webpack': 19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(typescript@5.7.3)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
-      '@vitejs/plugin-basic-ssl': 1.2.0(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))
+      '@vitejs/plugin-basic-ssl': 1.2.0(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1))
       ansi-colors: 4.1.3
       autoprefixer: 10.4.20(postcss@8.5.12)
       babel-loader: 9.2.1(@babel/core@7.26.10)(webpack@5.105.0(esbuild@0.28.0)(postcss@8.5.12))
@@ -6533,7 +6635,7 @@ snapshots:
       eslint: 9.39.5(jiti@1.21.7)
       typescript: 5.7.3
 
-  '@angular/build@19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(less@4.2.2)(postcss@8.5.12)(terser@5.39.0)(typescript@5.7.3)':
+  '@angular/build@19.2.27(@angular/compiler-cli@19.2.25(@angular/compiler@19.2.25)(typescript@5.7.3))(@angular/compiler@19.2.25)(@angular/service-worker@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@types/node@26.1.1)(chokidar@4.0.3)(jiti@1.21.7)(less@4.2.2)(postcss@8.5.12)(terser@5.39.0)(typescript@5.7.3)(yaml@2.9.1)':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@angular-devkit/architect': 0.1902.27(chokidar@4.0.3)
@@ -6544,7 +6646,7 @@ snapshots:
       '@babel/helper-split-export-declaration': 7.24.7
       '@babel/plugin-syntax-import-attributes': 7.26.0(@babel/core@7.26.10)
       '@inquirer/confirm': 5.1.6(@types/node@26.1.1)
-      '@vitejs/plugin-basic-ssl': 1.2.0(vite@6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))
+      '@vitejs/plugin-basic-ssl': 1.2.0(vite@6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1))
       beasties: 0.3.2
       browserslist: 4.28.7
       esbuild: 0.28.0
@@ -6562,7 +6664,7 @@ snapshots:
       semver: 7.7.1
       source-map-support: 0.5.21
       typescript: 5.7.3
-      vite: 6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)
+      vite: 6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1)
       watchpack: 2.4.2
     optionalDependencies:
       '@angular/service-worker': 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
@@ -6678,50 +6780,84 @@ snapshots:
       package-manager-detector: 1.8.0
       tinyexec: 1.2.4
 
-  '@aparte/angular@0.29.3(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.29.3)(rxjs@7.8.2)':
+  '@aparte/angular@0.32.0(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@0.32.0)(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@angular/core': 19.2.25(rxjs@7.8.2)(zone.js@0.15.1)
-      '@aparte/core': 0.29.3
+      '@aparte/core': 0.32.0
       rxjs: 7.8.2
 
-  '@aparte/core@0.29.3':
+  '@aparte/core@0.32.0':
     dependencies:
-      '@aparte/engine': 0.29.3(@aparte/core@0.29.3)
+      '@aparte/engine': 0.32.0(@aparte/core@0.32.0)
 
-  '@aparte/engine@0.29.3(@aparte/core@0.29.3)':
+  '@aparte/engine@0.32.0(@aparte/core@0.32.0)':
     optionalDependencies:
-      '@aparte/core': 0.29.3
+      '@aparte/core': 0.32.0
 
-  '@aparte/locales@0.29.3(@aparte/core@0.29.3)':
+  '@aparte/json-render-catalogs@file:vendor/aparte-json-render-catalogs-0.1.0.tgz':
     dependencies:
-      '@aparte/core': 0.29.3
+      '@json-render/core': 0.21.3(zod@4.6.7)
+      zod: 4.6.7
 
-  '@aparte/plugin-ask-user@0.29.3(@aparte/core@0.29.3)':
+  '@aparte/json-render-docx@file:vendor/aparte-json-render-docx-0.1.0.tgz':
     dependencies:
-      '@aparte/core': 0.29.3
+      '@aparte/json-render-catalogs': file:vendor/aparte-json-render-catalogs-0.1.0.tgz
+      docx: 9.7.1
 
-  '@aparte/plugin-compaction@0.29.3(@aparte/core@0.29.3)':
+  '@aparte/json-render-pdf@file:vendor/aparte-json-render-pdf-0.1.0.tgz':
     dependencies:
-      '@aparte/core': 0.29.3
+      '@aparte/json-render-catalogs': file:vendor/aparte-json-render-catalogs-0.1.0.tgz
+      jspdf: 4.2.1
+      jspdf-autotable: 5.0.9(jspdf@4.2.1)
 
-  '@aparte/plugin-marked@0.29.3(@aparte/core@0.29.3)(marked@18.0.7)':
+  '@aparte/json-render-preview@file:vendor/aparte-json-render-preview-0.1.0.tgz':
     dependencies:
-      '@aparte/core': 0.29.3
+      '@aparte/json-render-catalogs': file:vendor/aparte-json-render-catalogs-0.1.0.tgz
+
+  '@aparte/json-render-xlsx@file:vendor/aparte-json-render-xlsx-0.1.0.tgz':
+    dependencies:
+      '@aparte/json-render-catalogs': file:vendor/aparte-json-render-catalogs-0.1.0.tgz
+      exceljs: 4.4.0
+
+  '@aparte/locales@0.32.0(@aparte/core@0.32.0)':
+    dependencies:
+      '@aparte/core': 0.32.0
+
+  '@aparte/plugin-ask-user@0.32.0(@aparte/core@0.32.0)':
+    dependencies:
+      '@aparte/core': 0.32.0
+
+  '@aparte/plugin-compaction@0.32.0(@aparte/core@0.32.0)':
+    dependencies:
+      '@aparte/core': 0.32.0
+
+  '@aparte/plugin-echarts@0.32.0(@aparte/core@0.32.0)(echarts@6.1.0)':
+    dependencies:
+      '@aparte/core': 0.32.0
+      echarts: 6.1.0
+
+  '@aparte/plugin-marked@0.32.0(@aparte/core@0.32.0)(marked@18.0.7)':
+    dependencies:
+      '@aparte/core': 0.32.0
       marked: 18.0.7
       remend: 1.4.0
 
-  '@aparte/plugin-shiki@0.29.3(@aparte/core@0.29.3)(shiki@4.3.1)':
+  '@aparte/plugin-shiki@0.32.0(@aparte/core@0.32.0)(shiki@4.3.1)':
     dependencies:
-      '@aparte/core': 0.29.3
+      '@aparte/core': 0.32.0
       shiki: 4.3.1
 
-  '@aparte/plugin-streaming-markdown@0.29.3(@aparte/core@0.29.3)':
+  '@aparte/plugin-storage-idb@0.32.0(@aparte/core@0.32.0)':
     dependencies:
-      '@aparte/core': 0.29.3
+      '@aparte/core': 0.32.0
+
+  '@aparte/plugin-streaming-markdown@0.32.0(@aparte/core@0.32.0)':
+    dependencies:
+      '@aparte/core': 0.32.0
       '@paulrichez/streaming-markdown': 0.3.2
 
-  '@aparte/titler-efigsp@1.0.4': {}
+  '@aparte/titler-efigsp@1.2.0': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -7935,6 +8071,18 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@json-render/core@0.21.3(zod@4.6.7)':
+    dependencies:
+      zod: 4.6.7
+
+  '@json-render/yaml@0.21.3(zod@4.6.7)':
+    dependencies:
+      '@json-render/core': 0.21.3(zod@4.6.7)
+      diff: 8.0.4
+      yaml: 2.9.1
+    transitivePeerDependencies:
+      - zod
+
   '@jsonjoy.com/base64@1.1.2(tslib@2.8.1)':
     dependencies:
       tslib: 2.8.1
@@ -8969,13 +9117,13 @@ snapshots:
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
 
-  '@vitejs/plugin-basic-ssl@1.2.0(vite@6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))':
+  '@vitejs/plugin-basic-ssl@1.2.0(vite@6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1))':
     dependencies:
-      vite: 6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)
+      vite: 6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1)
 
-  '@vitejs/plugin-basic-ssl@1.2.0(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))':
+  '@vitejs/plugin-basic-ssl@1.2.0(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1))':
     dependencies:
-      vite: 7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)
+      vite: 7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1)
 
   '@vitest/expect@3.2.7':
     dependencies:
@@ -8985,13 +9133,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.7(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))':
+  '@vitest/mocker@3.2.7(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1))':
     dependencies:
       '@vitest/spy': 3.2.7
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)
+      vite: 7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1)
 
   '@vitest/pretty-format@3.2.7':
     dependencies:
@@ -9095,9 +9243,9 @@ snapshots:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
 
-  '@wllama/wllama-compat@3.8.1': {}
+  '@wllama/wllama-compat@file:vendor/wllama-wllama-compat-3.12.0-aparte-lfm3.2.tgz': {}
 
-  '@wllama/wllama@3.8.1(patch_hash=86f8c8101f6f8e9751952b3d84e0c746c3c1ef95673a7db5ef027d4f42c34da3)': {}
+  '@wllama/wllama@file:vendor/wllama-wllama-3.12.0-aparte-lfm3.2.tgz': {}
 
   '@xtuc/ieee754@1.2.0': {}
 
@@ -9913,6 +10061,8 @@ snapshots:
 
   dexie@4.4.4: {}
 
+  diff@8.0.4: {}
+
   dns-packet@5.6.1:
     dependencies:
       '@leichtgewicht/ip-codec': 2.0.5
@@ -9959,6 +10109,11 @@ snapshots:
       readable-stream: 2.3.8
 
   eastasianwidth@0.2.0: {}
+
+  echarts@6.1.0:
+    dependencies:
+      tslib: 2.3.0
+      zrender: 6.1.0
 
   ee-first@1.1.1: {}
 
@@ -10780,6 +10935,10 @@ snapshots:
   jsonparse@1.3.1: {}
 
   jspdf-autotable@5.0.8(jspdf@4.2.1):
+    dependencies:
+      jspdf: 4.2.1
+
+  jspdf-autotable@5.0.9(jspdf@4.2.1):
     dependencies:
       jspdf: 4.2.1
 
@@ -12283,6 +12442,8 @@ snapshots:
 
   tslib@1.14.1: {}
 
+  tslib@2.3.0: {}
+
   tslib@2.8.1: {}
 
   tuf-js@3.1.0:
@@ -12424,13 +12585,13 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-node@3.2.4(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0):
+  vite-node@3.2.4(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)
+      vite: 7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -12445,7 +12606,7 @@ snapshots:
       - tsx
       - yaml
 
-  vite@6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0):
+  vite@6.4.2(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.4)
@@ -12460,8 +12621,9 @@ snapshots:
       less: 4.2.2
       sass: 1.85.0
       terser: 5.39.0
+      yaml: 2.9.1
 
-  vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0):
+  vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1):
     dependencies:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.5)
@@ -12476,12 +12638,13 @@ snapshots:
       less: 4.2.2
       sass: 1.85.0
       terser: 5.39.0
+      yaml: 2.9.1
 
-  vitest@3.2.7(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0):
+  vitest@3.2.7(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.7
-      '@vitest/mocker': 3.2.7(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0))
+      '@vitest/mocker': 3.2.7(vite@7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1))
       '@vitest/pretty-format': 3.2.7
       '@vitest/runner': 3.2.7
       '@vitest/snapshot': 3.2.7
@@ -12499,8 +12662,8 @@ snapshots:
       tinyglobby: 0.2.17
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)
-      vite-node: 3.2.4(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)
+      vite: 7.3.6(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1)
+      vite-node: 3.2.4(@types/node@26.1.1)(jiti@1.21.7)(less@4.2.2)(sass@1.85.0)(terser@5.39.0)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.1.1
@@ -12713,6 +12876,8 @@ snapshots:
 
   yallist@5.0.0: {}
 
+  yaml@2.9.1: {}
+
   yargs-parser@21.1.1: {}
 
   yargs@17.7.2:
@@ -12747,6 +12912,12 @@ snapshots:
       compress-commons: 4.1.2
       readable-stream: 3.6.2
 
+  zod@4.6.7: {}
+
   zone.js@0.15.1: {}
+
+  zrender@6.1.0:
+    dependencies:
+      tslib: 2.3.0
 
   zwitch@2.0.4: {}

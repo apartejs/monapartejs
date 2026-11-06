@@ -3,8 +3,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   HostListener,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -54,7 +56,12 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       >
         <div slot="empty-state" class="welcome">
           <!-- The one mount that can be clicked: the playground (eyes, hover, boop). -->
-          <bp-mascotte [state]="'idle'" [size]="110" housed interactive />
+          <bp-mascotte
+            [state]="'idle'"
+            size="clamp(16px, 40cqh - 160px, 110px)"
+            housed
+            interactive
+          />
           <h1 class="bp-serif">{{ greeting() }}</h1>
           <p class="tagline bp-serif">{{ t().welcome.tagline }}</p>
           <p class="sub">{{ t().welcome.sub }}</p>
@@ -206,6 +213,16 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
       text-align: center;
       padding-bottom: 12px;
     }
+    /* The welcome and the composer are one centred block (aparté's centerWhenEmpty), and the chat container
+     * is the size container (styles.scss): the mascot takes what the rest of the block leaves. Its house is
+     * 2.5em tall; the rest is about 400px — text 130, paddings 28, the composer 155 with an attachment, a
+     * margin of 87 — so 2.5 × (40cqh − 160px) = 100cqh − 400px. Below 440px the house would be under 16px:
+     * no room for one worth drawing. */
+    @container (max-height: 440px) {
+      .welcome bp-mascotte {
+        display: none;
+      }
+    }
     .welcome h1 {
       font-size: clamp(1.6rem, 4vw, 2.2rem);
       margin: 14px 0 0;
@@ -305,8 +322,15 @@ export class ChatPageComponent {
   private readonly modelStatus = inject(ModelStatusService);
   private readonly manager = inject(ConversationManagerService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly host: HTMLElement = inject(ElementRef).nativeElement;
 
   constructor() {
+    // A call being written (its arguments stream after the reply's text, with nothing to show): aparté's
+    // waiting dots under the reply — the indicator core leaves to the app — until the call's card appears.
+    effect(() => {
+      const writing = Boolean(this.modelStatus.state().tool);
+      this.host.querySelector('aparte-chat-status')?.toggleAttribute('visible', writing);
+    });
     // The popover is `position: fixed`: as soon as the thread scrolls it would
     // detach from its button. The lib's viewport scrolls INTERNALLY, so
     // `window:scroll` doesn't see it — the CAPTURE phase on the document is

@@ -2,8 +2,33 @@
 
 export const SOUFFLEURS_HF_REPO = 'apartejs/aparte-souffleurs';
 
+/** Where `manifest.json` and the GGUF files live. */
+export const SOUFFLEURS_BASE_URL_KEY = 'bp.souffleurs.baseUrl';
+
+/**
+ * The HF repo, unless `localStorage['bp.souffleurs.baseUrl']` points elsewhere: the LFM3 souffleurs are not
+ * published yet, and a test serves them from a local folder (with CORS) the same way.
+ */
+export function souffleursBaseUrl(): string {
+  try {
+    const override = localStorage.getItem(SOUFFLEURS_BASE_URL_KEY);
+    if (override) return override.replace(/\/$/, '');
+  } catch {
+    /* storage unavailable: the published souffleurs */
+  }
+  return `https://huggingface.co/${SOUFFLEURS_HF_REPO}/resolve/main`;
+}
+
+/**
+ * LFM3 (ADR-003): the caller and the json-render expert (`souffleur-render`). The LFM2.5 executors stay named so
+ * their tools still compile; nothing registers them on this branch.
+ */
 export type AdapterName =
-  'souffleur-chat' | 'souffleur-pdf' | 'souffleur-xlsx-docx' | 'souffleur-sandbox';
+  | 'souffleur-chat'
+  | 'souffleur-render'
+  | 'souffleur-pdf'
+  | 'souffleur-xlsx-docx'
+  | 'souffleur-sandbox';
 
 export const CALLER_ADAPTER: AdapterName = 'souffleur-chat';
 
@@ -33,20 +58,16 @@ export const CALLER_MODEL_ID = 'souffleur-chat';
  * the manifest's sizes win when it publishes them. The executors' rank-128 adapters are
  * the largest (q8_0), the chat one is ~89 MB (f16).
  */
-export const SIZE_BASE_BYTES = 731_000_000;
-export const SIZE_ADAPTER_BYTES = 94_000_000;
+export const SIZE_BASE_BYTES = 1_100_000_000; // LFM3-Omni-2B Q4_K_M
+export const SIZE_ADAPTER_BYTES = 90_000_000; // ffn LoRA, f16
 export const SIZE_MMPROJ_BYTES = 244_000_000;
-/** wllama's .wasm, served by the app (~9 MB) */
-export const SIZE_OVERHEAD_BYTES = 9_000_000;
+/** wllama's .wasm, served by the app (~10 MB) */
+export const SIZE_OVERHEAD_BYTES = 10_000_000;
 export const CALLER_DOWNLOAD_BYTES = SIZE_BASE_BYTES + SIZE_ADAPTER_BYTES + SIZE_OVERHEAD_BYTES;
-/** Base + the 4 souffleurs (caller + 3 executors) — announced at onboarding. */
-export const TOTAL_DOWNLOAD_BYTES = SIZE_BASE_BYTES + SIZE_ADAPTER_BYTES * 4 + SIZE_OVERHEAD_BYTES;
+/** Base + the 2 souffleurs (caller + the json-render expert) — announced at onboarding. */
+export const TOTAL_DOWNLOAD_BYTES = SIZE_BASE_BYTES + SIZE_ADAPTER_BYTES * 2 + SIZE_OVERHEAD_BYTES;
 
-export const EXECUTOR_ADAPTERS = [
-  'souffleur-xlsx-docx',
-  'souffleur-pdf',
-  'souffleur-sandbox',
-] as const satisfies readonly AdapterName[];
+export const EXECUTOR_ADAPTERS = ['souffleur-render'] as const satisfies readonly AdapterName[];
 
 /**
  * The caller's context window, in tokens: the engine's n_ctx (`N_CTX` in
