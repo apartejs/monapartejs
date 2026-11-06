@@ -631,3 +631,82 @@ describe('the next turn read ahead after a document (6/11, M5)', () => {
     );
   });
 });
+
+describe('the vision encoder joins the load at the turn that may read an image (6/11)', () => {
+  const imageTurn = {
+    messages: [{ role: 'user', content: 'Que vois-tu sur cette image ?' }],
+    tools: [{ name: 'read_file' }],
+    _meta: { souffleurFiles: [{ id: 'file_1', name: 'photo.png', type: 'image' }] },
+  } as unknown as AparteChatRequest;
+  type Chat = Posted & { mmprojFile?: string };
+
+  it('a turn whose files hold an image, with WebGPU, brings the encoder once it is in the cache', async () => {
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: async () => ({}) }, language: 'fr' });
+    const { SouffleursProvider } = await load();
+    FakeWorker.last!.isCached = async () => true;
+    void ((await SouffleursProvider.chat(imageTurn)) as ReadableStream).getReader();
+    await tick();
+    const chat = FakeWorker.last!.posted.find((m) => m.type === 'chat') as Chat;
+    expect(chat.mmprojFile).toBe(MANIFEST.lfm3.mmproj.file);
+  });
+
+  it('no encoder while it is not in the cache: the description downloads it, with its progress', async () => {
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: async () => ({}) }, language: 'fr' });
+    const { SouffleursProvider } = await load();
+    void ((await SouffleursProvider.chat(imageTurn)) as ReadableStream).getReader();
+    await tick();
+    expect(
+      (FakeWorker.last!.posted.find((m) => m.type === 'chat') as Chat).mmprojFile,
+    ).toBeUndefined();
+  });
+
+  it('no encoder without an image, nor without WebGPU', async () => {
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: async () => ({}) }, language: 'fr' });
+    const first = await load();
+    void ((await first.SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    await tick();
+    expect(
+      (FakeWorker.last!.posted.find((m) => m.type === 'chat') as Chat).mmprojFile,
+    ).toBeUndefined();
+
+    vi.resetModules();
+    vi.stubGlobal('navigator', { gpu: undefined, language: 'fr' });
+    const second = await load();
+    void ((await second.SouffleursProvider.chat(imageTurn)) as ReadableStream).getReader();
+    await tick();
+    expect(
+      (FakeWorker.last!.posted.find((m) => m.type === 'chat') as Chat).mmprojFile,
+    ).toBeUndefined();
+  });
+
+  it('the description carries the set, so a load it causes keeps the adapters', async () => {
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: async () => ({}) }, language: 'fr' });
+    const { describeImage } = await load();
+    void describeImage(new Blob(['x']), 'Describe.');
+    await tick();
+    await tick();
+    const request = FakeWorker.last!.posted.find((m) => m.type === 'describe-image') as Posted & {
+      setFiles?: Record<string, string>;
+    };
+    expect(request.setFiles).toEqual({
+      'souffleur-chat': MANIFEST.lfm3.souffleurs.chat.file,
+      'souffleur-pdf': MANIFEST.lfm3.souffleurs.pdf.file,
+      'souffleur-xlsx-docx': MANIFEST.lfm3.souffleurs['xlsx-docx'].file,
+      'souffleur-sandbox': MANIFEST.lfm3.souffleurs.sandbox.file,
+    });
+  });
+});
+
+describe('the status of a turn whose model is already loaded', () => {
+  it('says generating once the engine is ready, not loading until the end', async () => {
+    const { SouffleursProvider } = await load();
+    const { getSouffleurStatus } = await import('./status');
+    void ((await SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    await tick();
+    const worker = FakeWorker.last!;
+    const [id] = worker.sentIds('chat');
+    expect(getSouffleurStatus().status).toBe('loading');
+    worker.reply({ type: 'ready', id, adapter: 'souffleur-chat', ms: 0 });
+    expect(getSouffleurStatus().status).toBe('generating');
+  });
+});

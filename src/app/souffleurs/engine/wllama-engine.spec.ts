@@ -624,12 +624,167 @@ describe('cacheManagerBlobCache.has', () => {
   });
 });
 
-describe('WllamaEngine — a read-ahead stops within a batch (6/11 review)', () => {
-  it('reads a prompt 512 tokens at a time: wllama sees an abort only between two batches', async () => {
+describe('WllamaEngine — the vision encoder in the set’s load (6/11)', () => {
+  // Measured on a native llama-server (wllama-lfm3's source): with the mmproj in the same load as the adapters, the
+  // closing turn after a description read 230 tokens and found 1,828 in the cache; the app reloaded twice per image
+  // turn and its closing turn re-read everything (57 s with the M5's GPU).
+  const RENDER = 'gguf/souffleur-render-0.9.0-lora-f16.gguf';
+  const SET = { 'souffleur-chat': CHAT, 'souffleur-render': RENDER };
+  const cached = (cache: { blobs: Map<string, Blob> }, ...files: string[]) =>
+    files.forEach((f) => cache.blobs.set(`${BASE_URL}/${f}`, new Blob([f])));
+  const chat = (id: number, mmprojFile?: string): MainToWorker => ({
+    type: 'chat',
+    id,
+    adapter: 'souffleur-chat',
+    device: 'webgpu',
+    messages: [{ role: 'user', content: 'Que vois-tu sur cette image ?' }],
+    maxNewTokens: 16,
+    baseFile: BASE,
+    adapterFile: CHAT,
+    setFiles: SET,
+    ...(mmprojFile ? { mmprojFile } : {}),
+  });
+  const describeImage = (id: number): MainToWorker => ({
+    type: 'describe-image',
+    id,
+    device: 'webgpu',
+    blob: new Blob([new Uint8Array([1])]),
+    question: 'Describe this image.',
+    maxNewTokens: 64,
+    baseFile: BASE,
+    mmprojFile: MMPROJ,
+    setFiles: SET,
+  });
+  const loraOf = (opts: object) => (opts as { lora?: unknown }).lora;
+
+  beforeEach(() => {
     FakeWllama.loadError = null;
-    const { instances, settled, send } = setup();
-    send(prepare(1));
-    await settled(1, 'ready');
+    FakeWllama.completionError = null;
+    FakeWllama.finishReason = 'stop';
+    FakeWllama.chatStream = [
+      { choices: [{ delta: { content: 'Je lis.' }, finish_reason: 'stop' }] },
+    ];
+  });
+
+  it('a turn that may read an image loads the encoder with the set; the description then reloads nothing', async () => {
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT, RENDER, MMPROJ);
+    send(chat(1, MMPROJ));
+    await settled(1, 'done');
+    send(describeImage(2));
+    await settled(2, 'done');
+    send(chat(3));
+    await settled(3, 'done');
+
+    expect(instances).toHaveLength(1);
+    const { blobs, params } = instances[0].loads[0];
+    expect(blobs).toEqual([
+      cache.blobs.get(`${BASE_URL}/${BASE}`),
+      cache.blobs.get(`${BASE_URL}/${MMPROJ}`),
+    ]);
+    expect(params['lora_adapters']).toHaveLength(2);
+    expect(params).toMatchObject({ image_max_tokens: 256, n_parallel: 2, swa_full: true });
+  });
+
+  it('describes with every adapter at 0: a request naming none would run them all at their load scale', async () => {
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT, RENDER, MMPROJ);
+    send(chat(1, MMPROJ));
+    await settled(1, 'done');
+    send(describeImage(2));
+    await settled(2, 'done');
+
+    const description = instances[0].chats.find((c) => !c['stream'])!;
+    expect(loraOf(description)).toEqual([{ id: 0, scale: 0 }]);
+  });
+
+  it('a description on a model without the encoder loads it with the set, so the next turn reloads nothing', async () => {
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT, RENDER, MMPROJ);
+    send(chat(1));
+    await settled(1, 'done');
+    expect(instances[0].loads[0].blobs).toHaveLength(1);
+
+    send(describeImage(2));
+    await settled(2, 'done');
+    send(chat(3));
+    await settled(3, 'done');
+
+    expect(instances).toHaveLength(2);
+    expect(instances[1].loads[0].blobs).toHaveLength(2);
+    expect(instances[1].loads[0].params['lora_adapters']).toHaveLength(2);
+    expect(instances[1].chats.filter((c) => c['stream'])).toHaveLength(1);
+  });
+});
+
+describe('WllamaEngine — the encoder never costs a turn, and a read-ahead stops within a batch (6/11 review)', () => {
+  const RENDER = 'gguf/souffleur-render-0.9.0-lora-f16.gguf';
+  const SET = { 'souffleur-chat': CHAT, 'souffleur-render': RENDER };
+  const cached = (cache: { blobs: Map<string, Blob> }, ...files: string[]) =>
+    files.forEach((f) => cache.blobs.set(`${BASE_URL}/${f}`, new Blob([f])));
+  const chat = (id: number, mmprojFile?: string): MainToWorker => ({
+    type: 'chat',
+    id,
+    adapter: 'souffleur-chat',
+    device: 'webgpu',
+    messages: [{ role: 'user', content: 'Merci !' }],
+    maxNewTokens: 16,
+    baseFile: BASE,
+    adapterFile: CHAT,
+    setFiles: SET,
+    ...(mmprojFile ? { mmprojFile } : {}),
+  });
+
+  beforeEach(() => {
+    FakeWllama.loadError = null;
+    FakeWllama.completionError = null;
+    FakeWllama.finishReason = 'stop';
+    FakeWllama.chatStream = [
+      { choices: [{ delta: { content: 'Avec plaisir.' }, finish_reason: 'stop' }] },
+    ];
+  });
+
+  it('reads a prompt 512 tokens at a time: wllama sees an abort only between two batches', async () => {
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT, RENDER);
+    send(chat(1));
+    await settled(1, 'done');
     expect(instances[0].loads[0].params['n_batch']).toBe(512);
+  });
+
+  it('a turn whose encoder cannot be downloaded loads the set without it, and answers', async () => {
+    const { instances, cache, settled, send } = setup();
+    cached(cache, BASE, CHAT, RENDER);
+    const download = cache.download.bind(cache);
+    cache.download = async (url, opts) => {
+      if (url.endsWith(MMPROJ)) throw new Error('réseau coupé');
+      return download(url, opts);
+    };
+    send(chat(1, MMPROJ));
+    await settled(1, 'done');
+    expect(instances).toHaveLength(1);
+    expect(instances[0].loads[0].blobs).toHaveLength(1);
+  });
+
+  it('a load that fails with the encoder is made again without it, and the next turns do not retry it', async () => {
+    const original = FakeWllama.prototype.loadModel;
+    FakeWllama.prototype.loadModel = async function (blobs, params) {
+      this.loads.push({ blobs, params });
+      if (blobs.length === 2) throw new Error('out of memory');
+    };
+    try {
+      const { instances, cache, settled, send } = setup();
+      cached(cache, BASE, CHAT, RENDER, MMPROJ);
+      send(chat(1, MMPROJ));
+      await settled(1, 'done');
+      send(chat(2, MMPROJ));
+      await settled(2, 'done');
+
+      expect(instances).toHaveLength(2);
+      expect(instances[0].exits).toBe(1);
+      expect(instances[1].loads[0].blobs).toHaveLength(1);
+    } finally {
+      FakeWllama.prototype.loadModel = original;
+    }
   });
 });

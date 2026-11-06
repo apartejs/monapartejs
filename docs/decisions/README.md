@@ -20,7 +20,8 @@ is not rewritten.
 | [012](012-product-colour-and-mark.md) | Monaparté carries its own colour (Angular magenta-violet) and its own mark (the mascot at home) | accepted |
 | [013](013-the-mark-is-a-house-shaped-speech-bubble.md) | The mark is a house-shaped speech bubble, and the mascot keeps its brass | accepted |
 | [014](014-in-browser-engine-is-wllama.md) | The in-browser engine is wllama, with LoRA adapters as GGUF | accepted (its reload at every souffleur change: superseded by 015) |
-| [015](015-one-load-a-slot-per-souffleur.md) | One load for the souffleur set, a cache slot per souffleur | proposed |
+| [015](015-one-load-a-slot-per-souffleur.md) | One load for the souffleur set, a cache slot per souffleur | proposed (its separate vision load: superseded by 017) |
 | [016](016-read-the-next-turn-ahead.md) | Read the next turn ahead when a turn changes the conversation's files | proposed |
+| [017](017-the-vision-encoder-joins-the-set.md) | The vision encoder joins the souffleur set's load at the turn that may read an image | proposed |
 
 Format: [000-template.md](000-template.md).

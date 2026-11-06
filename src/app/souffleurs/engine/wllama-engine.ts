@@ -122,8 +122,10 @@ export interface EngineDeps {
 interface Loaded {
   key: string;
   wllama: WllamaLike;
-  /** The adapters loaded with the base, in their lora id order; none for vision. */
+  /** The adapters loaded with the base, in their lora id order. */
   adapters: { name: AdapterName; file: string }[];
+  /** The vision encoder loaded with them, if any: kept by the loads that follow on the same base. */
+  mmproj: string | null;
 }
 
 type Send = (msg: WorkerToMain) => void;
@@ -132,6 +134,8 @@ export class WllamaEngine implements EngineLike {
   onmessage: ((event: { data: WorkerToMain }) => void) | null = null;
 
   private loaded: Loaded | null = null;
+  /** An encoder that failed to download or to load for a souffleur's turn: those turns no longer ask for it. */
+  private encoderRefused: string | null = null;
   private chain: Promise<void> = Promise.resolve();
   private running: AbortController | null = null;
   /** The message being handled, and whether a Stop reached it before its tokens started. */
@@ -189,7 +193,7 @@ export class WllamaEngine implements EngineLike {
             msg.device,
             msg.baseFile,
             msg.adapterFile,
-            null,
+            msg.mmprojFile ?? null,
             msg.setFiles,
           );
           break;
@@ -200,7 +204,7 @@ export class WllamaEngine implements EngineLike {
             msg.device,
             msg.baseFile,
             msg.adapterFile,
-            null,
+            msg.mmprojFile ?? null,
             msg.setFiles,
           );
           await this.generate(msg.id, msg.adapter, msg.prompt, msg.maxNewTokens, msg.debug);
@@ -212,7 +216,7 @@ export class WllamaEngine implements EngineLike {
             msg.device,
             msg.baseFile,
             msg.adapterFile,
-            null,
+            msg.mmprojFile ?? null,
             msg.setFiles,
           );
           await this.chat(
@@ -231,13 +235,21 @@ export class WllamaEngine implements EngineLike {
             msg.device,
             msg.baseFile,
             msg.adapterFile,
-            null,
+            msg.mmprojFile ?? null,
             msg.setFiles,
           );
           await this.warm(msg.id, msg.adapter, msg.prefix);
           break;
         case 'describe-image':
-          await this.ensure(msg.id, 'vision', msg.device, msg.baseFile, null, msg.mmprojFile);
+          await this.ensure(
+            msg.id,
+            'vision',
+            msg.device,
+            msg.baseFile,
+            null,
+            msg.mmprojFile,
+            msg.setFiles,
+          );
           await this.describe(msg.id, msg.blob, msg.question, msg.maxNewTokens, msg.debug);
           break;
         case 'dispose':
@@ -277,35 +289,73 @@ export class WllamaEngine implements EngineLike {
     mmprojFile: string | null,
     setFiles?: Partial<Record<AdapterName, string>>,
   ): Promise<void> {
-    const key = [baseFile, mmprojFile ?? '', device].join('|');
+    // The vision encoder is not part of the key: a load that has it serves the turns that do not ask for it, and
+    // keeps it (6/11: an image turn reloaded twice and its closing turn re-read everything, 57 s with the M5's GPU).
+    const key = [baseFile, device].join('|');
     const loaded = this.loaded;
     if (
       loaded?.key === key &&
+      (!mmprojFile ||
+        loaded.mmproj === mmprojFile ||
+        (role !== 'vision' && this.encoderRefused === mmprojFile)) &&
       (role === 'vision' || loaded.adapters.some((a) => a.name === role && a.file === adapterFile))
     ) {
       this.send({ type: 'ready', id, adapter: role, ms: 0 });
       return;
     }
     const t0 = performance.now();
+    let encoder = mmprojFile ?? (loaded?.key === key ? loaded.mmproj : null);
+    // A souffleur's turn only carries the encoder for the description to come: it never costs the turn itself.
+    if (role !== 'vision' && encoder === this.encoderRefused) encoder = null;
 
+    // A souffleur's turn: the set's cached adapters and its own. A description: the set's cached adapters, so the
+    // turn after it reloads nothing.
     const adapters: { name: AdapterName; file: string }[] = [];
-    if (role !== 'vision' && adapterFile) {
-      for (const [name, file] of Object.entries(setFiles ?? {}) as [AdapterName, string][]) {
-        if (name !== role && (await this.deps.cache.has(this.url(file))))
-          adapters.push({ name, file });
-        else if (name === role) adapters.push({ name, file: adapterFile });
-      }
-      if (!adapters.some((a) => a.name === role)) adapters.push({ name: role, file: adapterFile });
+    for (const [name, file] of Object.entries(setFiles ?? {}) as [AdapterName, string][]) {
+      if (name === role && adapterFile) adapters.push({ name, file: adapterFile });
+      else if (await this.deps.cache.has(this.url(file))) adapters.push({ name, file });
     }
+    if (role !== 'vision' && adapterFile && !adapters.some((a) => a.name === role))
+      adapters.push({ name: role, file: adapterFile });
 
     // Every file first: a download that fails (offline, 404) must leave the model in
     // memory — and its warm prompt cache — where it was.
     const base = await this.fetch(id, baseFile);
-    const mmproj = mmprojFile ? await this.fetch(id, mmprojFile) : null;
+    let mmproj: Blob | null = null;
+    if (encoder) {
+      try {
+        mmproj = await this.fetch(id, encoder);
+      } catch (err) {
+        if (role === 'vision') throw err;
+        this.encoderRefused = encoder;
+        encoder = null;
+      }
+    }
     const blobs: Blob[] = [];
     for (const a of adapters) blobs.push(await this.fetch(id, a.file));
 
     await this.release();
+    let wllama: WllamaLike;
+    try {
+      wllama = await this.load(device, base, mmproj, blobs);
+    } catch (err) {
+      // Out of memory with the encoder, say: a souffleur's turn is made again without it.
+      if (!mmproj || role === 'vision') throw err;
+      this.encoderRefused = encoder;
+      encoder = null;
+      wllama = await this.load(device, base, null, blobs);
+    }
+    this.loaded = { key, wllama, adapters, mmproj: encoder };
+    this.send({ type: 'ready', id, adapter: role, ms: Math.round(performance.now() - t0) });
+  }
+
+  /** One wllama instance with the base, the encoder if any and the adapters; released again if the load fails. */
+  private async load(
+    device: ComputeDevice,
+    base: Blob,
+    mmproj: Blob | null,
+    blobs: Blob[],
+  ): Promise<WllamaLike> {
     const wllama = this.deps.createWllama();
     try {
       await wllama.loadModel(mmproj ? [base, mmproj] : [base], {
@@ -335,8 +385,7 @@ export class WllamaEngine implements EngineLike {
       await wllama.exit().catch(() => undefined);
       throw err;
     }
-    this.loaded = { key, wllama, adapters };
-    this.send({ type: 'ready', id, adapter: role, ms: Math.round(performance.now() - t0) });
+    return wllama;
   }
 
   /** The request's adapter, by its id in the load; the others stay at scale 0. */
@@ -574,6 +623,9 @@ export class WllamaEngine implements EngineLike {
       messages: [{ role: 'user', content: [image, { type: 'text', text: question }] }],
       max_tokens: maxNewTokens,
       temperature: 0,
+      // In the set's load, every adapter at 0: a request naming none runs them all at their load scale (llama.cpp's
+      // default, 1 here) — measured natively, the description then differs from the base's.
+      ...(this.loaded?.adapters.length ? { lora: [{ id: 0, scale: 0 }] } : {}),
     });
     const text = (res.choices[0]?.message?.content ?? '').trim();
     if (debug) console.log('[souffleurs.engine] DESCRIBE >>>\n%s', text || '(empty)');

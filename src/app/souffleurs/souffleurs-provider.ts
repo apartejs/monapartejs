@@ -346,6 +346,17 @@ export const SouffleursProvider: AparteAIProvider = {
     const messages = toChatMessages(lfm3SystemPrompt(files), request.messages);
     const tools = lfm3Tools(enabledTools);
     const maxNewTokens = Math.max(request.maxTokens ?? 0, CALLER_MAX_NEW_TOKENS);
+    // An image among the files (6/11): the vision encoder joins the set's load at this turn — which re-reads its
+    // prompt anyway, the list having changed — so the description reloads nothing and the closing turn keeps the
+    // chat's cache (the M5: two reloads and a 57 s re-read per image turn). Only with WebGPU (no image reading
+    // without it), and only once it is in the cache: a download belongs to the description, with its progress,
+    // and a failed one to read_file — never to this turn.
+    const imageEncoder =
+      device === 'webgpu' && files.some((f) => f.type === 'image')
+        ? (await getSouffleurManifest()).ggufMmprojFile()
+        : null;
+    const encoder =
+      imageEncoder && (await getWorker().isCached([imageEncoder])) ? imageEncoder : undefined;
     // Diagnostics: on by default in dev (see setSouffleurDebug) — the messages, tools, raw output and calls in
     // the console. `localStorage.setItem('bp.debug','0')` silences, '1' forces in prod.
     const debug = isDebug();
@@ -389,7 +400,12 @@ export const SouffleursProvider: AparteAIProvider = {
               }
               const id = _nextId++;
               _pending.set(id, {
-                onReady: () => resolved.markSeen(),
+                onReady: () => {
+                  resolved.markSeen();
+                  // Loaded (or found loaded): the turn generates — not 'loading' until its end after an expert
+                  // or a description ran.
+                  if (!closed) setSouffleurStatus({ status: 'generating', device });
+                },
                 onChunk: (delta) => {
                   raw += delta;
                   emit({ type: 'text', delta });
@@ -446,6 +462,7 @@ export const SouffleursProvider: AparteAIProvider = {
                 maxNewTokens,
                 debug,
                 ...resolved.files,
+                ...(encoder ? { mmprojFile: encoder } : {}),
               } satisfies MainToWorker);
             }),
         );
@@ -579,6 +596,8 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
     );
   }
   const baseFile = manifest.ggufBaseFile();
+  // The set: a load the description causes keeps the adapters, so the closing turn reloads nothing.
+  const { setFiles } = (await resolveAdapterFiles(CALLER_ADAPTER)).files;
   const debug = isDebug();
 
   setSouffleurStatus({ status: 'loading', device });
@@ -597,8 +616,8 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
           },
           onDone: () => {
             _pending.delete(id);
-            // The vision load occupies the slot: the souffleur will reload on
-            // the next turn (same invariant as an executor swap).
+            // Conservative: the description may have loaded the base without the set (a manifest without
+            // one). With the set, the next turn finds its adapter at once and says so at its `ready`.
             _loadedAdapter = null;
             setSouffleurStatus({ status: 'ready', device });
             resolve(text.trim());
@@ -619,6 +638,7 @@ export async function describeImage(blob: Blob, question: string): Promise<strin
           maxNewTokens: VISION_MAX_NEW_TOKENS,
           baseFile,
           mmprojFile,
+          setFiles,
           debug,
         } satisfies MainToWorker);
       }),

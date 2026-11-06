@@ -22,6 +22,12 @@ export interface AdapterFiles {
    * adapter above alone, as before.
    */
   setFiles?: Partial<Record<AdapterName, string>>;
+  /**
+   * The vision encoder, sent with a turn that may read an image (its files hold one, WebGPU): loaded with the set, it
+   * serves the description too — no reload, so the chat keeps its prompt cache across an image turn. A load that has
+   * it keeps it.
+   */
+  mmprojFile?: string;
 }
 
 export type MainToWorker =
@@ -61,7 +67,7 @@ export type MainToWorker =
   | {
       /**
        * read_file(image): the base WITHOUT adapter plus the vision encoder (mmproj) — the
-       * pristine model, the one the encoder was trained with. Mechanically a souffleur swap.
+       * pristine model, the one the encoder was trained with: in the set's load, every adapter at 0.
        */
       type: 'describe-image';
       id: number;
@@ -71,6 +77,8 @@ export type MainToWorker =
       maxNewTokens: number;
       baseFile: string;
       mmprojFile: string;
+      /** The gguf set: a load the description causes takes its cached adapters, so the next turn reloads nothing. */
+      setFiles?: Partial<Record<AdapterName, string>>;
       debug?: boolean;
     }
   | { type: 'abort' }

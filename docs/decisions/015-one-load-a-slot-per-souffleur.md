@@ -1,7 +1,8 @@
 # ADR-015 — One load for the souffleur set, a cache slot per souffleur
 
 - **Date**: 2026-11-05
-- **Status**: proposed. Supersedes ADR-014's "a souffleur change reloads the model until wllama can switch adapters
+- **Status**: proposed (its "Vision stays a load of its own": superseded by [ADR-017](017-the-vision-encoder-joins-the-set.md)).
+  Supersedes ADR-014's "a souffleur change reloads the model until wllama can switch adapters
   in place": the vendored wllama (3.12.0-aparte-lfm3.1) already can.
 - **Context**: every tool turn reloaded the model with the other adapter, and the chat then re-read its whole prompt to
   answer after the document — 43.5 s with the M5's GPU, 130 s without, for the one closing sentence; and since
