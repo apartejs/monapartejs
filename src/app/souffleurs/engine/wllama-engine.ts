@@ -101,6 +101,17 @@ export interface WllamaLike {
     timings?: LlamaTimings;
   }>;
   exit(): Promise<void>;
+  /** A slot's prompt cache as llama-server's slot file (wllama 3.12.0-aparte-lfm3.2). The slot must be idle. */
+  saveSlot(idSlot: number): Promise<{ nTokens: number; data: Uint8Array }>;
+  /** Puts a saved slot back, with the adapters its cache was built with (a restored slot has none of its own). */
+  restoreSlot(idSlot: number, file: Blob, lora?: LoraScale[]): Promise<{ nTokens: number }>;
+}
+
+/** Where the boot warm-up's slot is kept across app starts (ADR-018). */
+export interface SlotStore {
+  get(key: string): Promise<Blob | null>;
+  /** Keeps `data` under `key` and drops the slot kept before for the same device. */
+  put(key: string, device: ComputeDevice, data: Uint8Array): Promise<void>;
 }
 
 export interface BlobCache {
@@ -117,6 +128,8 @@ export interface EngineDeps {
   cache: BlobCache;
   /** e.g. `https://huggingface.co/apartejs/aparte-souffleurs/resolve/main` */
   baseUrl: string;
+  /** The boot warm-up kept across app starts; without it, every start reads it again. */
+  slots?: SlotStore;
 }
 
 interface Loaded {
@@ -126,6 +139,43 @@ interface Loaded {
   adapters: { name: AdapterName; file: string }[];
   /** The vision encoder loaded with them, if any: kept by the loads that follow on the same base. */
   mmproj: string | null;
+  /** No request has run yet: the first one takes slot 0 (llama.cpp gives an empty slot, the lowest id first). */
+  fresh: boolean;
+}
+
+/** The slot a fresh instance's first request takes — the boot warm-up's, saved and restored there. */
+const WARM_SLOT = 0;
+
+/**
+ * Bumped with anything that changes the slot file or what fills it beyond the key's parts: the vendored wllama
+ * (its llama.cpp), the context, the slots, the sliding window kept whole.
+ */
+const SLOT_FORMAT = 'wllama-3.12.0-aparte-lfm3.2';
+
+/**
+ * The saved warm-up's key: everything that shapes its cache. Only the request's adapter counts — the others of the
+ * set run at scale 0, which llama.cpp leaves out of the graph — so downloading an expert keeps the saved slot.
+ */
+export async function slotKey(parts: {
+  baseFile: string;
+  adapterFile: string;
+  device: ComputeDevice;
+  messages: ChatMessage[];
+  tools?: readonly Lfm3Tool[];
+}): Promise<string> {
+  const text = JSON.stringify([
+    SLOT_FORMAT,
+    N_CTX,
+    N_SLOTS,
+    parts.baseFile,
+    parts.adapterFile,
+    parts.device,
+    parts.messages,
+    parts.tools ?? [],
+  ]);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${parts.device}-${hex.slice(0, 32)}`;
 }
 
 type Send = (msg: WorkerToMain) => void;
@@ -219,14 +269,27 @@ export class WllamaEngine implements EngineLike {
             msg.mmprojFile ?? null,
             msg.setFiles,
           );
-          await this.chat(
-            msg.id,
-            msg.adapter,
-            msg.messages,
-            msg.tools,
-            msg.maxNewTokens,
-            msg.debug,
-          );
+          {
+            const kept = msg.persist ? await this.restoreKept(msg) : null;
+            // Saved before the warm-up's `done`: the message behind it waits in the provider's queue, where a Stop
+            // reaches it — not here, where it would land on the warm-up (6/11 review). A restored slot from which
+            // llama.cpp could not resume (it read the whole prompt again) is replaced.
+            const onRead = kept
+              ? async (timings?: LlamaTimings) => {
+                  const readAgain = !!timings && timings.prompt_n > timings.cache_n;
+                  if (!kept.restored || readAgain) await this.keep(kept.key, msg.device);
+                }
+              : undefined;
+            await this.chat(
+              msg.id,
+              msg.adapter,
+              msg.messages,
+              msg.tools,
+              msg.maxNewTokens,
+              msg.debug,
+              onRead,
+            );
+          }
           break;
         case 'warm':
           await this.ensure(
@@ -345,8 +408,45 @@ export class WllamaEngine implements EngineLike {
       encoder = null;
       wllama = await this.load(device, base, null, blobs);
     }
-    this.loaded = { key, wllama, adapters, mmproj: encoder };
+    this.loaded = { key, wllama, adapters, mmproj: encoder, fresh: true };
     this.send({ type: 'ready', id, adapter: role, ms: Math.round(performance.now() - t0) });
+  }
+
+  /**
+   * The boot warm-up on an instance that has run nothing yet: the slot saved at an earlier start goes back into slot
+   * 0, the one its request takes, with the adapter its cache was built with. Null when there is nothing to keep: no
+   * store, or an instance whose slots already hold other prompts.
+   */
+  private async restoreKept(
+    msg: Extract<MainToWorker, { type: 'chat' }>,
+  ): Promise<{ key: string; restored: boolean } | null> {
+    const loaded = this.loaded;
+    const store = this.deps.slots;
+    if (!store || !loaded?.fresh) return null;
+    const key = await slotKey(msg);
+    const file = await store.get(key).catch(() => null);
+    if (!file) return { key, restored: false };
+    try {
+      await loaded.wllama.restoreSlot(WARM_SLOT, file, this.lora(msg.adapter).lora ?? []);
+      return { key, restored: true };
+    } catch (err) {
+      // An older or damaged file: the warm-up reads its prompt again, and the new slot replaces it.
+      console.warn('[souffleurs.engine] the saved warm-up did not restore; it is read again', err);
+      return { key, restored: false };
+    }
+  }
+
+  /** Saves the warm-up's slot for the next starts. Best-effort: a failure costs the next start its speed only. */
+  private async keep(key: string, device: ComputeDevice): Promise<void> {
+    const loaded = this.loaded;
+    const store = this.deps.slots;
+    if (!store || !loaded) return;
+    try {
+      const { data } = await loaded.wllama.saveSlot(WARM_SLOT);
+      await store.put(key, device, data);
+    } catch (err) {
+      console.warn('[souffleurs.engine] the warm-up could not be saved for the next start', err);
+    }
   }
 
   /** One wllama instance with the base, the encoder if any and the adapters; released again if the load fails. */
@@ -407,8 +507,10 @@ export class WllamaEngine implements EngineLike {
     return blob;
   }
 
+  /** The model for a request: from now on its slots hold prompts the engine did not choose. */
   private model(): WllamaLike {
     if (!this.loaded) throw new Error('aucun modèle chargé');
+    this.loaded.fresh = false;
     return this.loaded.wllama;
   }
 
@@ -499,6 +601,7 @@ export class WllamaEngine implements EngineLike {
    * `/v1/chat/completions`). Text streams as chunks; the calls are gathered by index as the template's parser
    * emits them and sent whole in `done`, never run half-written.
    */
+  /** `onRead` runs before `done`, once the request ran to its end: its whole prompt is then in the cache. */
   private async chat(
     id: number,
     adapter: AdapterName,
@@ -506,6 +609,7 @@ export class WllamaEngine implements EngineLike {
     tools: readonly Lfm3Tool[] | undefined,
     maxNewTokens: number,
     debug?: boolean,
+    onRead?: (timings: LlamaTimings | undefined) => Promise<void>,
   ): Promise<void> {
     const t0 = performance.now();
     if (this.current?.aborted) {
@@ -580,6 +684,7 @@ export class WllamaEngine implements EngineLike {
       });
       return;
     }
+    if (onRead && !controller.signal.aborted) await onRead(timings);
     const now = performance.now();
     this.send({
       type: 'done',
@@ -652,6 +757,46 @@ export function cacheManagerBlobCache(manager: CacheManager = new CacheManager()
   };
 }
 
+/** The saved slots' pseudo-URLs in wllama's cache: never fetched, only names (`<device>-<hash>.bin`). */
+const SLOT_ORIGIN = 'https://slots.aparte.invalid';
+
+/**
+ * The saved warm-up in OPFS, beside the weights, through wllama's CacheManager: one file per device (~32 MB for
+ * the 0.4.0 contract), the one saved before for that device dropped.
+ */
+export function cacheManagerSlotStore(manager: CacheManager = new CacheManager()): SlotStore {
+  const url = (key: string) => `${SLOT_ORIGIN}/${key}.bin`;
+  return {
+    async get(key) {
+      const u = url(key);
+      const name = await manager.getNameFromURL(u);
+      const size = await manager.getSize(name);
+      const meta = await manager.getMetadata(name);
+      // A write cut mid-way leaves the file without its own metadata (see cacheManagerBlobCache).
+      if (!(size > 0 && meta?.originalURL === u && meta.originalSize === size)) return null;
+      // Read into memory now: an OPFS File is a snapshot another tab's save invalidates, and a read failing inside
+      // wllama's restore leaves its worker unusable; failing here only costs the start its speed (6/11 review).
+      const file = await manager.open(name);
+      return file ? new Blob([await file.arrayBuffer()]) : null;
+    },
+    async put(key, device, data) {
+      const u = url(key);
+      const name = await manager.getNameFromURL(u);
+      const blob = new Blob([data as Uint8Array<ArrayBuffer>]);
+      await manager.write(name, blob.stream(), {
+        etag: key,
+        originalSize: blob.size,
+        originalURL: u,
+      });
+      await manager.deleteMany(
+        (e) =>
+          e.name !== name &&
+          (e.metadata?.originalURL ?? '').startsWith(`${SLOT_ORIGIN}/${device}-`),
+      );
+    },
+  };
+}
+
 /**
  * llama.cpp refuses a prompt longer than the context with a technical message; the user
  * gets one that says what to do. Anything else is left as it is.
@@ -682,5 +827,10 @@ export function createWllama(): WllamaLike {
 
 /** The engine the app runs. */
 export function createDefaultEngine(baseUrl: string): WllamaEngine {
-  return new WllamaEngine({ createWllama, cache: cacheManagerBlobCache(), baseUrl });
+  return new WllamaEngine({
+    createWllama,
+    cache: cacheManagerBlobCache(),
+    baseUrl,
+    slots: cacheManagerSlotStore(),
+  });
 }

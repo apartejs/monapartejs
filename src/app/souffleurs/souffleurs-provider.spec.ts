@@ -318,7 +318,8 @@ describe('provider on the wllama engine', () => {
     const worker = FakeWorker.last!;
     type ChatPost = Posted & { messages: unknown[]; tools: unknown[]; maxNewTokens: number };
     const warm = worker.posted.find((m) => m.type === 'chat') as ChatPost | undefined;
-    expect(warm).toMatchObject({ maxNewTokens: 1 });
+    // kept across app starts (ADR-018)
+    expect(warm).toMatchObject({ maxNewTokens: 1, persist: true });
     worker.reply({
       type: 'done',
       id: warm!.id,

@@ -55,6 +55,11 @@ export type MainToWorker =
       tools?: readonly Lfm3Tool[];
       maxNewTokens: number;
       debug?: boolean;
+      /**
+       * The boot warm-up: its prompt cache is saved once read and restored at the next app starts (ADR-018) —
+       * 8 ms instead of the 41 s (M5, WebGPU) or 130 s (CPU) that reading the system message and tools takes.
+       */
+      persist?: boolean;
     } & AdapterFiles)
   | ({
       /** Prefill a prompt prefix into the cache so the next turn starting with it is fast. */

@@ -23,5 +23,6 @@ is not rewritten.
 | [015](015-one-load-a-slot-per-souffleur.md) | One load for the souffleur set, a cache slot per souffleur | proposed (its separate vision load: superseded by 017) |
 | [016](016-read-the-next-turn-ahead.md) | Read the next turn ahead when a turn changes the conversation's files | proposed |
 | [017](017-the-vision-encoder-joins-the-set.md) | The vision encoder joins the souffleur set's load at the turn that may read an image | proposed |
+| [018](018-keep-the-boot-warm-up-across-starts.md) | Keep the boot warm-up across app starts | proposed |
 
 Format: [000-template.md](000-template.md).

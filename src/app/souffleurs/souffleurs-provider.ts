@@ -684,6 +684,8 @@ export async function warmCaller(enabledToolNames: readonly string[]): Promise<v
           messages,
           tools,
           maxNewTokens: 1,
+          // the engine saves this cache once read and restores it at the next starts (ADR-018)
+          persist: true,
           ...resolved.files,
         } satisfies MainToWorker);
       }),

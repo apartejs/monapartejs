@@ -6,10 +6,14 @@ import {
   TOOL_CALL_MARKERS,
   WllamaEngine,
   cacheManagerBlobCache,
+  cacheManagerSlotStore,
+  slotKey,
   type BlobCache,
   type ChatStreamChunk,
   type CompletionChunk,
   type CompletionOptions,
+  type LoraScale,
+  type SlotStore,
   type WllamaLike,
 } from './wllama-engine';
 
@@ -31,11 +35,38 @@ class FakeWllama implements WllamaLike {
   static loadError: Error | null = null;
   static completionError: Error | null = null;
   static finishReason: 'stop' | 'length' = 'stop';
+  static restoreError: Error | null = null;
+  static saveError: Error | null = null;
+  /** Holds a save open until the test releases it. */
+  static saveGate: Promise<void> | null = null;
 
   loads: { blobs: Blob[]; params: Record<string, unknown> }[] = [];
   completions: CompletionOptions[] = [];
   chats: Record<string, unknown>[] = [];
   exits = 0;
+  /** Requests, restores and saves, in order. */
+  events: string[] = [];
+  restores: { idSlot: number; size: number; lora: LoraScale[] }[] = [];
+  saves: number[] = [];
+
+  async saveSlot(idSlot: number): Promise<{ nTokens: number; data: Uint8Array }> {
+    this.events.push('save');
+    if (FakeWllama.saveGate) await FakeWllama.saveGate;
+    if (FakeWllama.saveError) throw FakeWllama.saveError;
+    this.saves.push(idSlot);
+    return { nTokens: 1782, data: new Uint8Array([1, 2, 3, 4, 5]) };
+  }
+
+  async restoreSlot(
+    idSlot: number,
+    file: Blob,
+    lora: LoraScale[] = [],
+  ): Promise<{ nTokens: number }> {
+    this.events.push('restore');
+    this.restores.push({ idSlot, size: file.size, lora });
+    if (FakeWllama.restoreError) throw FakeWllama.restoreError;
+    return { nTokens: 1782 };
+  }
 
   constructor(
     private readonly chunks: () => string[],
@@ -68,6 +99,7 @@ class FakeWllama implements WllamaLike {
 
   async createChatCompletion(opts: Record<string, unknown>) {
     this.chats.push(opts);
+    this.events.push('chat');
     if (opts['stream']) {
       const chunks = FakeWllama.chatStream;
       return (async function* () {
@@ -101,7 +133,24 @@ class MemoryCache implements BlobCache {
   }
 }
 
-function setup(chunks: () => string[] = () => ['Bonjour', ' !'], gate?: Promise<void>) {
+/** The saved slots, as the OPFS store keeps them across app starts. */
+class MemorySlots implements SlotStore {
+  readonly files = new Map<string, Blob>();
+  puts: { key: string; device: string; size: number }[] = [];
+  async get(key: string): Promise<Blob | null> {
+    return this.files.get(key) ?? null;
+  }
+  async put(key: string, device: string, data: Uint8Array): Promise<void> {
+    this.puts.push({ key, device, size: data.byteLength });
+    this.files.set(key, new Blob([data as Uint8Array<ArrayBuffer>]));
+  }
+}
+
+function setup(
+  chunks: () => string[] = () => ['Bonjour', ' !'],
+  gate?: Promise<void>,
+  slots?: SlotStore,
+) {
   const instances: FakeWllama[] = [];
   const cache = new MemoryCache();
   const engine = new WllamaEngine({
@@ -112,6 +161,7 @@ function setup(chunks: () => string[] = () => ['Bonjour', ' !'], gate?: Promise<
     },
     cache,
     baseUrl: BASE_URL,
+    ...(slots ? { slots } : {}),
   });
   const messages: WorkerToMain[] = [];
   engine.onmessage = (e) => messages.push(e.data);
@@ -786,5 +836,275 @@ describe('WllamaEngine — the encoder never costs a turn, and a read-ahead stop
     } finally {
       FakeWllama.prototype.loadModel = original;
     }
+  });
+});
+
+describe('WllamaEngine — the boot warm-up kept across app starts (6/11)', () => {
+  const warmUp = (
+    id: number,
+    system = 'S',
+    device: 'webgpu' | 'wasm' = 'webgpu',
+  ): MainToWorker => ({
+    type: 'chat',
+    id,
+    adapter: 'souffleur-chat',
+    device,
+    messages: [{ role: 'system', content: system }],
+    tools: [],
+    maxNewTokens: 1,
+    baseFile: BASE,
+    adapterFile: CHAT,
+    persist: true,
+  });
+  const turn = (id: number): MainToWorker => ({
+    type: 'chat',
+    id,
+    adapter: 'souffleur-chat',
+    device: 'webgpu',
+    messages: [
+      { role: 'system', content: 'S' },
+      { role: 'user', content: 'Bonjour' },
+    ],
+    tools: [],
+    maxNewTokens: 64,
+    baseFile: BASE,
+    adapterFile: CHAT,
+  });
+
+  /** One app start: the warm-up, then a message behind it, so whatever the warm-up does after its `done` is over. */
+  const start = async (slots: SlotStore, warm: MainToWorker = warmUp(1)) => {
+    const app = setup(undefined, undefined, slots);
+    app.send(warm);
+    await app.settled(1, 'done', 'error');
+    app.send(prepare(99));
+    await app.settled(99, 'ready');
+    return app;
+  };
+
+  beforeEach(() => {
+    FakeWllama.loadError = null;
+    FakeWllama.restoreError = null;
+    FakeWllama.saveError = null;
+    FakeWllama.chatStream = [{ choices: [{ delta: { content: 'x' }, finish_reason: 'length' }] }];
+  });
+
+  it('saves slot 0 once a warm-up that found nothing saved has read its prompt', async () => {
+    const slots = new MemorySlots();
+    const { instances } = await start(slots);
+
+    expect(instances[0].events).toEqual(['chat', 'save']);
+    expect(instances[0].saves).toEqual([0]);
+    expect(slots.puts).toEqual([
+      { key: expect.stringMatching(/^webgpu-/), device: 'webgpu', size: 5 },
+    ]);
+  });
+
+  it('the next start restores it into slot 0, with the caller adapter, before the warm-up — and saves nothing', async () => {
+    const slots = new MemorySlots();
+    await start(slots);
+    const { instances, messages } = await start(slots);
+
+    expect(instances[0].events).toEqual(['restore', 'chat']);
+    expect(instances[0].restores).toEqual([{ idSlot: 0, size: 5, lora: [{ id: 0, scale: 1 }] }]);
+    expect(slots.puts).toHaveLength(1);
+    expect(messages.some((m) => m.type === 'error')).toBe(false);
+  });
+
+  it('another prompt is another key: nothing restored, the new one saved', async () => {
+    const slots = new MemorySlots();
+    await start(slots);
+    const { instances } = await start(slots, warmUp(1, 'S — contract 0.5'));
+
+    expect(instances[0].restores).toEqual([]);
+    expect(instances[0].saves).toEqual([0]);
+    expect(new Set(slots.puts.map((p) => p.key)).size).toBe(2);
+  });
+
+  it('an instance that already served a request neither restores nor saves: slot 0 is no longer known', async () => {
+    const slots = new MemorySlots();
+    await start(slots);
+    const { instances, settled, send } = setup(undefined, undefined, slots);
+    send(turn(1));
+    await settled(1, 'done');
+    send(warmUp(2));
+    await settled(2, 'done');
+    send(prepare(99));
+    await settled(99, 'ready');
+
+    expect(instances[0].events).toEqual(['chat', 'chat']);
+  });
+
+  it('a saved slot that does not restore is read again and saved anew, without failing the warm-up', async () => {
+    const slots = new MemorySlots();
+    await start(slots);
+    FakeWllama.restoreError = new Error('slot restore: Invalid tokens in slot save file');
+    const { instances, messages } = await start(slots);
+
+    expect(instances[0].events).toEqual(['restore', 'chat', 'save']);
+    expect(messages.some((m) => m.type === 'error')).toBe(false);
+  });
+
+  it('a save that fails costs the next start its speed, nothing else', async () => {
+    FakeWllama.saveError = new Error('slot save: the slot file was not written');
+    const { messages } = await start(new MemorySlots());
+
+    expect(messages.filter((m) => m.type === 'error')).toEqual([]);
+    expect(messages.some((m) => m.type === 'done' && m.id === 1)).toBe(true);
+  });
+
+  it('without a slot store, a warm-up is a plain chat turn', async () => {
+    const app = setup();
+    app.send(warmUp(1));
+    await app.settled(1, 'done');
+
+    expect(app.instances[0].events).toEqual(['chat']);
+  });
+
+  it("the warm-up's done waits for its save: the message behind it stays in the provider's queue, where a Stop reaches it (6/11 review)", async () => {
+    let release = () => {};
+    FakeWllama.saveGate = new Promise<void>((r) => (release = r));
+    try {
+      const { instances, messages, settled, send } = setup(undefined, undefined, new MemorySlots());
+      send(warmUp(1));
+      for (let i = 0; i < 200 && !instances[0]?.events.includes('save'); i++) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      expect(instances[0].events).toEqual(['chat', 'save']);
+      expect(messages.some((m) => m.type === 'done' && m.id === 1)).toBe(false);
+      release();
+      await settled(1, 'done');
+    } finally {
+      FakeWllama.saveGate = null;
+    }
+  });
+
+  it('a restored slot whose warm-up still read its whole prompt is saved again (6/11 review)', async () => {
+    const slots = new MemorySlots();
+    await start(slots);
+    // The restore went through, but llama.cpp could not resume from its checkpoints and read everything.
+    const reread = {
+      cache_n: 0,
+      prompt_n: 1762,
+      prompt_ms: 41000,
+      predicted_n: 1,
+      predicted_ms: 90,
+    };
+    FakeWllama.chatStream = [
+      { choices: [{ delta: { content: 'x' }, finish_reason: 'length' }], timings: reread },
+    ];
+    const { instances } = await start(slots);
+
+    expect(instances[0].events).toEqual(['restore', 'chat', 'save']);
+  });
+
+  it('a restored slot that resumed is not saved again', async () => {
+    const slots = new MemorySlots();
+    await start(slots);
+    const resumed = {
+      cache_n: 1739,
+      prompt_n: 23,
+      prompt_ms: 300,
+      predicted_n: 1,
+      predicted_ms: 90,
+    };
+    FakeWllama.chatStream = [
+      { choices: [{ delta: { content: 'x' }, finish_reason: 'length' }], timings: resumed },
+    ];
+    const { instances } = await start(slots);
+
+    expect(instances[0].events).toEqual(['restore', 'chat']);
+  });
+});
+
+describe('slotKey — what shapes the saved prompt (6/11)', () => {
+  const parts = {
+    baseFile: BASE,
+    adapterFile: CHAT,
+    device: 'webgpu' as const,
+    messages: [{ role: 'system' as const, content: 'S' }],
+    tools: [],
+  };
+
+  it('is the same for the same prompt, and starts with its device', async () => {
+    const key = await slotKey(parts);
+    expect(await slotKey({ ...parts })).toBe(key);
+    expect(key).toMatch(/^webgpu-[0-9a-f]{32}$/);
+  });
+
+  it('changes with the base, the adapter, the device, the messages or the tools', async () => {
+    const key = await slotKey(parts);
+    const others = await Promise.all([
+      slotKey({ ...parts, baseFile: 'gguf/other.gguf' }),
+      slotKey({ ...parts, adapterFile: PDF }),
+      slotKey({ ...parts, device: 'wasm' }),
+      slotKey({ ...parts, messages: [{ role: 'system', content: 'S2' }] }),
+      slotKey({ ...parts, tools: [{ type: 'function', function: { name: 'x' } }] as never }),
+    ]);
+    expect(new Set([key, ...others]).size).toBe(6);
+  });
+});
+
+describe('cacheManagerSlotStore — the saved slot in OPFS (6/11)', () => {
+  /** wllama's CacheManager surface the store uses, in memory. */
+  class FakeManager {
+    files = new Map<string, { blob: Blob; metadata: Record<string, unknown> | null }>();
+    async getNameFromURL(url: string) {
+      return `h_${url.split('/').pop()}`;
+    }
+    async write(name: string, stream: ReadableStream, metadata: Record<string, unknown>) {
+      const blob = await new Response(stream).blob();
+      this.files.set(name, { blob, metadata });
+    }
+    async open(name: string) {
+      return this.files.get(name)?.blob ?? null;
+    }
+    async getSize(name: string) {
+      return this.files.get(name)?.blob.size ?? -1;
+    }
+    async getMetadata(name: string) {
+      return this.files.get(name)?.metadata ?? null;
+    }
+    async deleteMany(predicate: (e: { name: string; size: number; metadata: unknown }) => boolean) {
+      for (const [name, f] of [...this.files]) {
+        if (predicate({ name, size: f.blob.size, metadata: f.metadata })) this.files.delete(name);
+      }
+    }
+  }
+  const store = (m: FakeManager) => cacheManagerSlotStore(m as unknown as CacheManager);
+
+  it('gives back a copy in memory, not the OPFS file: a snapshot another tab invalidates would fail mid-restore (6/11 review)', async () => {
+    const m = new FakeManager();
+    await store(m).put('webgpu-a', 'webgpu', new Uint8Array([7, 8, 9]));
+    const stored = await m.open(await m.getNameFromURL('x/webgpu-a.bin'));
+    const blob = await store(m).get('webgpu-a');
+    expect(blob).not.toBe(stored);
+    expect(blob!.size).toBe(3);
+  });
+
+  it('gives back the bytes it kept', async () => {
+    const m = new FakeManager();
+    await store(m).put('webgpu-a', 'webgpu', new Uint8Array([7, 8, 9]));
+    const blob = await store(m).get('webgpu-a');
+    expect(new Uint8Array(await blob!.arrayBuffer())).toEqual(new Uint8Array([7, 8, 9]));
+    expect(await store(m).get('webgpu-b')).toBeNull();
+  });
+
+  it('keeps one slot per device: a new one drops the older of the same device only', async () => {
+    const m = new FakeManager();
+    await store(m).put('webgpu-a', 'webgpu', new Uint8Array([1]));
+    await store(m).put('wasm-a', 'wasm', new Uint8Array([2]));
+    await store(m).put('webgpu-b', 'webgpu', new Uint8Array([3]));
+
+    expect(await store(m).get('webgpu-a')).toBeNull();
+    expect(await store(m).get('wasm-a')).not.toBeNull();
+    expect(await store(m).get('webgpu-b')).not.toBeNull();
+  });
+
+  it('ignores a file cut mid-way (no metadata of its own, or not its full size)', async () => {
+    const m = new FakeManager();
+    await store(m).put('webgpu-a', 'webgpu', new Uint8Array([1, 2, 3]));
+    const name = await m.getNameFromURL('x/webgpu-a.bin');
+    m.files.get(name)!.metadata = null;
+    expect(await store(m).get('webgpu-a')).toBeNull();
   });
 });
