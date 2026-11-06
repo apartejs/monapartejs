@@ -131,8 +131,10 @@ jobs:
           WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
           TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
+          # POST: Coolify 4.2 answers a GET on /api/v1/deploy with 405 "This endpoint has changed to a POST
+          # request" (run 42193480640, 6/11 — the image was built and never deployed).
           code=$(curl --silent --show-error --output /tmp/out.txt --write-out '%{http_code}' \
-            --request GET "$WEBHOOK" \
+            --request POST "$WEBHOOK" \
             --header "Authorization: Bearer $TOKEN")
           echo "HTTP $code"
           # The trailing newline is not cosmetic: the response has none, so a
