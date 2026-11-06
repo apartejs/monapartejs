@@ -14,7 +14,7 @@
  *      of a VERSION, not a receipt for bytes) — otherwise the modal
  *      becomes impossible to dismiss as soon as the network falters.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const markSeenVision = vi.fn();
 const markSeen = vi.fn();
@@ -63,8 +63,18 @@ vi.mock('../souffleurs', () => ({
 
 const { OnboardingPreloadService } = await import('./preload.service');
 
+/**
+ * A `start()` that reached 'done' left the executors' download and the warm-up running in the background: the test
+ * waits for them, or they land in the next test's `calls` — a fixed number of ticks was not enough on CI (6/11).
+ */
+async function backgroundEnded(service: InstanceType<typeof OnboardingPreloadService>) {
+  if (service.state() === 'done') await vi.waitFor(() => expect(warmCaller).toHaveBeenCalled());
+}
+
 describe('OnboardingPreloadService — tower update cycle', () => {
   let service: InstanceType<typeof OnboardingPreloadService>;
+
+  afterEach(() => backgroundEnded(service));
 
   beforeEach(() => {
     markSeenVision.mockClear();
@@ -157,9 +167,9 @@ describe('OnboardingPreloadService — wllama: warm the caller, download the res
   let service: InstanceType<typeof OnboardingPreloadService>;
   const settle = () => new Promise((r) => setTimeout(r, 0));
 
-  beforeEach(async () => {
-    // the earlier tests' background downloads and warm-ups end first, so none lands in `calls`
-    for (let i = 0; i < 5; i++) await settle();
+  afterEach(() => backgroundEnded(service));
+
+  beforeEach(() => {
     markSeen.mockClear();
     warmCaller.mockClear();
     isFileCached.mockImplementation(async () => false);
@@ -172,8 +182,7 @@ describe('OnboardingPreloadService — wllama: warm the caller, download the res
     // The engine loads every adapter of the set already in the cache with the caller: an executor downloaded after
     // the warm-up joined at the first document with a reload, and the warm prompt cache went with it (M5, 5/11).
     await service.start();
-    await settle();
-    await settle();
+    await backgroundEnded(service);
 
     expect(warmCaller).toHaveBeenCalledWith(['read_file', 'compute']);
     expect(calls).toEqual(['gguf/mmproj.gguf', 'gguf/souffleur-pdf.gguf', 'warm']);
@@ -191,8 +200,7 @@ describe('OnboardingPreloadService — wllama: warm the caller, download the res
 
   it('a boot warm-up after the onboarding one does not run again', async () => {
     await service.start();
-    await settle();
-    await settle();
+    await backgroundEnded(service);
     service.warmAtBoot();
     await settle();
 
