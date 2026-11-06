@@ -12,6 +12,7 @@ export {
   prepareCaller,
   prepareExecutor,
   runExecutor,
+  setNextTurnFiles,
   setSouffleurDebug,
   warmCaller,
   type ExecutorAdapter,

@@ -47,6 +47,7 @@ import {
   toChatMessages,
   type ChatMessage,
 } from './wire/chat-wire';
+import type { Lfm3Tool } from './wire/contract-lfm3';
 import type {
   ComputeDevice,
   EngineLike,
@@ -156,11 +157,94 @@ export async function detectComputeDevice(): Promise<ComputeDevice> {
   return _device;
 }
 
-/** Single queue: one pipeline, one operation at a time. */
+/** Single queue: one pipeline, one operation at a time. Any operation stops a read-ahead (see `readAhead`). */
 function enqueue<T>(op: () => Promise<T>): Promise<T> {
+  stopReadAhead();
+  return queue(op);
+}
+
+function queue<T>(op: () => Promise<T>): Promise<T> {
   const run = _chain.then(op, op);
   _chain = run.catch(() => undefined);
   return run;
+}
+
+/**
+ * The files the conversation's next request will list, from the app (the same source as its request
+ * interceptor). Unset, nothing is read ahead.
+ */
+let _nextTurnFiles: (() => SouffleurFileRef[]) | null = null;
+
+export function setNextTurnFiles(source: (() => SouffleurFileRef[]) | null): void {
+  _nextTurnFiles = source;
+}
+
+/** The read-ahead queued or running, if any: stopped by the next operation, before or after it is posted. */
+let _readAhead: { cancelled: boolean; posted: boolean } | null = null;
+
+function stopReadAhead(): void {
+  const running = _readAhead;
+  if (!running) return;
+  _readAhead = null;
+  running.cancelled = true;
+  if (running.posted) getWorker().postMessage({ type: 'abort' } satisfies MainToWorker);
+}
+
+/**
+ * Reads the next turn's prompt ahead, after a final answer that changed the conversation's files (6/11, M5).
+ * A document the model produced joins "Files available" at the next user turn — the F16 edit rows train on it
+ * there — so the system message changes, and the template puts the 1,600 tokens of tools after it: the
+ * follow-up re-read its whole prompt, 45 s with the M5's GPU, 136 s without. The prompt is the turn just
+ * answered with the new system message; its generation prompt opens the answer's own turn, so the follow-up
+ * finds all of it in the cache. It runs while the user reads the document, silently (no status): the next
+ * operation stops it, and llama.cpp keeps the batches already read for whatever shares them.
+ */
+function readAhead(
+  files: readonly SouffleurFileRef[],
+  history: AparteChatRequest['messages'],
+  tools: Lfm3Tool[],
+  device: ComputeDevice,
+  adapterFiles: Awaited<ReturnType<typeof resolveAdapterFiles>>['files'],
+): void {
+  const next = _nextTurnFiles?.();
+  if (!next) return;
+  const system = lfm3SystemPrompt(next);
+  if (system === lfm3SystemPrompt(files)) return;
+  const messages = toChatMessages(system, history);
+  const state = { cancelled: false, posted: false };
+  _readAhead = state;
+  void queue(
+    () =>
+      new Promise<void>((resolve) => {
+        if (state.cancelled) {
+          resolve();
+          return;
+        }
+        const id = _nextId++;
+        const settle = () => {
+          if (_readAhead === state) _readAhead = null;
+          resolve();
+        };
+        _pending.set(id, {
+          onDone: settle,
+          onError: (message) => {
+            console.warn('[souffleurs] read-ahead failed:', message);
+            settle();
+          },
+        });
+        state.posted = true;
+        getWorker().postMessage({
+          type: 'chat',
+          id,
+          adapter: CALLER_ADAPTER,
+          device,
+          messages,
+          tools,
+          maxNewTokens: 1,
+          ...adapterFiles,
+        } satisfies MainToWorker);
+      }),
+  );
 }
 
 /**
@@ -316,6 +400,7 @@ export const SouffleursProvider: AparteAIProvider = {
                   if (!closed) setSouffleurStatus({ status: 'generating', device, tool });
                 },
                 onDone: (usage, calls = []) => {
+                  const answered = !closed && calls.length === 0;
                   if (_lastWire)
                     _lastWire.raw = raw + (calls.length ? '\n' + JSON.stringify(calls) : '');
                   if (debug) {
@@ -341,6 +426,7 @@ export const SouffleursProvider: AparteAIProvider = {
                   emit({ type: 'done', usage });
                   setSouffleurStatus({ status: 'ready', device });
                   finish();
+                  if (answered) readAhead(files, request.messages, tools, device, resolved.files);
                   resolve();
                 },
                 onError: (message) => {

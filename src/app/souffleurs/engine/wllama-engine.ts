@@ -47,6 +47,9 @@ export const N_CTX = 8192;
  */
 export const N_SLOTS = 2;
 
+/** Prompt tokens per llama.cpp batch: one ubatch (512), where wllama can abort. */
+export const N_BATCH = 512;
+
 /** One tile per image, as the ONNX path did by default: multi-tile took 43–98 s on the M5. */
 export const IMAGE_MAX_TOKENS = 256;
 
@@ -307,6 +310,9 @@ export class WllamaEngine implements EngineLike {
     try {
       await wllama.loadModel(mmproj ? [base, mmproj] : [base], {
         n_gpu_layers: gpuLayers(device),
+        // A prompt is read 512 tokens at a time (one ubatch): wllama sees an abort only between two batches, and
+        // llama.cpp's default (2,048) let a Stop or a stopped read-ahead run ~30 s more with the M5's GPU.
+        n_batch: N_BATCH,
         // the model's own chat template for `chat` (LFM3); the raw `generate` path never reads it
         jinja: true,
         ...(blobs.length

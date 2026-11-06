@@ -623,3 +623,13 @@ describe('cacheManagerBlobCache.has', () => {
     expect(await cache.has('https://hf/x.gguf')).toBe(true);
   });
 });
+
+describe('WllamaEngine — a read-ahead stops within a batch (6/11 review)', () => {
+  it('reads a prompt 512 tokens at a time: wllama sees an abort only between two batches', async () => {
+    FakeWllama.loadError = null;
+    const { instances, settled, send } = setup();
+    send(prepare(1));
+    await settled(1, 'ready');
+    expect(instances[0].loads[0].params['n_batch']).toBe(512);
+  });
+});

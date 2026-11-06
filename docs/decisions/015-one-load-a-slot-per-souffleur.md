@@ -27,6 +27,9 @@
   | invoice, total | 96.1 s | 35.1 s | 248 s | 78.2 s |
   | second document in the conversation, total | 106 s | 38.1 s | 240 s | 50.5 s |
   | a follow-up after an image, first word | 14.4 s | 1.4 s | 42.7 s² | 2.3 s |
+  | the plain follow-up after the first document | 44.6 s | 45.1 s | 136 s | 136 s |
 
   ¹ the first message waited for the end of the boot warm-up (130 s on the CPU; the run waits 90 s).
-  ² that answer called render (272.8 s in all).
+  ² that answer called render (272.8 s in all). The last row is not the engine: the produced PDF joins the system
+  message's "Files available" at the next turn, and the 1,590 tokens of tools come after it in the template —
+  [ADR-016](016-read-the-next-turn-ahead.md).

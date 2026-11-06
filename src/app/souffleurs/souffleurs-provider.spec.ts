@@ -510,3 +510,124 @@ describe('Stop before the turn starts', () => {
     expect(worker.sentIds('chat')).toHaveLength(1);
   });
 });
+
+describe('the next turn read ahead after a document (6/11, M5)', () => {
+  const PDF = { id: 'file_1', name: 'facture.pdf', type: 'pdf' };
+  /** The closing turn of a document: the call and its result are in the history, the files are the old list. */
+  const CLOSING = {
+    messages: [
+      { role: 'user', content: 'Une facture pour Dupont, 3 jours à 450 €.' },
+      {
+        role: 'assistant',
+        content: '',
+        toolCalls: [{ id: 'c1', name: 'render', input: { kind: 'pdf', task: 'Facture Dupont' } }],
+      },
+      { role: 'tool', toolCallId: 'c1', content: '{"ok":true,"type":"pdf"}' },
+    ],
+    tools: [{ name: 'render' }],
+    _meta: { souffleurFiles: [] },
+  } as unknown as AparteChatRequest;
+  const usage = { inputTokens: 10, outputTokens: 4, ttftMs: 1, durationMs: 2 };
+  type Chat = Posted & {
+    messages: { role: string; content: string }[];
+    maxNewTokens: number;
+    tools: unknown[];
+  };
+  const chats = (w: FakeWorker) => w.posted.filter((m) => m.type === 'chat') as Chat[];
+
+  async function closeTurn(mod: Awaited<ReturnType<typeof load>>, toolCalls?: unknown[]) {
+    const reader = ((await mod.SouffleursProvider.chat(CLOSING)) as ReadableStream).getReader();
+    await tick();
+    const worker = FakeWorker.last!;
+    const [turn] = chats(worker);
+    worker.reply({ type: 'chunk', id: turn!.id, delta: 'Voici ta facture.' });
+    worker.reply({ type: 'done', id: turn!.id, usage, ...(toolCalls ? { toolCalls } : {}) });
+    while (!(await reader.read()).done);
+    await tick();
+    return { worker, turn: turn! };
+  }
+
+  it("reads the next turn's prompt, with the new file in the system message, after a final answer", async () => {
+    vi.stubGlobal('console', { ...console, log: vi.fn(), warn: vi.fn() });
+    const mod = await load();
+    mod.setNextTurnFiles(() => [PDF]);
+    const { worker, turn } = await closeTurn(mod);
+    const [, ahead] = chats(worker);
+    expect(ahead?.maxNewTokens).toBe(1);
+    expect(ahead!.messages[0]!.content).toContain(
+      'Files available: [{"id":"file_1","name":"facture.pdf","type":"pdf"}]',
+    );
+    // the rest of the prompt is the closing turn's, so the follow-up finds it whole
+    expect(ahead!.messages.slice(1)).toEqual(turn.messages.slice(1));
+    expect(ahead!.tools).toEqual(turn.tools);
+  });
+
+  it('reads nothing ahead when the files did not change', async () => {
+    vi.stubGlobal('console', { ...console, log: vi.fn(), warn: vi.fn() });
+    const mod = await load();
+    mod.setNextTurnFiles(() => []);
+    const { worker } = await closeTurn(mod);
+    expect(chats(worker)).toHaveLength(1);
+  });
+
+  it('reads nothing ahead after a turn that calls a tool: the loop goes on', async () => {
+    vi.stubGlobal('console', { ...console, log: vi.fn(), warn: vi.fn() });
+    const mod = await load();
+    mod.setNextTurnFiles(() => [PDF]);
+    const { worker } = await closeTurn(mod, [
+      { name: 'compute', arguments: '{"expression":"1+1"}' },
+    ]);
+    expect(chats(worker)).toHaveLength(1);
+  });
+
+  it('a new turn stops the read-ahead, which never shows on the status', async () => {
+    vi.stubGlobal('console', { ...console, log: vi.fn(), warn: vi.fn() });
+    const mod = await load();
+    const { getSouffleurStatus } = await import('./status');
+    mod.setNextTurnFiles(() => [PDF]);
+    const { worker } = await closeTurn(mod);
+    const [, ahead] = chats(worker);
+    expect(getSouffleurStatus().status).toBe('ready');
+
+    void ((await mod.SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    await tick();
+    expect(worker.posted.at(-1)?.type).toBe('abort');
+    expect(chats(worker)).toHaveLength(2); // the new turn waits for the read-ahead to stop
+    worker.reply({ type: 'done', id: ahead!.id, usage });
+    await tick();
+    expect(chats(worker)).toHaveLength(3);
+  });
+
+  it('a read-ahead still queued when a new turn arrives is never posted', async () => {
+    vi.stubGlobal('console', { ...console, log: vi.fn(), warn: vi.fn() });
+    const mod = await load();
+    mod.setNextTurnFiles(() => [PDF]);
+    const reader = ((await mod.SouffleursProvider.chat(CLOSING)) as ReadableStream).getReader();
+    await tick();
+    const worker = FakeWorker.last!;
+    const [turn] = chats(worker);
+    // the app's warm-up queued behind the closing turn, so the read-ahead queues behind it
+    const warmed = mod.warmCaller(['render']);
+    worker.reply({ type: 'done', id: turn!.id, usage });
+    while (!(await reader.read()).done);
+    await tick();
+    await tick();
+    const [, warm] = chats(worker);
+    expect(warm?.maxNewTokens).toBe(1);
+    expect(warm!.messages[0]!.content).not.toContain('Files available');
+
+    void ((await mod.SouffleursProvider.chat(REQUEST)) as ReadableStream).getReader();
+    await tick();
+    worker.reply({ type: 'done', id: warm!.id, usage });
+    await warmed;
+    await tick();
+    await tick();
+    expect(worker.posted.some((m) => m.type === 'abort')).toBe(false);
+    // the closing turn, the warm-up, the new turn — no prompt with the new file was ever sent
+    expect(chats(worker)).toHaveLength(3);
+    expect(chats(worker)[2]!.messages.at(-1)?.content).toBe('bonjour');
+    expect(chats(worker).some((c) => c.messages[0]!.content.includes('Files available'))).toBe(
+      false,
+    );
+  });
+});
