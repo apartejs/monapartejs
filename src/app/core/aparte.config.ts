@@ -39,6 +39,7 @@ import {
   setArtifactSink,
   setConversationResolver,
   setFileStore,
+  setNextTurnFiles,
   setSouffleurDebug,
   setReminderHandler,
   setReminderTool,
@@ -90,6 +91,9 @@ export function provideMonaparte(): EnvironmentProviders[] {
       // by default: it's the mode where we debug, we shouldn't have to
       // remember a flag. `bp.debug` stays an explicit override.
       setSouffleurDebug(isDevMode());
+      // The list the next request will carry — the interceptor's own source — so that a document the model
+      // just produced is read into the next turn's prompt while the user reads it (souffleurs-provider's readAhead).
+      setNextTurnFiles(() => fileRegistry.listForWire());
 
       aparteGlobalConfig.setTransport(new AparteDirectTransport({ byok: true }));
       // Every action is off by default — `copy` too since aparté 0.27.1: the

@@ -16,6 +16,18 @@ export interface AdapterFiles {
   baseFile: string;
   /** e.g. 'gguf/souffleur-chat-0.3.0-lora-f16.gguf' */
   adapterFile: string;
+  /**
+   * Every adapter of the gguf set, by souffleur. The engine loads those already in the cache with the base, once, and
+   * picks one per request: switching souffleur neither reloads nor drops the chat's prompt cache. Absent: the
+   * adapter above alone, as before.
+   */
+  setFiles?: Partial<Record<AdapterName, string>>;
+  /**
+   * The vision encoder, sent with a turn that may read an image (its files hold one, WebGPU): loaded with the set, it
+   * serves the description too — no reload, so the chat keeps its prompt cache across an image turn. A load that has
+   * it keeps it.
+   */
+  mmprojFile?: string;
 }
 
 export type MainToWorker =
@@ -43,6 +55,11 @@ export type MainToWorker =
       tools?: readonly Lfm3Tool[];
       maxNewTokens: number;
       debug?: boolean;
+      /**
+       * The boot warm-up: its prompt cache is saved once read and restored at the next app starts (ADR-018) —
+       * 8 ms instead of the 41 s (M5, WebGPU) or 130 s (CPU) that reading the system message and tools takes.
+       */
+      persist?: boolean;
     } & AdapterFiles)
   | ({
       /** Prefill a prompt prefix into the cache so the next turn starting with it is fast. */
@@ -55,7 +72,7 @@ export type MainToWorker =
   | {
       /**
        * read_file(image): the base WITHOUT adapter plus the vision encoder (mmproj) — the
-       * pristine model, the one the encoder was trained with. Mechanically a souffleur swap.
+       * pristine model, the one the encoder was trained with: in the set's load, every adapter at 0.
        */
       type: 'describe-image';
       id: number;
@@ -65,6 +82,8 @@ export type MainToWorker =
       maxNewTokens: number;
       baseFile: string;
       mmprojFile: string;
+      /** The gguf set: a load the description causes takes its cached adapters, so the next turn reloads nothing. */
+      setFiles?: Partial<Record<AdapterName, string>>;
       debug?: boolean;
     }
   | { type: 'abort' }

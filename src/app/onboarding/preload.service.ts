@@ -60,12 +60,12 @@ export class OnboardingPreloadService {
       // ("seen" versions are memorized by the provider via the manifest on
       // every successful load — never a modal after a fresh download)
       this.state.set('done');
-      // Then, in the background: the caller's system prompt into the prompt
-      // cache (the first message would otherwise pay for the whole tool block),
-      // and the executors' files — downloaded only, never loaded, so the warm
-      // caller stays in memory. Best-effort: a failure never blocks, an
-      // executor is downloaded again on first use.
-      void this.warmThenPrefetchExecutors();
+      // Then, in the background: the executors' files, then the caller's system
+      // prompt into the prompt cache (the first message would otherwise pay for
+      // the whole tool block) — the warm-up loads the caller with the executors
+      // already cached, so it waits for them. Best-effort: a failure never
+      // blocks, an executor is downloaded again on first use.
+      void this.prefetchExecutorsThenWarm();
     } catch (err) {
       this.state.set('error');
       this.errorMessage.set(err instanceof Error ? err.message : String(err));
@@ -135,9 +135,13 @@ export class OnboardingPreloadService {
     return aparteGlobalConfig.getTools().map((tool) => tool.name);
   }
 
-  private async warmThenPrefetchExecutors(): Promise<void> {
+  /**
+   * The executors first: the engine loads every adapter of the set already in the cache
+   * together with the caller, so one downloaded after the warm-up joined at the first
+   * document with a reload, and the warm prompt cache was lost with it (M5, 5/11).
+   */
+  private async prefetchExecutorsThenWarm(): Promise<void> {
     this.warmed = true;
-    await warmCaller(this.toolNames());
     const manifest = await getSouffleurManifest();
     for (const adapter of EXECUTOR_ADAPTERS) {
       const role = adapterRole(adapter);
@@ -148,5 +152,6 @@ export class OnboardingPreloadService {
         console.warn(`[onboarding] prefetch ${adapter} failed (retrying on first use)`, err);
       }
     }
+    await warmCaller(this.toolNames());
   }
 }
