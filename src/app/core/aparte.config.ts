@@ -108,6 +108,15 @@ export function provideMonaparte(): EnvironmentProviders[] {
       // Lib reminder: `info` only shows if the message carries a `usage`.
       aparteGlobalConfig.setBubbleActions({ copy: true, retry: true, edit: true, info: true });
 
+      // Pictures a reply names (aparté 1.0): `data:` and `blob:` load, any other
+      // address waits for a click on a link that names its host. The model runs
+      // here, but it reads files the person drops in, and a picture's address can
+      // carry the conversation to a host with no click. Nothing of ours goes
+      // through this path — attachments and documents are blobs — so the empty
+      // list keeps that default and says it is a choice (it also silences the
+      // console note the first held picture would write).
+      aparteGlobalConfig.setImagePolicy([]);
+
       // Compaction. Since aparté 0.26 the plugin decides on its own — after a
       // turn that ends at 80 % of the window, before a send that would not fit,
       // and when the engine refuses a prompt as too long — and it writes a
