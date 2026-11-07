@@ -79,8 +79,8 @@ import { SETTINGS_KEYS, SettingsService } from '../../storage/settings.service';
              inputTokens the engine actually reports, against the model's
              declared contextWindow (8k, the engine's n_ctx), and opens a panel
              of what fills it. It draws nothing before the first turn. No
-             auto-compact (deprecated in aparté 0.26): plugin-compaction decides
-             on its own, wired in core/aparte.config.ts. -->
+             auto-compact (removed in aparté 1.0): plugin-compaction decides on
+             its own, wired in core/aparte.config.ts. -->
         <aparte-context slot="toolbar" variant="ring"></aparte-context>
         <div slot="toolbar" class="helper" [attr.role]="slowDeviceHint() ? 'status' : null">
           {{ slowDeviceHint() ? t().modelStatus.slowDevice : t().chat.helper }}
