@@ -36,11 +36,11 @@ importers:
         specifier: ^19.2.25
         version: 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@aparte/angular':
-        specifier: 1.0.0
-        version: 1.0.0(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@1.0.0)(rxjs@7.8.2)
+        specifier: 1.1.1
+        version: 1.1.1(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@1.1.1)(rxjs@7.8.2)
       '@aparte/core':
-        specifier: 1.0.0
-        version: 1.0.0
+        specifier: 1.1.1
+        version: 1.1.1
       '@aparte/json-render-catalogs':
         specifier: file:vendor/aparte-json-render-catalogs-0.1.0.tgz
         version: file:vendor/aparte-json-render-catalogs-0.1.0.tgz
@@ -57,29 +57,29 @@ importers:
         specifier: file:vendor/aparte-json-render-xlsx-0.1.0.tgz
         version: file:vendor/aparte-json-render-xlsx-0.1.0.tgz
       '@aparte/locales':
-        specifier: 1.0.0
-        version: 1.0.0(@aparte/core@1.0.0)
+        specifier: 1.1.1
+        version: 1.1.1(@aparte/core@1.1.1)
       '@aparte/plugin-ask-user':
-        specifier: 1.0.0
-        version: 1.0.0(@aparte/core@1.0.0)
+        specifier: 1.1.1
+        version: 1.1.1(@aparte/core@1.1.1)
       '@aparte/plugin-compaction':
-        specifier: 1.0.0
-        version: 1.0.0(@aparte/core@1.0.0)
+        specifier: 1.1.1
+        version: 1.1.1(@aparte/core@1.1.1)
       '@aparte/plugin-echarts':
-        specifier: 1.0.0
-        version: 1.0.0(@aparte/core@1.0.0)(echarts@6.1.0)
+        specifier: 1.1.1
+        version: 1.1.1(@aparte/core@1.1.1)(echarts@6.1.0)
       '@aparte/plugin-marked':
-        specifier: 1.0.0
-        version: 1.0.0(@aparte/core@1.0.0)(marked@18.0.7)
+        specifier: 1.1.1
+        version: 1.1.1(@aparte/core@1.1.1)(marked@18.0.7)
       '@aparte/plugin-shiki':
-        specifier: 1.0.0
-        version: 1.0.0(@aparte/core@1.0.0)(shiki@4.3.1)
+        specifier: 1.1.1
+        version: 1.1.1(@aparte/core@1.1.1)(shiki@4.3.1)
       '@aparte/plugin-storage-idb':
-        specifier: 1.0.0
-        version: 1.0.0(@aparte/core@1.0.0)
+        specifier: 1.1.1
+        version: 1.1.1(@aparte/core@1.1.1)
       '@aparte/plugin-streaming-markdown':
-        specifier: 1.0.0
-        version: 1.0.0(@aparte/core@1.0.0)
+        specifier: 1.1.1
+        version: 1.1.1(@aparte/core@1.1.1)
       '@aparte/titler-efigsp':
         specifier: ^1.2.0
         version: 1.2.0
@@ -430,21 +430,21 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@aparte/angular@1.0.0':
-    resolution: {integrity: sha512-1z9J5k80/BORLMj8/gCqwYWUbu6g9IBmHzvZ59Udqhct9r5xaOMs9fXdG7Ly0d692ETNzT0XXdNjj0NTIsnn3w==}
+  '@aparte/angular@1.1.1':
+    resolution: {integrity: sha512-efcK6nnnHZ5/TNogjiFm96SDtlHkuhkold/bn4XKM/AvggXd0PnSLzfvsZ1Bme8dJvItd75k4bmsdXWYVPTJDg==}
     engines: {node: '>=18'}
     peerDependencies:
       '@angular/common': ^19.2.0 || ^20.0.0 || ^21.0.0
       '@angular/core': ^19.2.0 || ^20.0.0 || ^21.0.0
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
       rxjs: ^7.8.0
 
-  '@aparte/core@1.0.0':
-    resolution: {integrity: sha512-QzkoLc5dbwBo7jO934mildMfEmt8xL1jHDRFzKW6LH4Mj1bME0shCjwUUEeOf3ZW0f++/rUGlbDzuRX6J3sd+A==}
+  '@aparte/core@1.1.1':
+    resolution: {integrity: sha512-ESSboyk4f9HepFNiFpvTgDQJIMRnFCLhPfY961hr7KUYd23pqTbfKFgiDktYYOFaSNxBvJsLHam9/UlVXSQTHg==}
     engines: {node: '>=18'}
 
-  '@aparte/engine@1.0.0':
-    resolution: {integrity: sha512-Linh+xw49XL/9WKOmNrJMC9f4sPZFM9370tGGUAQ3nDlAvNPi9m/oiL/SxvYWmqBUqtks9IUFoD5P77G31+9LQ==}
+  '@aparte/engine@1.1.1':
+    resolution: {integrity: sha512-ANNphwZBtl9fUUPlDQ4t1ncAY+AKsGKeGCeoJuaNE3yBb6mxBgEWbh5AQv6uEgOYaB0Mj2seDGkEnbfw4jkckQ==}
     engines: {node: '>=18'}
     peerDependencies:
       '@aparte/core': '*'
@@ -477,56 +477,56 @@ packages:
     version: 0.1.0
     engines: {node: '>=20'}
 
-  '@aparte/locales@1.0.0':
-    resolution: {integrity: sha512-n41syom8HDUpzKQMEbZbmqmA3dkxOUAqcUxG6i9mCjEmVRdTb9bFOMr9ZqI7kRc7ZgP/BbYxNGnM6cQ5UYk02w==}
+  '@aparte/locales@1.1.1':
+    resolution: {integrity: sha512-TobOi6W+guJjcuvlkWAwNZdr4xdscmKVlRXjOYtCaFxxERp522QwGUICKmsYewFqiqs2c4+mU0HpP9Na+Et3cA==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
 
-  '@aparte/plugin-ask-user@1.0.0':
-    resolution: {integrity: sha512-lLSW9iomDep6v575ar30kqheShuZeDvGb34p7CvOIRH0YBOOqGBrU/81FVobuTbTxcPJ33MIEdib+8TtT2aBTA==}
+  '@aparte/plugin-ask-user@1.1.1':
+    resolution: {integrity: sha512-ifnGxqUPQD5QZefgZBaDH3C+fI9ECJ3KYbakiV5SKcEKmKD0Y/r8GFcsgn4PGAgVEJYD/HIy9YGCb/UBrRLT9Q==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
 
-  '@aparte/plugin-compaction@1.0.0':
-    resolution: {integrity: sha512-5t7t4vG15L2lfZK3KGU4QQBLGkcgP06Dvp+hcJdzgL47qhQqW2V3QKs27062Tl3V7s+loiHdLpMlAAsGmXktXw==}
+  '@aparte/plugin-compaction@1.1.1':
+    resolution: {integrity: sha512-Uupnj3NXVWwCyFr7Fbyc1yWMVS6447sK38ixMbkntZdw/aqbQ0yJr9U+7Fltttanzw8zrjm06MSmjZ6gr0DeFw==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
 
-  '@aparte/plugin-echarts@1.0.0':
-    resolution: {integrity: sha512-Ak5Qy5sRerklwILonAGlTkrZLPyQZCYNc+LPViP7jQaFj1y+k2GyVm8cwJirUxhJup2EjjJU/TtDheoJcTOpiw==}
+  '@aparte/plugin-echarts@1.1.1':
+    resolution: {integrity: sha512-J2K+XErgwJAX46ThG0XsXi1UTKJkkrXMDGPvL0A9w9xh0SOOULUzirQGvmASanWzOYSIUMeQig8aXlkO4g/HEA==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
       echarts: '>=6.0.0 <7.0.0'
 
-  '@aparte/plugin-marked@1.0.0':
-    resolution: {integrity: sha512-mdi/1Azkyu+Va+FUiup+icXon+kJejEbEpXICBCv4Baj9Td+GMk/ncIYw6ByjlsTmrlH2AsJsSqOsxnsSrbh1A==}
+  '@aparte/plugin-marked@1.1.1':
+    resolution: {integrity: sha512-ZCphzl/Q8H4g8BylVN51pxcTIE3kBS29HOuDjmDPs+QzEckcDHBUBM5IEDdppHqeHcK8yWOWz4I0EpTo1ixlfQ==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
       marked: ^18.0.0
 
-  '@aparte/plugin-shiki@1.0.0':
-    resolution: {integrity: sha512-Gy/4JrE77r/ZvGTv3Ni9dm7IGISyyNbcw36JlNhX8pCty681znj4B7g9iJAyFeHYo+muOm4b5heDrJ/XtH3f0A==}
+  '@aparte/plugin-shiki@1.1.1':
+    resolution: {integrity: sha512-RlQmnozm/kY81uXgNJvJ0JPWVWshBSTP/r8lHyLo2OREDl/tdXx7viRw2y/Wmi8ZPqjc6ZMPLQ363vPMxPh5sg==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
       shiki: ^4.0.0
 
-  '@aparte/plugin-storage-idb@1.0.0':
-    resolution: {integrity: sha512-f3JLyrUJQ9Z/KLwQ0XMpt07n8nR2ydrV365x6D9dJbMtjiB2oHWoAD+elx7YKbUoS2RWVHyNZ6Snn9eUj7d4Kw==}
+  '@aparte/plugin-storage-idb@1.1.1':
+    resolution: {integrity: sha512-NWUgjypqTQU4mdnDSfIOGBfLYgGxmab5/BBGvQbXtEQ4FhER5vryzySL9O0DfmzIGqkGwkWL35ACMPIUWgKtbQ==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
 
-  '@aparte/plugin-streaming-markdown@1.0.0':
-    resolution: {integrity: sha512-m/3VbMGy4Qj9iCohbap+Jy9ATCIkMtN4mIxEsBSEsGo5pCUwH/RbvJq3H3UIg4WcMATCq4NdPd7gmKfbnyj2nQ==}
+  '@aparte/plugin-streaming-markdown@1.1.1':
+    resolution: {integrity: sha512-36OdeU7qP5VHAoD7MKNxl+w8lATIUyjvKs3HWm3CUCmIrgvl8155Dl9mz+8aRubceR5iY4+x/NbaQ45uSKQ6oA==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@aparte/core': '>=1.0.0 <2.0.0'
+      '@aparte/core': '>=1.1.1 <2.0.0'
 
   '@aparte/titler-efigsp@1.2.0':
     resolution: {integrity: sha512-aZoAlTmtUBcFMA/f2TAs5btfkdK034WTIFFLDKkncOgZ8na+tXtqC0eaFBU6i4cKTQ86niN0JFmAmBHT/0twkw==}
@@ -4371,6 +4371,7 @@ packages:
   image-size@0.5.5:
     resolution: {integrity: sha512-6TDAlDPZxUFCv+fuOkIoXT/V/f3Qbq8e37p+YOiYrUv3v9cc3/6x78VdfPgFVaB9dZYeLUfKgHRebpkm/oP2VQ==}
     engines: {node: '>=0.10.0'}
+    deprecated: Please migrate to image-size@2.x
     hasBin: true
 
   immediate@3.0.6:
@@ -6780,20 +6781,20 @@ snapshots:
       package-manager-detector: 1.8.0
       tinyexec: 1.2.4
 
-  '@aparte/angular@1.0.0(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@1.0.0)(rxjs@7.8.2)':
+  '@aparte/angular@1.1.1(@angular/common@19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2))(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(@aparte/core@1.1.1)(rxjs@7.8.2)':
     dependencies:
       '@angular/common': 19.2.25(@angular/core@19.2.25(rxjs@7.8.2)(zone.js@0.15.1))(rxjs@7.8.2)
       '@angular/core': 19.2.25(rxjs@7.8.2)(zone.js@0.15.1)
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
       rxjs: 7.8.2
 
-  '@aparte/core@1.0.0':
+  '@aparte/core@1.1.1':
     dependencies:
-      '@aparte/engine': 1.0.0(@aparte/core@1.0.0)
+      '@aparte/engine': 1.1.1(@aparte/core@1.1.1)
 
-  '@aparte/engine@1.0.0(@aparte/core@1.0.0)':
+  '@aparte/engine@1.1.1(@aparte/core@1.1.1)':
     optionalDependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
 
   '@aparte/json-render-catalogs@file:vendor/aparte-json-render-catalogs-0.1.0.tgz':
     dependencies:
@@ -6820,41 +6821,41 @@ snapshots:
       '@aparte/json-render-catalogs': file:vendor/aparte-json-render-catalogs-0.1.0.tgz
       exceljs: 4.4.0
 
-  '@aparte/locales@1.0.0(@aparte/core@1.0.0)':
+  '@aparte/locales@1.1.1(@aparte/core@1.1.1)':
     dependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
 
-  '@aparte/plugin-ask-user@1.0.0(@aparte/core@1.0.0)':
+  '@aparte/plugin-ask-user@1.1.1(@aparte/core@1.1.1)':
     dependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
 
-  '@aparte/plugin-compaction@1.0.0(@aparte/core@1.0.0)':
+  '@aparte/plugin-compaction@1.1.1(@aparte/core@1.1.1)':
     dependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
 
-  '@aparte/plugin-echarts@1.0.0(@aparte/core@1.0.0)(echarts@6.1.0)':
+  '@aparte/plugin-echarts@1.1.1(@aparte/core@1.1.1)(echarts@6.1.0)':
     dependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
       echarts: 6.1.0
 
-  '@aparte/plugin-marked@1.0.0(@aparte/core@1.0.0)(marked@18.0.7)':
+  '@aparte/plugin-marked@1.1.1(@aparte/core@1.1.1)(marked@18.0.7)':
     dependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
       marked: 18.0.7
       remend: 1.4.0
 
-  '@aparte/plugin-shiki@1.0.0(@aparte/core@1.0.0)(shiki@4.3.1)':
+  '@aparte/plugin-shiki@1.1.1(@aparte/core@1.1.1)(shiki@4.3.1)':
     dependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
       shiki: 4.3.1
 
-  '@aparte/plugin-storage-idb@1.0.0(@aparte/core@1.0.0)':
+  '@aparte/plugin-storage-idb@1.1.1(@aparte/core@1.1.1)':
     dependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
 
-  '@aparte/plugin-streaming-markdown@1.0.0(@aparte/core@1.0.0)':
+  '@aparte/plugin-streaming-markdown@1.1.1(@aparte/core@1.1.1)':
     dependencies:
-      '@aparte/core': 1.0.0
+      '@aparte/core': 1.1.1
       '@paulrichez/streaming-markdown': 0.3.2
 
   '@aparte/titler-efigsp@1.2.0': {}
